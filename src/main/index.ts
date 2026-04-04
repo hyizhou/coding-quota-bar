@@ -32,6 +32,7 @@ let scheduler: Scheduler | null = null;
 let hideTimer: ReturnType<typeof setTimeout> | null = null;
 let isHoveringWindow = false;
 let isPopupVisible = false;
+let isPinned = false;
 
 /**
  * Provider 显示数据
@@ -139,6 +140,9 @@ function hidePopupWindow(): void {
 function showPopupWindow(): void {
   cancelHide();
   isHoveringWindow = false;
+  if (!isPopupVisible) {
+    isPinned = false;
+  }
   if (!popupWindow) {
     createPopupWindow();
   }
@@ -153,10 +157,11 @@ function showPopupWindow(): void {
  * 延迟隐藏弹出窗口（给鼠标从 tray 移到窗口留时间）
  */
 function scheduleHide(): void {
+  if (isPinned) return;
   cancelHide();
   hideTimer = setTimeout(() => {
     hideTimer = null;
-    if (!isHoveringWindow && popupWindow && !popupWindow.isDestroyed() && isPopupVisible) {
+    if (!isPinned && !isHoveringWindow && popupWindow && !popupWindow.isDestroyed() && isPopupVisible) {
       hidePopupWindow();
     }
   }, 300);
@@ -229,6 +234,20 @@ async function initialize(): Promise<void> {
   });
   trayManager.onMouseLeave(() => {
     scheduleHide();
+  });
+  trayManager.onClick(() => {
+    if (isPinned) {
+      // 已 pin 状态，点击取消 pin 并隐藏
+      isPinned = false;
+      hidePopupWindow();
+    } else if (isPopupVisible) {
+      // 窗口可见但未 pin，切换为 pin
+      isPinned = true;
+    } else {
+      // 窗口不可见，显示并 pin
+      showPopupWindow();
+      isPinned = true;
+    }
   });
 
   // 3. 预创建并加载弹出窗口（隐藏状态，后续直接 show/hide 复用）
