@@ -33,6 +33,18 @@ let hideTimer: ReturnType<typeof setTimeout> | null = null;
 let isHoveringWindow = false;
 let isPopupVisible = false;
 let isPinned = false;
+let blurHandler: (() => void) | null = null;
+
+/**
+ * 窗口显示模式
+ */
+const enum PopupMode {
+  Hover = 'hover',   // 悬浮触发，鼠标离开自动隐藏
+  Pinned = 'pinned', // 点击触发，点击外部隐藏
+  Hidden = 'hidden'  // 窗口在屏幕外
+}
+
+let popupMode: PopupMode = PopupMode.Hidden;
 
 /**
  * Provider 显示数据
@@ -126,23 +138,46 @@ function createPopupWindow(): void {
 }
 
 /**
- * 将窗口移到屏幕外实现"隐藏"，避免 hide/show 导致 DWM 重新合成透明窗口闪烁
+ * 绑定 blur 监听器（Pinned 模式专用）
  */
-function hidePopupWindow(): void {
-  if (!popupWindow || popupWindow.isDestroyed()) return;
-  popupWindow.setBounds({ x: -9999, y: -9999, width: POPUP_WIDTH, height: POPUP_HEIGHT });
-  isPopupVisible = false;
+function attachBlurHandler(): void {
+  detachBlurHandler();
+  blurHandler = () => {
+    if (popupMode === PopupMode.Pinned) {
+      hidePopupWindow();
+    }
+  };
+  popupWindow?.on('blur', blurHandler);
 }
 
 /**
- * 显示弹出窗口（悬浮触发）
+ * 解绑 blur 监听器
  */
-function showPopupWindow(): void {
+function detachBlurHandler(): void {
+  if (blurHandler && popupWindow) {
+    popupWindow.off('blur', blurHandler);
+    blurHandler = null;
+  }
+}
+
+/**
+ * 将窗口移到屏幕外实现"隐藏"
+ */
+function hidePopupWindow(): void {
+  if (!popupWindow || popupWindow.isDestroyed()) return;
+  detachBlurHandler();
+  popupWindow.setBounds({ x: -9999, y: -9999, width: POPUP_WIDTH, height: POPUP_HEIGHT });
+  isPopupVisible = false;
+  popupMode = PopupMode.Hidden;
+}
+
+/**
+ * 显示弹出窗口
+ */
+function showPopupWindow(mode: PopupMode.Hover | PopupMode.Pinned): void {
   cancelHide();
   isHoveringWindow = false;
-  if (!isPopupVisible) {
-    isPinned = false;
-  }
+
   if (!popupWindow) {
     createPopupWindow();
   }
@@ -150,22 +185,43 @@ function showPopupWindow(): void {
     const { x, y } = getPopupPosition();
     popupWindow.setBounds({ x, y, width: POPUP_WIDTH, height: POPUP_HEIGHT });
     isPopupVisible = true;
+    popupMode = mode;
+
+    if (mode === PopupMode.Pinned) {
+      attachBlurHandler();
+    } else {
+      detachBlurHandler();
+    }
   }
 }
 
 /**
- * 延迟隐藏弹出窗口（给鼠标从 tray 移到窗口留时间）
+ * 检测鼠标是否在弹出窗口范围内
+ */
+function isCursorInPopupBounds(): boolean {
+  if (!popupWindow || popupWindow.isDestroyed()) return false;
+  const bounds = popupWindow.getBounds();
+  const cursor = screen.getCursorScreenPoint();
+  return (
+    cursor.x >= bounds.x && cursor.x <= bounds.x + bounds.width &&
+    cursor.y >= bounds.y && cursor.y <= bounds.y + bounds.height
+  );
+}
+
+/**
+ * 延迟隐藏弹出窗口（Hover 模式专用，给鼠标从 tray 移到窗口留时间）
  */
 function scheduleHide(): void {
-  if (isPinned) return;
+  if (popupMode !== PopupMode.Hover) return;
   cancelHide();
   hideTimer = setTimeout(() => {
     hideTimer = null;
-    if (isPinned) return;
+    if (popupMode !== PopupMode.Hover) return;
     if (!popupWindow || popupWindow.isDestroyed() || !isPopupVisible) return;
-    // 窗口聚焦时（用户正在操作中）不隐藏
-    if (popupWindow.isFocused()) return;
-    if (!isHoveringWindow) {
+    // 用屏幕坐标直接判断鼠标是否在窗口范围内（不依赖 renderer 的 DOM 事件）
+    const inBounds = isCursorInPopupBounds();
+    console.log('[Popup] scheduleHide callback: cursorInBounds =', inBounds, 'mode =', popupMode);
+    if (!inBounds) {
       hidePopupWindow();
     }
   }, 300);
@@ -179,18 +235,11 @@ function cancelHide(): void {
 }
 
 /**
- * 打开设置：弹出 popup 窗口并切换到设置视图
+ * 打开设置：弹出 popup 窗口并切换到设置视图（Pinned 模式）
  */
 function openSettings(): void {
-  if (!popupWindow) {
-    createPopupWindow();
-  }
-  if (popupWindow && !popupWindow.isDestroyed()) {
-    const { x, y } = getPopupPosition();
-    popupWindow.setBounds({ x, y, width: POPUP_WIDTH, height: POPUP_HEIGHT });
-    isPopupVisible = true;
-    popupWindow.webContents.send('show-settings');
-  }
+  showPopupWindow(PopupMode.Pinned);
+  popupWindow?.webContents.send('show-settings');
 }
 
 /**
@@ -234,23 +283,23 @@ async function initialize(): Promise<void> {
     }
   });
   trayManager.onMouseEnter(() => {
-    showPopupWindow();
+    if (popupMode === PopupMode.Hidden) {
+      showPopupWindow(PopupMode.Hover);
+    }
   });
   trayManager.onMouseLeave(() => {
     scheduleHide();
   });
   trayManager.onClick(() => {
-    if (isPinned) {
-      // 已 pin 状态，点击取消 pin 并隐藏
-      isPinned = false;
+    if (popupMode === PopupMode.Pinned) {
+      // Pinned 模式：点击隐藏
       hidePopupWindow();
-    } else if (isPopupVisible) {
-      // 窗口可见但未 pin，切换为 pin
-      isPinned = true;
+    } else if (popupMode === PopupMode.Hover) {
+      // Hover 模式：切换为 Pinned
+      showPopupWindow(PopupMode.Pinned);
     } else {
-      // 窗口不可见，显示并 pin
-      showPopupWindow();
-      isPinned = true;
+      // Hidden 模式：显示并 Pinned
+      showPopupWindow(PopupMode.Pinned);
     }
   });
 
@@ -336,6 +385,7 @@ function setupIpcHandlers(): void {
   // 监听 renderer 的鼠标悬浮状态
   ipcMain.on('popup-hover-state', (_, hovering: boolean) => {
     isHoveringWindow = hovering;
+    if (popupMode !== PopupMode.Hover) return;
     if (hovering) {
       cancelHide();
     } else {
