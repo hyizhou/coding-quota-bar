@@ -67,14 +67,13 @@
     </div>
 
     <footer class="footer">
-      <button class="save-btn" :disabled="saving" @click="saveConfig">{{ $t('settings.saveBtn') }}</button>
       <span class="save-status" :class="{ error: saveError }">{{ saveStatus }}</span>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AppConfig, ProviderConfig } from '../types'
 
@@ -98,6 +97,15 @@ const saving = ref(false)
 const saveStatus = ref('')
 const saveError = ref(false)
 const currentConfig = ref<AppConfig | null>(null)
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleSave() {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    saveTimer = null
+    saveConfig()
+  }, 500)
+}
 
 onMounted(async () => {
   const config = await window.electronAPI.getConfig()
@@ -111,6 +119,11 @@ onMounted(async () => {
   refreshInterval.value = String(config.refreshInterval)
   autoStart.value = config.autoStart
   language.value = config.language || locale.value
+
+  // 配置加载完后开始监听变化，自动保存
+  watch([providerList, refreshInterval, autoStart, language], () => {
+    scheduleSave()
+  }, { deep: true })
 })
 
 async function saveConfig() {
@@ -185,20 +198,6 @@ async function saveConfig() {
   border: 1px solid #ddd !important;
   padding: 4px 6px !important;
 }
-
-.save-btn {
-  padding: 6px 20px;
-  background: #4CAF50;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.save-btn:hover:not(:disabled) { background: #43A047; }
-.save-btn:disabled { background: #a5d6a7; cursor: not-allowed; }
 
 .save-status { font-size: 11px; color: #4CAF50; }
 .save-status.error { color: #F44336; }
