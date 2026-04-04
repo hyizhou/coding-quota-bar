@@ -216,10 +216,16 @@ export class TrayManager {
       },
       { type: 'separator' },
       {
-        label: t('tray.autoStart'),
-        type: 'checkbox',
-        checked: this.autoStartEnabled,
-        click: (item: MenuItem) => this.handleAutoStartToggle(item.checked)
+        label: t('tray.about'),
+        click: () => {
+          // TODO: 关于对话框
+        }
+      },
+      {
+        label: t('tray.checkUpdate'),
+        click: () => {
+          // TODO: 检查更新
+        }
       },
       { type: 'separator' },
       {
