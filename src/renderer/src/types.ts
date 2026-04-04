@@ -12,7 +12,7 @@ export interface QuotaItem {
 }
 
 export interface UsageRecord {
-  date: string
+  date: string    // 'YYYY-MM-DD' (日级别) 或 'YYYY-MM-DDTHH' (小时级别)
   used: number
 }
 

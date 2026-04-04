@@ -56,15 +56,15 @@ function formatReset(iso: string): string {
   background: rgba(255, 255, 255, 0.65);
   border-radius: 10px;
   border-left: 4px solid;
-  border-left-color: #22C55E;
+  border-left-color: #333;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: background 0.2s, box-shadow 0.2s;
   animation: cardEnter 0.3s ease-out both;
 }
 
-.quota-card[data-color="green"] { border-left-color: #22C55E; }
-.quota-card[data-color="yellow"] { border-left-color: #F59E0B; }
-.quota-card[data-color="red"] { border-left-color: #EF4444; }
+.quota-card[data-color="green"] { border-left-color: #333; }
+.quota-card[data-color="yellow"] { border-left-color: #666; }
+.quota-card[data-color="red"] { border-left-color: #999; }
 
 .quota-card:hover {
   background: rgba(255, 255, 255, 0.85);
@@ -88,10 +88,10 @@ function formatReset(iso: string): string {
   font-weight: 700;
   font-size: 16px;
   font-variant-numeric: tabular-nums;
-  color: #22C55E;
+  color: #333;
 }
-.quota-percent.yellow { color: #F59E0B; }
-.quota-percent.red { color: #EF4444; }
+.quota-percent.yellow { color: #666; }
+.quota-percent.red { color: #999; }
 
 .progress-bar {
   height: 6px;
@@ -106,9 +106,9 @@ function formatReset(iso: string): string {
   border-radius: 3px;
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.progress-fill.green { background: linear-gradient(90deg, #22C55E, #4ADE80); }
-.progress-fill.yellow { background: linear-gradient(90deg, #F59E0B, #FCD34D); }
-.progress-fill.red { background: linear-gradient(90deg, #EF4444, #F87171); }
+.progress-fill.green { background: linear-gradient(90deg, #333, #555); }
+.progress-fill.yellow { background: linear-gradient(90deg, #666, #888); }
+.progress-fill.red { background: linear-gradient(90deg, #999, #bbb); }
 
 .card-bottom {
   display: flex;

@@ -22,8 +22,8 @@ export interface QuotaItem {
  * 历史统计记录
  */
 export interface UsageRecord {
-  date: string;          // 日期 '2026-04-04'
-  used: number;          // 当日用量
+  date: string;          // 'YYYY-MM-DD' (日级别) 或 'YYYY-MM-DDTHH' (小时级别)
+  used: number;          // 用量
 }
 
 /**

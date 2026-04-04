@@ -23,17 +23,18 @@ interface ZhipuUsageResponse {
 }
 
 /**
- * 生成近30天的伪造历史数据
+ * 生成近7天每小时粒度的伪造历史数据
  */
 function generateMockHistory(): { date: string; used: number }[] {
   const records: { date: string; used: number }[] = [];
   const now = new Date();
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 86400000);
-    const dateStr = d.toISOString().slice(0, 10);
-    // 模拟每天 1万~8万的用量
-    const used = Math.round(10000 + Math.random() * 70000);
-    records.push({ date: dateStr, used });
+  const start = new Date(now);
+  start.setDate(start.getDate() - 7);
+  start.setHours(0, 0, 0, 0);
+  for (let t = start.getTime(); t <= now.getTime(); t += 3600000) {
+    const d = new Date(t);
+    const dateStr = d.toISOString().slice(0, 13); // 'YYYY-MM-DDTHH'
+    records.push({ date: dateStr, used: Math.round(500 + Math.random() * 5000) });
   }
   return records;
 }
