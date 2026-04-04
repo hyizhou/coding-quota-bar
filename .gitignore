@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+out/
+release/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config (contains sensitive data)
+config.json
+
+# Environment
+.env
+
+# TypeScript
+*.tsbuildinfo
+
+# Electron-builder
+electron-builder.yml
+
+.claude/
+CLAUDE.md
+docs/

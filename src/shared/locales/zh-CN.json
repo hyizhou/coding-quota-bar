@@ -1,0 +1,53 @@
+{
+  "main": {
+    "title": "AI 用量监控",
+    "settingsBtn": "设置",
+    "refreshBtn": "刷新",
+    "emptyState": "暂无启用的用量监控",
+    "emptyHint": "请在设置中添加 API Key 并启用平台",
+    "chartSection": "用量趋势",
+    "lastUpdateFallback": "上次更新: --:--",
+    "justNow": "刚刚更新",
+    "minutesAgo": "{n}分钟前更新",
+    "hoursAgo": "{n}小时前更新",
+    "tokenUsage": "Token 用量"
+  },
+  "settings": {
+    "title": "设置",
+    "backBtn": "返回",
+    "providerSection": "平台配置",
+    "generalSection": "通用设置",
+    "refreshInterval": "刷新间隔",
+    "interval1m": "1 分钟",
+    "interval2m": "2 分钟",
+    "interval5m": "5 分钟",
+    "interval10m": "10 分钟",
+    "interval30m": "30 分钟",
+    "autoStart": "开机自启动",
+    "saveBtn": "保存设置",
+    "saving": "保存中...",
+    "saved": "已保存",
+    "saveFailed": "保存失败",
+    "language": "语言"
+  },
+  "provider": {
+    "expired": "已过期",
+    "expiresToday": "今天到期",
+    "expiresTomorrow": "明天到期",
+    "expiresInDays": "{n}天后到期"
+  },
+  "chart": {
+    "tokens": "tokens"
+  },
+  "tray": {
+    "tooltip": "Coding Quota Bar - AI用量监控",
+    "tooltipRemaining": "剩余 {n}%",
+    "refresh": "刷新用量",
+    "settings": "设置",
+    "autoStart": "开机自启",
+    "quit": "退出"
+  },
+  "providers": {
+    "zhipu": "智谱"
+  }
+}

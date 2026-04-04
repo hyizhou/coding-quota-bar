@@ -1,0 +1,53 @@
+{
+  "main": {
+    "title": "AI Usage Monitor",
+    "settingsBtn": "Settings",
+    "refreshBtn": "Refresh",
+    "emptyState": "No usage monitors enabled",
+    "emptyHint": "Add an API Key and enable a platform in settings",
+    "chartSection": "Usage Trend",
+    "lastUpdateFallback": "Last update: --:--",
+    "justNow": "Just updated",
+    "minutesAgo": "Updated {n} min ago",
+    "hoursAgo": "Updated {n} hr ago",
+    "tokenUsage": "Token Usage"
+  },
+  "settings": {
+    "title": "Settings",
+    "backBtn": "Back",
+    "providerSection": "Platform Settings",
+    "generalSection": "General",
+    "refreshInterval": "Refresh Interval",
+    "interval1m": "1 minute",
+    "interval2m": "2 minutes",
+    "interval5m": "5 minutes",
+    "interval10m": "10 minutes",
+    "interval30m": "30 minutes",
+    "autoStart": "Launch at startup",
+    "saveBtn": "Save Settings",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "saveFailed": "Save failed",
+    "language": "Language"
+  },
+  "provider": {
+    "expired": "Expired",
+    "expiresToday": "Expires today",
+    "expiresTomorrow": "Expires tomorrow",
+    "expiresInDays": "Expires in {n} days"
+  },
+  "chart": {
+    "tokens": "tokens"
+  },
+  "tray": {
+    "tooltip": "Coding Quota Bar - AI Usage Monitor",
+    "tooltipRemaining": "{n}% remaining",
+    "refresh": "Refresh Usage",
+    "settings": "Settings",
+    "autoStart": "Launch at Startup",
+    "quit": "Quit"
+  },
+  "providers": {
+    "zhipu": "Zhipu"
+  }
+}

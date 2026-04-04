@@ -1,0 +1,207 @@
+import { promises as fs } from 'node:fs';
+import * as fsSync from 'node:fs';
+import * as path from 'node:path';
+import { app } from 'electron';
+import type { AppConfig } from '../shared/types';
+import { EventEmitter } from 'events';
+
+/**
+ * 配置管理器
+ * 负责配置文件的读写和热加载
+ */
+export class ConfigManager extends EventEmitter {
+  private configPath: string;
+  private config: AppConfig | null = null;
+  private watcher: fsSync.FSWatcher | null = null;
+  private ignoreNextChange = false;
+
+  constructor() {
+    super();
+    // 配置文件路径：用户数据目录 /config.json
+    const userDataPath = app.getPath('userData');
+    this.configPath = path.join(userDataPath, 'config.json');
+  }
+
+  /**
+   * 初始化配置管理器
+   */
+  async initialize(): Promise<AppConfig> {
+    // 确保用户数据目录存在
+    const userDataPath = app.getPath('userData');
+    try {
+      await fs.mkdir(userDataPath, { recursive: true });
+    } catch (error) {
+      console.error('[Config] Failed to create userData directory:', error);
+    }
+
+    // 尝试加载配置，如果不存在则创建默认配置
+    try {
+      await this.load();
+      console.log('[Config] Loaded configuration from', this.configPath);
+    } catch (error) {
+      console.log('[Config] No existing config found, creating default');
+      await this.createDefaultConfig();
+    }
+
+    // 监听配置文件变化
+    this.watch();
+
+    return this.config!;
+  }
+
+  /**
+   * 加载配置文件
+   */
+  private async load(): Promise<AppConfig> {
+    try {
+      const content = await fs.readFile(this.configPath, 'utf-8');
+      this.config = JSON.parse(content) as AppConfig;
+      this.emit('loaded', this.config);
+      return this.config;
+    } catch (error) {
+      throw new Error(`Failed to load config from ${this.configPath}: ${error}`);
+    }
+  }
+
+  /**
+   * 保存配置文件
+   */
+  async save(config: AppConfig): Promise<void> {
+    try {
+      this.ignoreNextChange = true;
+      const content = JSON.stringify(config, null, 2);
+      await fs.writeFile(this.configPath, content, 'utf-8');
+      this.config = config;
+      console.log('[Config] Saved configuration to', this.configPath);
+      this.emit('saved', config);
+      this.emit('changed', config);
+    } catch (error) {
+      this.ignoreNextChange = false;
+      console.error('[Config] Failed to save config:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 创建默认配置文件
+   */
+  private async createDefaultConfig(): Promise<void> {
+    const defaultConfig: AppConfig = {
+      refreshInterval: 300, // 5 分钟
+      providers: {
+        zhipu: {
+          enabled: true,
+          apiKey: 'your-zhipu-api-key-here'
+        },
+        minimax: {
+          enabled: false,
+          apiKey: ''
+        },
+        kimi: {
+          enabled: false,
+          apiKey: ''
+        }
+      },
+      display: {
+        colorThresholds: {
+          green: 50,
+          yellow: 20
+        }
+      },
+      autoStart: false,
+      language: 'zh-CN'
+    };
+
+    await this.save(defaultConfig);
+  }
+
+  /**
+   * 获取当前配置
+   */
+  getConfig(): AppConfig | null {
+    return this.config;
+  }
+
+  /**
+   * 更新配置（部分更新）
+   */
+  async updateConfig(updates: Partial<AppConfig>): Promise<void> {
+    if (!this.config) {
+      throw new Error('Config not initialized');
+    }
+
+    // 深度合并 providers：逐个合并每个 provider 的字段，避免丢失 enabled 等字段
+    const mergedProviders = { ...this.config.providers };
+    if (updates.providers) {
+      for (const [key, value] of Object.entries(updates.providers)) {
+        mergedProviders[key] = {
+          ...mergedProviders[key],
+          ...value
+        };
+      }
+    }
+
+    const newConfig: AppConfig = {
+      ...this.config,
+      ...updates,
+      providers: mergedProviders,
+      display: {
+        ...this.config.display,
+        ...updates.display,
+        colorThresholds: {
+          ...this.config.display.colorThresholds,
+          ...updates.display?.colorThresholds
+        }
+      }
+    };
+
+    await this.save(newConfig);
+  }
+
+  /**
+   * 监听配置文件变化
+   */
+  private watch(): void {
+    try {
+      this.watcher = fsSync.watch(this.configPath, { persistent: false }, (eventType: string) => {
+        if (eventType === 'change') {
+          // 延迟执行，确保文件写入完成
+          setTimeout(async () => {
+            if (this.ignoreNextChange) {
+              this.ignoreNextChange = false;
+              return;
+            }
+            console.log('[Config] Configuration file changed, reloading...');
+            try {
+              await this.load();
+              this.emit('changed', this.config);
+            } catch (error) {
+              console.error('[Config] Failed to reload config:', error);
+            }
+          }, 100);
+        }
+      });
+      console.log('[Config] Watching configuration file for changes');
+    } catch (error) {
+      console.warn('[Config] Failed to watch config file:', error);
+    }
+  }
+
+  /**
+   * 停止监听配置文件变化
+   */
+  private unwatch(): void {
+    if (this.watcher) {
+      this.watcher.close();
+      this.watcher = null;
+    }
+  }
+
+  /**
+   * 销毁配置管理器
+   */
+  destroy(): void {
+    this.unwatch();
+    this.removeAllListeners();
+  }
+}

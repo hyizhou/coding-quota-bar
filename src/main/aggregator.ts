@@ -1,0 +1,171 @@
+import type { UsageResult } from '../shared/types';
+import type { LoadedProvider } from './loader';
+
+/**
+ * 聚合后的用量数据
+ */
+export interface AggregatedUsage {
+  /**
+   * 最低剩余百分比（供托盘显示）
+   */
+  lowestPercent: number;
+
+  /**
+   * 所有 Provider 的用量结果
+   */
+  results: Map<string, UsageResult>;
+
+  /**
+   * 上次更新时间
+   */
+  lastUpdate: Date;
+}
+
+/**
+ * 是否为 Mock 模式（仅 DEV=1 且 QUOTA_MOCK=1 时生效）
+ */
+const isMockMode = () => process.env.DEV === '1' && process.env.QUOTA_MOCK === '1';
+
+/**
+ * 模拟用量数据
+ */
+const MOCK_DATA: Record<string, UsageResult> = {
+  zhipu: {
+    used: 250000,
+    total: 1000000,
+    expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+    details: { remainingPercent: 75 }
+  },
+  minimax: {
+    used: 460000,
+    total: 500000,
+    expiresAt: new Date(Date.now() + 15 * 24 * 3600 * 1000).toISOString(),
+    details: { remainingPercent: 8 }
+  },
+  kimi: {
+    used: 120000,
+    total: 150000,
+    expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
+    details: { remainingPercent: 20 }
+  }
+};
+
+/**
+ * Provider 用量数据汇总器
+ * 收集所有 Provider 的结果并计算最低百分比
+ */
+export class UsageAggregator {
+  private results = new Map<string, UsageResult>();
+  private lastUpdate: Date | null = null;
+
+  /**
+   * 汇总所有 Provider 的用量数据
+   */
+  async aggregate(providers: LoadedProvider[]): Promise<AggregatedUsage> {
+    // 开发模式：直接使用模拟数据，不发送真实请求
+    if (isMockMode()) {
+      console.log('[Aggregator] MOCK MODE - using simulated data');
+      this.results.clear();
+      for (const { type } of providers) {
+        const mock = MOCK_DATA[type] || { used: 0, total: 100, expiresAt: '', details: {} };
+        this.results.set(type, mock);
+      }
+      if (this.results.size === 0) {
+        // 没有启用的 provider 时，填充所有模拟数据
+        for (const [type, data] of Object.entries(MOCK_DATA)) {
+          this.results.set(type, data);
+        }
+      }
+      this.lastUpdate = new Date();
+      const lowestPercent = this.calculateLowestPercent();
+      return { lowestPercent, results: this.results, lastUpdate: this.lastUpdate };
+    }
+
+    // 保存旧数据用于失败时回退
+    const previousResults = new Map(this.results);
+    this.results.clear();
+
+    // 并行请求所有 Provider
+    const promises = providers.map(async ({ type, instance, config }) => {
+      try {
+        const result = await instance.fetchUsage(config);
+        return { type, result, success: true };
+      } catch (error) {
+        console.error(`[Aggregator] Failed to fetch ${type}:`, error);
+        // 失败时保留上次数据（如果有）
+        const previous = previousResults.get(type);
+        if (previous) {
+          console.warn(`[Aggregator] Using previous data for ${type}`);
+          return { type, result: previous, success: false };
+        }
+        // 如果没有上次数据，返回一个默认值避免托盘显示异常
+        return {
+          type,
+          result: { used: 0, total: 100, expiresAt: '', details: {} },
+          success: false
+        };
+      }
+    });
+
+    const outcomes = await Promise.all(promises);
+
+    // 更新结果
+    for (const { type, result } of outcomes) {
+      this.results.set(type, result);
+    }
+
+    this.lastUpdate = new Date();
+
+    // 计算最低百分比
+    const lowestPercent = this.calculateLowestPercent();
+
+    console.log(`[Aggregator] Updated. Lowest: ${lowestPercent}%, Providers: ${this.results.size}`);
+
+    return {
+      lowestPercent,
+      results: this.results,
+      lastUpdate: this.lastUpdate
+    };
+  }
+
+  /**
+   * 计算所有 Provider 中最低的剩余百分比
+   */
+  private calculateLowestPercent(): number {
+    if (this.results.size === 0) {
+      return 100;
+    }
+
+    let minPercent = 100;
+
+    for (const result of this.results.values()) {
+      const percent = result.total > 0 ? ((result.total - result.used) / result.total) * 100 : 0;
+      minPercent = Math.min(minPercent, percent);
+    }
+
+    return Math.round(minPercent * 10) / 10; // 保留一位小数
+  }
+
+  /**
+   * 获取当前聚合数据（不触发刷新）
+   */
+  getCurrentData(): AggregatedUsage | null {
+    if (!this.lastUpdate) {
+      return null;
+    }
+
+    return {
+      lowestPercent: this.calculateLowestPercent(),
+      results: new Map(this.results),
+      lastUpdate: this.lastUpdate
+    };
+  }
+
+  /**
+   * 清空所有数据
+   */
+  clear(): void {
+    this.results.clear();
+    this.lastUpdate = null;
+  }
+}
