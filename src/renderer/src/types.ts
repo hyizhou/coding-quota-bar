@@ -43,6 +43,7 @@ export interface ElectronAPI {
   getConfig: () => Promise<AppConfig | null>
   updateConfig: (updates: unknown) => Promise<AppConfig | null>
   onShowSettings: (callback: () => void) => void
+  notifyHoverState: (hovering: boolean) => void
 }
 
 declare global {

@@ -312,6 +312,27 @@ export class TrayManager {
   }
 
   /**
+   * 注册鼠标进入事件
+   */
+  onMouseEnter(callback: () => void): void {
+    this.tray?.on('mouse-enter', callback);
+  }
+
+  /**
+   * 注册鼠标离开事件
+   */
+  onMouseLeave(callback: () => void): void {
+    this.tray?.on('mouse-leave', callback);
+  }
+
+  /**
+   * 获取托盘图标的屏幕边界矩形
+   */
+  getBounds(): Electron.Rectangle | null {
+    return this.tray?.getBounds() ?? null;
+  }
+
+  /**
    * 销毁托盘
    */
   destroy(): void {

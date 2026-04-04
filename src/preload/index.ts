@@ -34,5 +34,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   onShowSettings: (callback: () => void) => {
     ipcRenderer.on('show-settings', () => callback());
+  },
+
+  /**
+   * 通知主进程鼠标进入/离开窗口
+   */
+  notifyHoverState: (hovering: boolean) => {
+    ipcRenderer.send('popup-hover-state', hovering);
   }
 });

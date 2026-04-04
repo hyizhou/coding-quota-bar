@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, screen } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'path';
 import { TrayManager, getColorByPercent } from './tray';
@@ -29,6 +29,9 @@ let trayManager: TrayManager | null = null;
 let popupWindow: BrowserWindow | null = null;
 let configManager: ConfigManager | null = null;
 let scheduler: Scheduler | null = null;
+let hideTimer: ReturnType<typeof setTimeout> | null = null;
+let isHoveringWindow = false;
+let isPopupVisible = false;
 
 /**
  * Provider 显示数据
@@ -51,8 +54,40 @@ interface UsageDataForRenderer {
   overallPercent: number;
 }
 
+const POPUP_WIDTH = 320;
+const POPUP_HEIGHT = 400;
+
 /**
- * 创建悬浮详情面板
+ * 计算弹出窗口位置：在托盘图标上方居中显示
+ */
+function getPopupPosition(): { x: number; y: number } {
+  const trayBounds = trayManager?.getBounds();
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+
+  let x: number;
+  let y: number;
+
+  if (trayBounds) {
+    // 水平居中于托盘图标
+    x = Math.round(trayBounds.x + trayBounds.width / 2 - POPUP_WIDTH / 2);
+    // 在托盘图标上方显示
+    y = Math.round(trayBounds.y - POPUP_HEIGHT);
+  } else {
+    // 回退：屏幕右下角
+    x = screenWidth - POPUP_WIDTH;
+    y = screenHeight - POPUP_HEIGHT;
+  }
+
+  // 确保不超出屏幕边界
+  x = Math.max(0, Math.min(x, screenWidth - POPUP_WIDTH));
+  y = Math.max(0, Math.min(y, screenHeight - POPUP_HEIGHT));
+
+  return { x, y };
+}
+
+/**
+ * 创建悬浮详情面板（启动时调用一次，之后复用 show/hide）
  */
 function createPopupWindow(): void {
   if (popupWindow) {
@@ -60,14 +95,16 @@ function createPopupWindow(): void {
   }
 
   popupWindow = new BrowserWindow({
-    width: 320,
-    height: 400,
+    x: -9999,
+    y: -9999,
+    width: POPUP_WIDTH,
+    height: POPUP_HEIGHT,
     frame: false,
     transparent: true,
     resizable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
-    show: false,
+    show: true,
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
@@ -82,31 +119,53 @@ function createPopupWindow(): void {
     popupWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 
-  // 失焦时自动关闭
-  popupWindow.on('blur', () => {
-    const win = popupWindow;
-    if (win && !win.isDestroyed() && !win.isFocused()) {
-      win.close();
-    }
-  });
-
   popupWindow.on('closed', () => {
     popupWindow = null;
   });
 }
 
 /**
- * 切换面板显示状态
+ * 将窗口移到屏幕外实现"隐藏"，避免 hide/show 导致 DWM 重新合成透明窗口闪烁
  */
-function togglePopupWindow(): void {
-  if (popupWindow && popupWindow.isVisible()) {
-    popupWindow.hide();
-  } else {
-    if (!popupWindow) {
-      createPopupWindow();
+function hidePopupWindow(): void {
+  if (!popupWindow || popupWindow.isDestroyed()) return;
+  popupWindow.setBounds({ x: -9999, y: -9999, width: POPUP_WIDTH, height: POPUP_HEIGHT });
+  isPopupVisible = false;
+}
+
+/**
+ * 显示弹出窗口（悬浮触发）
+ */
+function showPopupWindow(): void {
+  cancelHide();
+  isHoveringWindow = false;
+  if (!popupWindow) {
+    createPopupWindow();
+  }
+  if (popupWindow && !popupWindow.isDestroyed()) {
+    const { x, y } = getPopupPosition();
+    popupWindow.setBounds({ x, y, width: POPUP_WIDTH, height: POPUP_HEIGHT });
+    isPopupVisible = true;
+  }
+}
+
+/**
+ * 延迟隐藏弹出窗口（给鼠标从 tray 移到窗口留时间）
+ */
+function scheduleHide(): void {
+  cancelHide();
+  hideTimer = setTimeout(() => {
+    hideTimer = null;
+    if (!isHoveringWindow && popupWindow && !popupWindow.isDestroyed() && isPopupVisible) {
+      hidePopupWindow();
     }
-    // TODO: 计算托盘图标位置，将面板定位到图标附近
-    popupWindow?.show();
+  }, 300);
+}
+
+function cancelHide(): void {
+  if (hideTimer) {
+    clearTimeout(hideTimer);
+    hideTimer = null;
   }
 }
 
@@ -117,8 +176,12 @@ function openSettings(): void {
   if (!popupWindow) {
     createPopupWindow();
   }
-  popupWindow?.show();
-  popupWindow?.webContents.send('show-settings');
+  if (popupWindow && !popupWindow.isDestroyed()) {
+    const { x, y } = getPopupPosition();
+    popupWindow.setBounds({ x, y, width: POPUP_WIDTH, height: POPUP_HEIGHT });
+    isPopupVisible = true;
+    popupWindow.webContents.send('show-settings');
+  }
 }
 
 /**
@@ -161,30 +224,36 @@ async function initialize(): Promise<void> {
       app.quit();
     }
   });
-  trayManager.onClick(() => {
-    togglePopupWindow();
+  trayManager.onMouseEnter(() => {
+    showPopupWindow();
+  });
+  trayManager.onMouseLeave(() => {
+    scheduleHide();
   });
 
-  // 3. 创建调度器
+  // 3. 预创建并加载弹出窗口（隐藏状态，后续直接 show/hide 复用）
+  createPopupWindow();
+
+  // 4. 创建调度器
   scheduler = createScheduler(config);
   scheduler.setTrayManager(trayManager);
 
-  // 4. 加载 Provider
+  // 5. 加载 Provider
   const providers = ProviderLoader.loadProviders(config.providers);
   scheduler.setProviders(providers);
 
   console.log(`[App] Loaded ${providers.length} provider(s)`);
 
-  // 5. 启动定时刷新
+  // 6. 启动定时刷新
   scheduler.start();
 
-  // 6. 设置开机自启
+  // 7. 设置开机自启
   updateAutoStart(config.autoStart);
 
-  // 7. 监听配置变化
+  // 8. 监听配置变化
   setupConfigListeners();
 
-  // 8. 设置 IPC 通信
+  // 9. 设置 IPC 通信
   setupIpcHandlers();
 
   console.log('[App] Initialization complete');
@@ -241,6 +310,16 @@ function updateAutoStart(enabled: boolean): void {
  * 设置 IPC 通信处理器
  */
 function setupIpcHandlers(): void {
+  // 监听 renderer 的鼠标悬浮状态
+  ipcMain.on('popup-hover-state', (_, hovering: boolean) => {
+    isHoveringWindow = hovering;
+    if (hovering) {
+      cancelHide();
+    } else {
+      scheduleHide();
+    }
+  });
+
   // 获取开发状态
   ipcMain.handle('get-dev-mode', () => {
     return isDev;
