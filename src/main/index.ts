@@ -161,7 +161,11 @@ function scheduleHide(): void {
   cancelHide();
   hideTimer = setTimeout(() => {
     hideTimer = null;
-    if (!isPinned && !isHoveringWindow && popupWindow && !popupWindow.isDestroyed() && isPopupVisible) {
+    if (isPinned) return;
+    if (!popupWindow || popupWindow.isDestroyed() || !isPopupVisible) return;
+    // 窗口聚焦时（用户正在操作中）不隐藏
+    if (popupWindow.isFocused()) return;
+    if (!isHoveringWindow) {
       hidePopupWindow();
     }
   }, 300);
