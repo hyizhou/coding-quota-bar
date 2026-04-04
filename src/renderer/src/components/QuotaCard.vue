@@ -1,5 +1,5 @@
 <template>
-  <div class="quota-card" :data-color="color">
+  <div class="quota-card">
     <div class="card-top">
       <span class="quota-label">{{ label }}</span>
       <span class="quota-percent" :class="color">{{ (100 - usageRate).toFixed(1) }}%</span>
@@ -39,11 +39,9 @@ function formatReset(iso: string): string {
     const d = new Date(iso)
     const diff = Math.ceil((d.getTime() - Date.now()) / 60000)
     if (diff < 0) return t('provider.expired')
-    if (diff < 60) return `${diff}min`
     if (diff < 1440) {
-      const h = Math.floor(diff / 60)
-      const m = diff % 60
-      return m > 0 ? `${h}h${m}m` : `${h}h`
+      // 24小时内，显示具体时间点 "HH:MM"
+      return d.toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit', hour12: false })
     }
     return d.toLocaleDateString(locale.value, { month: 'short', day: 'numeric' })
   } catch { return iso }
@@ -55,16 +53,10 @@ function formatReset(iso: string): string {
   padding: 8px 10px;
   background: rgba(255, 255, 255, 0.65);
   border-radius: 10px;
-  border-left: 4px solid;
-  border-left-color: #333;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: background 0.2s, box-shadow 0.2s;
   animation: cardEnter 0.3s ease-out both;
 }
-
-.quota-card[data-color="green"] { border-left-color: #333; }
-.quota-card[data-color="yellow"] { border-left-color: #666; }
-.quota-card[data-color="red"] { border-left-color: #999; }
 
 .quota-card:hover {
   background: rgba(255, 255, 255, 0.85);
