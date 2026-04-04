@@ -45,6 +45,8 @@
     "refresh": "Refresh Usage",
     "settings": "Settings",
     "autoStart": "Launch at Startup",
+    "about": "About",
+    "checkUpdate": "Check for Updates",
     "quit": "Quit"
   },
   "providers": {

@@ -45,6 +45,8 @@
     "refresh": "刷新用量",
     "settings": "设置",
     "autoStart": "开机自启",
+    "about": "关于",
+    "checkUpdate": "检查更新",
     "quit": "退出"
   },
   "providers": {
