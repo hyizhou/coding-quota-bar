@@ -10,7 +10,8 @@
     "justNow": "刚刚更新",
     "minutesAgo": "{n}分钟前更新",
     "hoursAgo": "{n}小时前更新",
-    "tokenUsage": "Token 用量"
+    "tokenUsage": "Token 用量",
+    "usageStats": "使用统计"
   },
   "settings": {
     "title": "设置",

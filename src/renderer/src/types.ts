@@ -2,13 +2,24 @@
  * Renderer 进程共享类型定义
  */
 
-export interface ProviderUsageData {
-  name: string
+export interface QuotaItem {
+  label: string
   used: number
   total: number
-  percent: number
-  expiresAt: string
+  usageRate: number    // 使用率 0-100
+  resetAt: string      // 重置时间
   color: 'green' | 'yellow' | 'red'
+}
+
+export interface UsageRecord {
+  date: string
+  used: number
+}
+
+export interface ProviderUsageData {
+  name: string
+  quotas: QuotaItem[]
+  usageHistory: UsageRecord[]
 }
 
 export interface UsageState {

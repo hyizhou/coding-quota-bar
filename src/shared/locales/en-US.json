@@ -10,7 +10,8 @@
     "justNow": "Just updated",
     "minutesAgo": "Updated {n} min ago",
     "hoursAgo": "Updated {n} hr ago",
-    "tokenUsage": "Token Usage"
+    "tokenUsage": "Token Usage",
+    "usageStats": "Usage Stats"
   },
   "settings": {
     "title": "Settings",

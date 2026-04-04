@@ -23,6 +23,22 @@ interface ZhipuUsageResponse {
 }
 
 /**
+ * 生成近30天的伪造历史数据
+ */
+function generateMockHistory(): { date: string; used: number }[] {
+  const records: { date: string; used: number }[] = [];
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86400000);
+    const dateStr = d.toISOString().slice(0, 10);
+    // 模拟每天 1万~8万的用量
+    const used = Math.round(10000 + Math.random() * 70000);
+    records.push({ date: dateStr, used });
+  }
+  return records;
+}
+
+/**
  * 智谱 Coding Plan Provider
  */
 export class ZhipuProvider implements Provider {
@@ -64,6 +80,8 @@ export class ZhipuProvider implements Provider {
       const remaining = total - used;
       const expiresAt = new Date(tokenLimit.nextResetTime).toISOString();
 
+      // TODO: 从 API 获取真实的 quotas 和 usageHistory
+      // 目前使用伪造数据
       return {
         used,
         total,
@@ -71,7 +89,24 @@ export class ZhipuProvider implements Provider {
         details: {
           percentage: tokenLimit.percentage,
           remaining,
-          remainingPercent: Math.round((remaining / total) * 1000) / 10
+          remainingPercent: Math.round((remaining / total) * 1000) / 10,
+          quotas: [
+            {
+              label: '5小时窗口',
+              used: 250000,
+              total: 1000000,
+              usageRate: 25,
+              resetAt: new Date(Date.now() + 5 * 3600000).toISOString()
+            },
+            {
+              label: 'MCP额度',
+              used: 12,
+              total: 50,
+              usageRate: 24,
+              resetAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString()
+            }
+          ],
+          usageHistory: generateMockHistory()
         }
       };
     } catch (error) {

@@ -29,24 +29,55 @@ const isMockMode = () => process.env.DEV === '1' && process.env.QUOTA_MOCK === '
 /**
  * 模拟用量数据
  */
+/** 生成近30天伪造历史数据 */
+function generateMockHistory(): { date: string; used: number }[] {
+  const records: { date: string; used: number }[] = [];
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86400000);
+    const dateStr = d.toISOString().slice(0, 10);
+    records.push({ date: dateStr, used: Math.round(10000 + Math.random() * 70000) });
+  }
+  return records;
+}
+
 const MOCK_DATA: Record<string, UsageResult> = {
   zhipu: {
     used: 250000,
     total: 1000000,
-    expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
-    details: { remainingPercent: 75 }
+    expiresAt: new Date(Date.now() + 5 * 3600000).toISOString(),
+    details: {
+      remainingPercent: 75,
+      quotas: [
+        { label: '5小时窗口', used: 250000, total: 1000000, usageRate: 25, resetAt: new Date(Date.now() + 5 * 3600000).toISOString() },
+        { label: 'MCP额度', used: 12, total: 50, usageRate: 24, resetAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString() }
+      ],
+      usageHistory: generateMockHistory()
+    }
   },
   minimax: {
     used: 460000,
     total: 500000,
     expiresAt: new Date(Date.now() + 15 * 24 * 3600 * 1000).toISOString(),
-    details: { remainingPercent: 8 }
+    details: {
+      remainingPercent: 8,
+      quotas: [
+        { label: '配额', used: 460000, total: 500000, usageRate: 92, resetAt: new Date(Date.now() + 15 * 24 * 3600 * 1000).toISOString() }
+      ],
+      usageHistory: generateMockHistory()
+    }
   },
   kimi: {
     used: 120000,
     total: 150000,
     expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
-    details: { remainingPercent: 20 }
+    details: {
+      remainingPercent: 20,
+      quotas: [
+        { label: '配额', used: 120000, total: 150000, usageRate: 80, resetAt: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString() }
+      ],
+      usageHistory: generateMockHistory()
+    }
   }
 };
 

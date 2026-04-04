@@ -11,9 +11,9 @@ export type DisplayColor = 'green' | 'yellow' | 'red';
  * 颜色配置
  */
 const COLORS = {
-  green: '#4CAF50',
-  yellow: '#FF9800',
-  red: '#F44336'
+  green: '#22C55E',
+  yellow: '#F59E0B',
+  red: '#EF4444'
 };
 
 /**

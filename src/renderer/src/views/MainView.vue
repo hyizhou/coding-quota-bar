@@ -16,23 +16,29 @@
       </div>
     </header>
 
-    <div class="providers-list">
+    <div class="main-body">
       <template v-if="providers.length === 0">
         <div class="empty-state">
           <p>{{ $t('main.emptyState') }}</p>
           <p class="hint">{{ $t('main.emptyHint') }}</p>
         </div>
       </template>
-      <ProviderCard
-        v-for="p in sortedProviders"
-        :key="p.name"
-        v-bind="p"
-      />
-    </div>
 
-    <div class="chart-section" v-if="providers.length > 0">
-      <div class="section-label">{{ $t('main.chartSection') }}</div>
-      <UsageChart :chart-data="chartData" />
+      <template v-for="p in providers" :key="p.name">
+        <div class="provider-section">
+          <div class="provider-name-row">{{ p.name }}</div>
+          <QuotaCard
+            v-for="q in p.quotas"
+            :key="q.label"
+            v-bind="q"
+          />
+          <UsageStats
+            v-if="p.usageHistory.length > 0"
+            :title="$t('main.usageStats')"
+            :records="p.usageHistory"
+          />
+        </div>
+      </template>
     </div>
 
     <footer class="footer">
@@ -44,8 +50,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ProviderCard from '../components/ProviderCard.vue'
-import UsageChart from '../components/UsageChart.vue'
+import QuotaCard from '../components/QuotaCard.vue'
+import UsageStats from '../components/UsageStats.vue'
 import type { ProviderUsageData, UsageState } from '../types'
 
 defineEmits<{ 'open-settings': [] }>()
@@ -57,10 +63,6 @@ const lastUpdate = ref('')
 const loading = ref(false)
 const now = ref(Date.now())
 
-const sortedProviders = computed(() =>
-  [...providers.value].sort((a, b) => a.percent - b.percent)
-)
-
 const lastUpdateText = computed(() => {
   if (!lastUpdate.value) return t('main.lastUpdateFallback')
   try {
@@ -71,31 +73,6 @@ const lastUpdateText = computed(() => {
     if (diffMins < 1440) return t('main.hoursAgo', { n: Math.floor(diffMins / 60) })
     return date.toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' })
   } catch { return lastUpdate.value }
-})
-
-// Mock chart data
-const chartData = computed(() => {
-  const labels: string[] = []
-  const data: number[] = []
-  const current = new Date()
-  let prev = 2500
-  for (let i = 11; i >= 0; i--) {
-    const h = new Date(current.getTime() - i * 3600000)
-    labels.push(`${h.getHours().toString().padStart(2, '0')}:00`)
-    prev = Math.max(200, prev + (Math.random() - 0.4) * 1500)
-    data.push(Math.round(prev))
-  }
-  return {
-    labels,
-    datasets: [{
-      label: t('main.tokenUsage'),
-      data,
-      backgroundColor: 'rgba(76, 175, 80, 0.5)',
-      borderColor: 'rgba(76, 175, 80, 0.8)',
-      borderWidth: 1,
-      borderRadius: 2
-    }]
-  }
 })
 
 function applyState(state: UsageState) {
@@ -131,30 +108,28 @@ onMounted(fetchData)
   height: 100%;
 }
 
-.providers-list {
+.main-body {
   flex: 1;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  padding: 0 10px;
 }
 
-.providers-list::-webkit-scrollbar { width: 3px; }
-.providers-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+.main-body::-webkit-scrollbar { width: 3px; }
+.main-body::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
 
-.chart-section {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid #eee;
+.provider-section {
+  margin-bottom: 10px;
 }
 
-.section-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: #999;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
+.provider-name-row {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+}
+
+.provider-section .quota-card {
+  margin-bottom: 6px;
 }
 
 .empty-state {

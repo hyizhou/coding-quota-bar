@@ -6,7 +6,7 @@ import { ProviderLoader } from './loader';
 import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale, t as i18nT } from './i18n';
-import type { UsageResult } from '../shared/types';
+import type { UsageResult, QuotaItem as SharedQuotaItem, UsageRecord as SharedUsageRecord } from '../shared/types';
 
 // 加载 .env 文件
 const envPath = path.join(__dirname, '..', '..', '.env');
@@ -47,15 +47,24 @@ const enum PopupMode {
 let popupMode: PopupMode = PopupMode.Hidden;
 
 /**
+ * Renderer 端额度项
+ */
+interface QuotaDisplayItem {
+  label: string;
+  used: number;
+  total: number;
+  usageRate: number;
+  resetAt: string;
+  color: 'green' | 'yellow' | 'red';
+}
+
+/**
  * Provider 显示数据
  */
 interface ProviderDisplayData {
   name: string;
-  used: number;
-  total: number;
-  percent: number;
-  expiresAt: string;
-  color: 'green' | 'yellow' | 'red';
+  quotas: QuotaDisplayItem[];
+  usageHistory: SharedUsageRecord[];
 }
 
 /**
@@ -454,15 +463,24 @@ function convertProviderData(
   result: UsageResult,
   thresholds: { green: number; yellow: number }
 ): ProviderDisplayData {
-  const percent = result.total > 0 ? ((result.total - result.used) / result.total) * 100 : 0;
+  const quotas: QuotaDisplayItem[] = (result.details?.quotas ?? []).map(q => ({
+    label: q.label,
+    used: q.used,
+    total: q.total,
+    usageRate: q.usageRate,
+    resetAt: q.resetAt,
+    color: getColorByPercent(100 - q.usageRate, thresholds)
+  }));
+
+  const usageHistory: SharedUsageRecord[] = (result.details?.usageHistory ?? []).map(r => ({
+    date: r.date,
+    used: r.used
+  }));
 
   return {
     name: getProviderDisplayName(type),
-    used: result.used,
-    total: result.total,
-    percent: Math.round(percent * 10) / 10,
-    expiresAt: result.expiresAt,
-    color: getColorByPercent(percent, thresholds)
+    quotas,
+    usageHistory
   };
 }
 
