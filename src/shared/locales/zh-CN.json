@@ -29,7 +29,8 @@
     "saving": "保存中...",
     "saved": "已保存",
     "saveFailed": "保存失败",
-    "language": "语言"
+    "language": "语言",
+    "envKeyHint": "已通过环境变量配置"
   },
   "provider": {
     "expired": "已过期",

@@ -19,6 +19,7 @@ export interface UsageRecord {
 export interface ProviderUsageData {
   name: string
   level?: string
+  error?: string
   quotas: QuotaItem[]
   usageHistory: UsageRecord[]
 }
@@ -54,6 +55,7 @@ export interface ElectronAPI {
   refreshUsage: () => Promise<UsageState | null>
   getConfig: () => Promise<AppConfig | null>
   updateConfig: (updates: unknown) => Promise<AppConfig | null>
+  getEnvKeyStatus: () => Promise<Record<string, boolean>>
   onShowSettings: (callback: () => void) => void
   notifyHoverState: (hovering: boolean) => void
 }

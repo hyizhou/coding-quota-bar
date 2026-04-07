@@ -30,16 +30,22 @@
             <span class="provider-name">{{ p.name }}</span>
             <span v-if="p.level" class="provider-level">{{ p.level }}</span>
           </div>
-          <QuotaCard
-            v-for="q in p.quotas"
-            :key="q.label"
-            v-bind="q"
-          />
-          <UsageStats
-            v-if="p.usageHistory.length > 0"
-            :title="$t('main.usageStats')"
-            :records="p.usageHistory"
-          />
+          <div v-if="p.error" class="error-card">
+            <span class="error-icon">!</span>
+            <span class="error-text">{{ formatError(p.error) }}</span>
+          </div>
+          <template v-else>
+            <QuotaCard
+              v-for="q in p.quotas"
+              :key="q.label"
+              v-bind="q"
+            />
+            <UsageStats
+              v-if="p.usageHistory.length > 0"
+              :title="$t('main.usageStats')"
+              :records="p.usageHistory"
+            />
+          </template>
         </div>
       </template>
     </div>
@@ -97,6 +103,11 @@ async function handleRefresh() {
     if (state) applyState(state)
   } catch (e) { console.error('[MainView] refresh failed:', e) }
   finally { loading.value = false }
+}
+
+function formatError(msg: string): string {
+  // 去掉 [Zhipu] 等前缀，保留核心信息
+  return msg.replace(/^\[[\w]+\]\s*/, '')
 }
 
 setInterval(() => { now.value = Date.now() }, 60000)
@@ -159,6 +170,37 @@ onMounted(fetchData)
 }
 .empty-state p { margin-bottom: 4px; }
 .empty-state .hint { font-size: 11px; color: #ccc; }
+
+.error-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fff3f3;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.error-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error-text {
+  font-size: 12px;
+  color: #991b1b;
+  line-height: 1.4;
+}
 
 .spinning svg {
   animation: spin 0.8s linear infinite;

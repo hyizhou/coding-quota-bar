@@ -34,6 +34,7 @@ export interface UsageResult {
   total: number;         // 总量
   expiresAt: string;     // 到期时间 ISO 8601
   level?: string;        // 套餐等级，如 "lite"、"pro"、"max"
+  error?: string;        // 错误信息（如 key 无效、网络异常等）
   details?: {
     quotas?: QuotaItem[];          // 多个额度项
     usageHistory?: UsageRecord[];  // 历史统计

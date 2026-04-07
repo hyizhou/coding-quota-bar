@@ -127,17 +127,19 @@ export class UsageAggregator {
         const result = await instance.fetchUsage(config);
         return { type, result, success: true };
       } catch (error) {
-        console.error(`[Aggregator] Failed to fetch ${type}:`, error);
-        // 失败时保留上次数据（如果有）
+        const errMsg = error instanceof Error ? error.message : String(error);
+        console.error(`[Aggregator] Failed to fetch ${type}:`, errMsg);
+        // 失败时保留上次数据（如果有），附加错误信息
         const previous = previousResults.get(type);
         if (previous) {
           console.warn(`[Aggregator] Using previous data for ${type}`);
+          previous.error = errMsg;
           return { type, result: previous, success: false };
         }
-        // 如果没有上次数据，返回一个默认值避免托盘显示异常
+        // 没有历史数据时返回错误结果
         return {
           type,
-          result: { used: 0, total: 100, expiresAt: '', details: {} },
+          result: { used: 0, total: 100, expiresAt: '', error: errMsg, details: {} },
           success: false
         };
       }

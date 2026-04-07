@@ -29,7 +29,8 @@
     "saving": "Saving...",
     "saved": "Saved",
     "saveFailed": "Save failed",
-    "language": "Language"
+    "language": "Language",
+    "envKeyHint": "Configured via env var"
   },
   "provider": {
     "expired": "Expired",

@@ -146,7 +146,7 @@ export class ConfigManager extends EventEmitter {
       providers: {
         zhipu: {
           enabled: true,
-          apiKey: 'your-zhipu-api-key-here'
+          apiKey: ''
         },
         minimax: {
           enabled: false,

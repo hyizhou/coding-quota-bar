@@ -30,6 +30,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateConfig: (updates: unknown) => ipcRenderer.invoke('update-config', updates),
 
   /**
+   * 获取环境变量 Key 状态
+   */
+  getEnvKeyStatus: () => ipcRenderer.invoke('get-env-key-status'),
+
+  /**
    * 监听主进程的"显示设置"事件
    */
   onShowSettings: (callback: () => void) => {

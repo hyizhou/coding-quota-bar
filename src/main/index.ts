@@ -64,6 +64,7 @@ interface QuotaDisplayItem {
 interface ProviderDisplayData {
   name: string;
   level?: string;
+  error?: string;
   quotas: QuotaDisplayItem[];
   usageHistory: SharedUsageRecord[];
 }
@@ -425,6 +426,15 @@ function setupIpcHandlers(): void {
     return configManager?.getConfig();
   });
 
+  // 获取环境变量 Key 状态
+  ipcMain.handle('get-env-key-status', () => {
+    const result: Record<string, boolean> = {};
+    if (process.env.Z_AI_API_KEY) {
+      result.zhipu = true;
+    }
+    return result;
+  });
+
   // 更新配置
   ipcMain.handle('update-config', async (_, updates) => {
     if (!configManager) return null;
@@ -481,6 +491,7 @@ function convertProviderData(
   return {
     name: getProviderDisplayName(type),
     level: result.level,
+    error: result.error,
     quotas,
     usageHistory
   };

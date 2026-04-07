@@ -24,7 +24,7 @@
               :type="info.showKey ? 'text' : 'password'"
               class="form-input"
               v-model="info.apiKey"
-              placeholder="API Key"
+              :placeholder="info.hasEnvKey && !info.apiKey ? $t('settings.envKeyHint') : 'API Key'"
             />
             <button class="icon-btn eye-btn" @click="info.showKey = !info.showKey">
               <svg v-if="info.showKey" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -87,6 +87,7 @@ interface ProviderInfo {
   enabled: boolean
   apiKey: string
   showKey: boolean
+  hasEnvKey?: boolean
 }
 
 const providerList = ref<ProviderInfo[]>([])
@@ -97,6 +98,7 @@ const saving = ref(false)
 const saveStatus = ref('')
 const saveError = ref(false)
 const currentConfig = ref<AppConfig | null>(null)
+const envKeyStatus = ref<Record<string, boolean>>({})
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 function scheduleSave() {
@@ -111,8 +113,9 @@ onMounted(async () => {
   const config = await window.electronAPI.getConfig()
   if (!config) return
   currentConfig.value = config
+  envKeyStatus.value = await window.electronAPI.getEnvKeyStatus()
   providerList.value = [
-    { key: 'zhipu', label: t('providers.zhipu'), enabled: config.providers.zhipu?.enabled ?? false, apiKey: config.providers.zhipu?.apiKey ?? '', showKey: false },
+    { key: 'zhipu', label: t('providers.zhipu'), enabled: config.providers.zhipu?.enabled ?? false, apiKey: config.providers.zhipu?.apiKey ?? '', showKey: false, hasEnvKey: !!envKeyStatus.value.zhipu },
     { key: 'minimax', label: 'MiniMax', enabled: config.providers.minimax?.enabled ?? false, apiKey: config.providers.minimax?.apiKey ?? '', showKey: false },
     { key: 'kimi', label: 'Kimi', enabled: config.providers.kimi?.enabled ?? false, apiKey: config.providers.kimi?.apiKey ?? '', showKey: false }
   ]
