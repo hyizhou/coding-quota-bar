@@ -26,7 +26,10 @@
 
       <template v-for="p in providers" :key="p.name">
         <div class="provider-section">
-          <div class="provider-name-row">{{ p.name }}</div>
+          <div class="provider-name-row">
+            <span class="provider-name">{{ p.name }}</span>
+            <span v-if="p.level" class="provider-level">{{ p.level }}</span>
+          </div>
           <QuotaCard
             v-for="q in p.quotas"
             :key="q.label"
@@ -122,10 +125,27 @@ onMounted(fetchData)
 }
 
 .provider-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.provider-name {
   font-size: 14px;
   font-weight: 700;
   color: #1a1a1a;
-  margin-bottom: 6px;
+}
+
+.provider-level {
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: #555;
+  padding: 1px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .provider-section .quota-card {

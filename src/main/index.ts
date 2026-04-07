@@ -63,6 +63,7 @@ interface QuotaDisplayItem {
  */
 interface ProviderDisplayData {
   name: string;
+  level?: string;
   quotas: QuotaDisplayItem[];
   usageHistory: SharedUsageRecord[];
 }
@@ -479,6 +480,7 @@ function convertProviderData(
 
   return {
     name: getProviderDisplayName(type),
+    level: result.level,
     quotas,
     usageHistory
   };

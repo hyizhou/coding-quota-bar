@@ -10,6 +10,9 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()]
   },
   renderer: {
-    plugins: [vue()]
+    plugins: [vue()],
+    server: {
+      port: 5174
+    }
   }
 })

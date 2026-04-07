@@ -1,4 +1,4 @@
-import type { Provider, ProviderConfig, UsageResult } from '../shared/types';
+import type { Provider, UsageResult } from '../shared/types';
 import { HttpClientWithRetry } from '../main/http';
 
 /**
@@ -17,26 +17,10 @@ interface ZhipuUsageResponse {
   code: number;
   data?: {
     limits: ZhipuLimitItem[];
+    level?: string;
   };
   msg?: string;
   success?: boolean;
-}
-
-/**
- * 生成近7天每小时粒度的伪造历史数据
- */
-function generateMockHistory(): { date: string; used: number }[] {
-  const records: { date: string; used: number }[] = [];
-  const now = new Date();
-  const start = new Date(now);
-  start.setDate(start.getDate() - 7);
-  start.setHours(0, 0, 0, 0);
-  for (let t = start.getTime(); t <= now.getTime(); t += 3600000) {
-    const d = new Date(t);
-    const dateStr = d.toISOString().slice(0, 13); // 'YYYY-MM-DDTHH'
-    records.push({ date: dateStr, used: Math.round(500 + Math.random() * 5000) });
-  }
-  return records;
 }
 
 /**
@@ -81,33 +65,22 @@ export class ZhipuProvider implements Provider {
       const remaining = total - used;
       const expiresAt = new Date(tokenLimit.nextResetTime).toISOString();
 
-      // TODO: 从 API 获取真实的 quotas 和 usageHistory
-      // 目前使用伪造数据
       return {
         used,
         total,
         expiresAt,
+        level: response.data.level,
         details: {
           percentage: tokenLimit.percentage,
           remaining,
           remainingPercent: Math.round((remaining / total) * 1000) / 10,
-          quotas: [
-            {
-              label: '5小时窗口',
-              used: 250000,
-              total: 1000000,
-              usageRate: 25,
-              resetAt: new Date(Date.now() + 5 * 3600000).toISOString()
-            },
-            {
-              label: 'MCP额度',
-              used: 12,
-              total: 50,
-              usageRate: 24,
-              resetAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString()
-            }
-          ],
-          usageHistory: generateMockHistory()
+          quotas: response.data.limits.map(item => ({
+            label: item.name,
+            used: item.currentValue,
+            total: item.usage,
+            usageRate: item.percentage,
+            resetAt: new Date(item.nextResetTime).toISOString()
+          }))
         }
       };
     } catch (error) {

@@ -33,6 +33,7 @@ export interface UsageResult {
   used: number;          // 已用 token 数（兼容旧逻辑）
   total: number;         // 总量
   expiresAt: string;     // 到期时间 ISO 8601
+  level?: string;        // 套餐等级，如 "lite"、"pro"、"max"
   details?: {
     quotas?: QuotaItem[];          // 多个额度项
     usageHistory?: UsageRecord[];  // 历史统计

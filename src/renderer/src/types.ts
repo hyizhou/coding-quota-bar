@@ -18,6 +18,7 @@ export interface UsageRecord {
 
 export interface ProviderUsageData {
   name: string
+  level?: string
   quotas: QuotaItem[]
   usageHistory: UsageRecord[]
 }

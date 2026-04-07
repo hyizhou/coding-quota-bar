@@ -1,8 +1,8 @@
 import { promises as fs } from 'node:fs';
 import * as fsSync from 'node:fs';
 import * as path from 'node:path';
-import { app } from 'electron';
-import type { AppConfig } from '../shared/types';
+import { app, safeStorage } from 'electron';
+import type { AppConfig, ProviderConfig } from '../shared/types';
 import { EventEmitter } from 'events';
 
 /**
@@ -50,12 +50,65 @@ export class ConfigManager extends EventEmitter {
   }
 
   /**
+   * 加密单个 apiKey
+   */
+  private encryptApiKey(key: string): string {
+    if (!key || !safeStorage.isEncryptionAvailable()) {
+      return key;
+    }
+    const encrypted = safeStorage.encryptString(key);
+    return 'enc:' + encrypted.toString('base64');
+  }
+
+  /**
+   * 解密单个 apiKey，非加密格式直接返回（兼容旧配置）
+   */
+  private decryptApiKey(encrypted: string): string {
+    if (!encrypted || !encrypted.startsWith('enc:')) {
+      return encrypted;
+    }
+    try {
+      const buffer = Buffer.from(encrypted.slice(4), 'base64');
+      return safeStorage.decryptString(buffer);
+    } catch {
+      console.warn('[Config] Failed to decrypt apiKey, returning as-is');
+      return encrypted;
+    }
+  }
+
+  /**
+   * 加密配置中所有 provider 的 apiKey（用于写入磁盘）
+   */
+  private encryptApiKeys(config: AppConfig): AppConfig {
+    const encrypted = structuredClone(config);
+    for (const provider of Object.values(encrypted.providers)) {
+      if (provider.apiKey) {
+        provider.apiKey = this.encryptApiKey(provider.apiKey);
+      }
+    }
+    return encrypted;
+  }
+
+  /**
+   * 解密配置中所有 provider 的 apiKey（用于读取磁盘后）
+   */
+  private decryptApiKeys(config: AppConfig): AppConfig {
+    for (const provider of Object.values(config.providers)) {
+      if (provider.apiKey) {
+        provider.apiKey = this.decryptApiKey(provider.apiKey);
+      }
+    }
+    return config;
+  }
+
+  /**
    * 加载配置文件
    */
   private async load(): Promise<AppConfig> {
     try {
       const content = await fs.readFile(this.configPath, 'utf-8');
-      this.config = JSON.parse(content) as AppConfig;
+      const raw = JSON.parse(content) as AppConfig;
+      this.config = this.decryptApiKeys(raw);
       this.emit('loaded', this.config);
       return this.config;
     } catch (error) {
@@ -69,9 +122,11 @@ export class ConfigManager extends EventEmitter {
   async save(config: AppConfig): Promise<void> {
     try {
       this.ignoreNextChange = true;
-      const content = JSON.stringify(config, null, 2);
-      await fs.writeFile(this.configPath, content, 'utf-8');
+      // 内存中保持明文，写入磁盘时加密
       this.config = config;
+      const toWrite = this.encryptApiKeys(config);
+      const content = JSON.stringify(toWrite, null, 2);
+      await fs.writeFile(this.configPath, content, 'utf-8');
       console.log('[Config] Saved configuration to', this.configPath);
       this.emit('saved', config);
       this.emit('changed', config);

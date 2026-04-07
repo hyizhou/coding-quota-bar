@@ -50,6 +50,7 @@ const MOCK_DATA: Record<string, UsageResult> = {
     used: 250000,
     total: 1000000,
     expiresAt: new Date(Date.now() + 5 * 3600000).toISOString(),
+    level: 'lite',
     details: {
       remainingPercent: 75,
       quotas: [
