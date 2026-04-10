@@ -17,7 +17,14 @@
     </header>
 
     <div class="main-body">
-      <template v-if="providers.length === 0">
+      <template v-if="initialLoading">
+        <div class="skeleton-group">
+          <div class="skeleton skeleton-title"></div>
+          <div class="skeleton skeleton-card"></div>
+          <div class="skeleton skeleton-card"></div>
+        </div>
+      </template>
+      <template v-else-if="providers.length === 0">
         <div class="empty-state">
           <p>{{ $t('main.emptyState') }}</p>
           <p class="hint">{{ $t('main.emptyHint') }}</p>
@@ -70,6 +77,7 @@ const { t, locale } = useI18n()
 const providers = ref<ProviderUsageData[]>([])
 const lastUpdate = ref('')
 const loading = ref(false)
+const initialLoading = ref(true)
 const now = ref(Date.now())
 
 const lastUpdateText = computed(() => {
@@ -87,6 +95,7 @@ const lastUpdateText = computed(() => {
 function applyState(state: UsageState) {
   providers.value = state.providers
   lastUpdate.value = state.lastUpdate
+  initialLoading.value = false
 }
 
 async function fetchData() {
@@ -112,7 +121,14 @@ function formatError(msg: string): string {
 
 setInterval(() => { now.value = Date.now() }, 60000)
 
-onMounted(fetchData)
+onMounted(() => {
+  fetchData()
+  // 监听主进程推送的数据更新
+  // 监听主进程推送的数据更新
+  window.electronAPI.onUsageDataUpdated((data) => {
+    if (data) applyState(data)
+  })
+})
 </script>
 
 <style scoped>
@@ -200,6 +216,33 @@ onMounted(fetchData)
   font-size: 12px;
   color: #991b1b;
   line-height: 1.4;
+}
+
+.skeleton-group {
+  padding: 4px 0;
+}
+
+.skeleton {
+  border-radius: 8px;
+  background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-title {
+  width: 60px;
+  height: 16px;
+  margin-bottom: 8px;
+}
+
+.skeleton-card {
+  height: 68px;
+  margin-bottom: 6px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .spinning svg {

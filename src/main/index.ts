@@ -328,6 +328,13 @@ async function initialize(): Promise<void> {
   console.log(`[App] Loaded ${providers.length} provider(s)`);
 
   // 6. 启动定时刷新
+  scheduler.on('refreshed', () => {
+    // 刷新完成后主动推送数据到渲染进程
+    const data = buildUsageData();
+    if (popupWindow && !popupWindow.isDestroyed()) {
+      popupWindow.webContents.send('usage-data-updated', data);
+    }
+  });
   scheduler.start();
 
   // 7. 设置开机自启
@@ -363,9 +370,12 @@ function setupConfigListeners(): void {
     // 更新颜色阈值
     scheduler!.setColorThresholds(newConfig.display.colorThresholds);
 
-    // 重新加载 Provider
+    // 重新加载 Provider 并刷新
     const providers = ProviderLoader.loadProviders(newConfig.providers);
     scheduler!.setProviders(providers);
+    scheduler!.refresh().catch((error) => {
+      console.error('[App] Refresh after config change failed:', error);
+    });
 
     console.log(`[App] Reloaded ${providers.length} provider(s)`);
 
@@ -444,15 +454,39 @@ function setupIpcHandlers(): void {
 }
 
 /**
+ * 检查当前配置是否有启用的 Provider
+ */
+function hasEnabledProviders(): boolean {
+  const config = configManager?.getConfig();
+  if (!config) return false;
+  return Object.values(config.providers).some(p => p.enabled);
+}
+
+/**
  * 构建返回给 renderer 的用量数据
  */
 function buildUsageData(): UsageDataForRenderer | null {
   if (!scheduler) return null;
 
+  // 以配置为准：没有启用的 Provider 时直接返回空数据
+  if (!hasEnabledProviders()) {
+    return {
+      providers: [],
+      lastUpdate: new Date().toISOString(),
+      overallPercent: 100
+    };
+  }
+
   const aggregated = scheduler.getAggregatedData();
   const thresholds = scheduler.getThresholds();
 
-  if (!aggregated) return null;
+  if (!aggregated) {
+    return {
+      providers: [],
+      lastUpdate: new Date().toISOString(),
+      overallPercent: 100
+    };
+  }
 
   // 转换为 renderer 期望的格式
   const providers = Array.from(aggregated.results.entries()).map(([type, result]) => {

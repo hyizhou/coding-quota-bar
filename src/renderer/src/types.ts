@@ -57,6 +57,7 @@ export interface ElectronAPI {
   updateConfig: (updates: unknown) => Promise<AppConfig | null>
   getEnvKeyStatus: () => Promise<Record<string, boolean>>
   onShowSettings: (callback: () => void) => void
+  onUsageDataUpdated: (callback: (data: UsageState) => void) => void
   notifyHoverState: (hovering: boolean) => void
 }
 

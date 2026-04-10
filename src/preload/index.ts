@@ -42,6 +42,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   /**
+   * 监听主进程推送的用量数据更新
+   */
+  onUsageDataUpdated: (callback: (data: unknown) => void) => {
+    ipcRenderer.on('usage-data-updated', (_, data) => callback(data));
+  },
+
+  /**
    * 通知主进程鼠标进入/离开窗口
    */
   notifyHoverState: (hovering: boolean) => {

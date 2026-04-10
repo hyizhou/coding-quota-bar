@@ -126,7 +126,12 @@ export class Scheduler extends EventEmitter {
    */
   async refresh(): Promise<void> {
     if (this.providers.length === 0) {
-      console.warn('[Scheduler] No providers to refresh');
+      // 无 Provider 时清空数据并通知
+      this.aggregator.clear();
+      if (this.trayManager) {
+        this.trayManager.updateDisplay(100, this.thresholds);
+      }
+      this.emit('refreshed', null);
       return;
     }
 

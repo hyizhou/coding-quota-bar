@@ -145,7 +145,7 @@ export class ConfigManager extends EventEmitter {
       refreshInterval: 300, // 5 分钟
       providers: {
         zhipu: {
-          enabled: true,
+          enabled: false,
           apiKey: ''
         },
         minimax: {
