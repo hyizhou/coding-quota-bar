@@ -82,8 +82,8 @@ function formatReset(iso: string): string {
   font-variant-numeric: tabular-nums;
   color: #333;
 }
-.quota-percent.yellow { color: #666; }
-.quota-percent.red { color: #999; }
+.quota-percent.yellow { color: #a16207; }
+.quota-percent.red { color: #dc2626; }
 
 .progress-bar {
   height: 6px;
@@ -98,9 +98,9 @@ function formatReset(iso: string): string {
   border-radius: 3px;
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.progress-fill.green { background: linear-gradient(90deg, #333, #555); }
-.progress-fill.yellow { background: linear-gradient(90deg, #666, #888); }
-.progress-fill.red { background: linear-gradient(90deg, #999, #bbb); }
+.progress-fill.green { background: linear-gradient(90deg, #4ade80, #22c55e); }
+.progress-fill.yellow { background: linear-gradient(90deg, #facc15, #eab308); }
+.progress-fill.red { background: linear-gradient(90deg, #f87171, #ef4444); }
 
 .card-bottom {
   display: flex;
