@@ -119,7 +119,6 @@ export class ZhipuProvider implements Provider {
     // 3. 构建额度列表
     const quotas = quotaResp.data.limits.map(item => {
       if (item.type === 'TOKENS_LIMIT') {
-        // TOKENS_LIMIT 按请求次数计费，从 model-usage 获取
         const used = modelUsageResp?.data?.totalUsage?.totalModelCallCount ?? 0;
         const total = item.percentage > 0 ? Math.round(used / (item.percentage / 100)) : 0;
         return {
@@ -130,7 +129,6 @@ export class ZhipuProvider implements Provider {
           resetAt: toISODate(item.nextResetTime)
         };
       }
-      // TIME_LIMIT：API 直接提供具体用量
       return {
         label: getLimitLabel(item),
         used: item.currentValue ?? 0,
@@ -143,8 +141,9 @@ export class ZhipuProvider implements Provider {
     // 4. 构建历史使用记录
     const usageHistory = this.buildUsageHistory(modelUsageResp);
 
-    // 5. 构建结果（主指标取 TOKENS_LIMIT）
-    const tokenQuota = quotas.find(q => q.label.includes('请求'));
+    // 5. 构建结果（主指标取 TOKENS_LIMIT，按数组索引对应 limits 原始顺序）
+    const tokenLimitIdx = quotaResp.data.limits.findIndex(item => item.type === 'TOKENS_LIMIT');
+    const tokenQuota = tokenLimitIdx >= 0 ? quotas[tokenLimitIdx] : undefined;
 
     return {
       used: tokenQuota?.used ?? 0,
