@@ -436,13 +436,28 @@ function setupIpcHandlers(): void {
     return configManager?.getConfig();
   });
 
-  // 获取环境变量 Key 状态
-  ipcMain.handle('get-env-key-status', () => {
-    const result: Record<string, boolean> = {};
-    if (process.env.Z_AI_API_KEY) {
-      result.zhipu = true;
+  // 从环境变量导入 API Key
+  ipcMain.handle('import-key-from-env', async (_, providerKey: string) => {
+    const envVarMap: Record<string, string> = {
+      zhipu: 'Z_AI_API_KEY',
+      minimax: 'MINIMAX_API_KEY',
+      kimi: 'KIMI_API_KEY'
+    };
+    const envVar = envVarMap[providerKey];
+    if (!envVar) {
+      return { success: false, error: `Unknown provider: ${providerKey}` };
     }
-    return result;
+    const value = process.env[envVar]?.trim();
+    if (!value) {
+      return { success: false, error: `Environment variable ${envVar} not found` };
+    }
+    if (!configManager) {
+      return { success: false, error: 'Config not initialized' };
+    }
+    await configManager.updateConfig({
+      providers: { [providerKey]: { apiKey: value } }
+    });
+    return { success: true };
   });
 
   // 更新配置

@@ -19,12 +19,24 @@
           <span class="toggle-label">{{ info.label }}</span>
         </label>
         <div class="provider-body" v-if="info.enabled">
+          <div class="import-btns">
+            <button
+              class="import-btn"
+              :title="$t('settings.importFromEnvTooltip')"
+              @click="handleImportFromEnv(info)"
+            >{{ $t('settings.importFromEnv') }}</button>
+            <button
+              class="import-btn"
+              disabled
+              :title="$t('settings.importFromClaudeCodeTooltip')"
+            >{{ $t('settings.importFromClaudeCode') }}</button>
+          </div>
           <div class="input-group">
             <input
               :type="info.showKey ? 'text' : 'password'"
               class="form-input"
               v-model="info.apiKey"
-              :placeholder="info.hasEnvKey && !info.apiKey ? $t('settings.envKeyHint') : 'API Key'"
+              placeholder="API Key"
             />
             <button class="icon-btn eye-btn" @click="info.showKey = !info.showKey">
               <svg v-if="info.showKey" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -68,6 +80,9 @@
 
     <footer class="footer">
       <span class="save-status" :class="{ error: saveError }">{{ saveStatus }}</span>
+      <template v-for="info in providerList" :key="'status-'+info.key">
+        <span v-if="info.importStatus" class="save-status" :class="{ error: info.importError }">{{ info.importStatus }}</span>
+      </template>
     </footer>
   </div>
 </template>
@@ -87,7 +102,8 @@ interface ProviderInfo {
   enabled: boolean
   apiKey: string
   showKey: boolean
-  hasEnvKey?: boolean
+  importStatus: string
+  importError: boolean
 }
 
 const providerList = ref<ProviderInfo[]>([])
@@ -98,7 +114,6 @@ const saving = ref(false)
 const saveStatus = ref('')
 const saveError = ref(false)
 const currentConfig = ref<AppConfig | null>(null)
-const envKeyStatus = ref<Record<string, boolean>>({})
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 function scheduleSave() {
@@ -113,11 +128,10 @@ onMounted(async () => {
   const config = await window.electronAPI.getConfig()
   if (!config) return
   currentConfig.value = config
-  envKeyStatus.value = await window.electronAPI.getEnvKeyStatus()
   providerList.value = [
-    { key: 'zhipu', label: t('providers.zhipu'), enabled: config.providers.zhipu?.enabled ?? false, apiKey: config.providers.zhipu?.apiKey ?? '', showKey: false, hasEnvKey: !!envKeyStatus.value.zhipu },
-    { key: 'minimax', label: 'MiniMax', enabled: config.providers.minimax?.enabled ?? false, apiKey: config.providers.minimax?.apiKey ?? '', showKey: false },
-    { key: 'kimi', label: 'Kimi', enabled: config.providers.kimi?.enabled ?? false, apiKey: config.providers.kimi?.apiKey ?? '', showKey: false }
+    { key: 'zhipu', label: t('providers.zhipu'), enabled: config.providers.zhipu?.enabled ?? false, apiKey: config.providers.zhipu?.apiKey ?? '', showKey: false, importStatus: '', importError: false },
+    { key: 'minimax', label: 'MiniMax', enabled: config.providers.minimax?.enabled ?? false, apiKey: config.providers.minimax?.apiKey ?? '', showKey: false, importStatus: '', importError: false },
+    { key: 'kimi', label: 'Kimi', enabled: config.providers.kimi?.enabled ?? false, apiKey: config.providers.kimi?.apiKey ?? '', showKey: false, importStatus: '', importError: false }
   ]
   refreshInterval.value = String(config.refreshInterval)
   autoStart.value = config.autoStart
@@ -162,6 +176,24 @@ async function saveConfig() {
     saving.value = false
   }
 }
+
+async function handleImportFromEnv(info: ProviderInfo) {
+  const result = await window.electronAPI.importKeyFromEnv(info.key)
+  if (result.success) {
+    info.importStatus = t('settings.importSuccess')
+    info.importError = false
+    // 刷新配置到本地
+    const config = await window.electronAPI.getConfig()
+    if (config) {
+      currentConfig.value = config
+      info.apiKey = config.providers[info.key]?.apiKey ?? ''
+    }
+  } else {
+    info.importStatus = t('settings.importFailed', { error: result.error })
+    info.importError = true
+  }
+  setTimeout(() => { info.importStatus = '' }, 3000)
+}
 </script>
 
 <style scoped>
@@ -190,6 +222,32 @@ async function saveConfig() {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid #e8e8e8;
+}
+
+.import-btns {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.import-btn {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background: #fff;
+  color: #555;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.import-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+  border-color: #bbb;
+}
+.import-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .input-group {

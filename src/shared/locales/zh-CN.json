@@ -30,7 +30,13 @@
     "saved": "已保存",
     "saveFailed": "保存失败",
     "language": "语言",
-    "envKeyHint": "已通过环境变量配置"
+    "envKeyHint": "已通过环境变量配置",
+    "importFromEnv": "从环境变量导入",
+    "importFromEnvTooltip": "从系统环境变量读取 API Key 并保存到配置",
+    "importFromClaudeCode": "从 Claude Code 导入",
+    "importFromClaudeCodeTooltip": "从 Claude Code 配置文件读取（暂未支持）",
+    "importSuccess": "导入成功",
+    "importFailed": "导入失败：{error}"
   },
   "provider": {
     "expired": "已过期",

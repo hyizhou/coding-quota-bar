@@ -55,7 +55,7 @@ export interface ElectronAPI {
   refreshUsage: () => Promise<UsageState | null>
   getConfig: () => Promise<AppConfig | null>
   updateConfig: (updates: unknown) => Promise<AppConfig | null>
-  getEnvKeyStatus: () => Promise<Record<string, boolean>>
+  importKeyFromEnv: (providerKey: string) => Promise<{ success: boolean; error?: string }>
   onShowSettings: (callback: () => void) => void
   onUsageDataUpdated: (callback: (data: UsageState) => void) => void
   notifyHoverState: (hovering: boolean) => void

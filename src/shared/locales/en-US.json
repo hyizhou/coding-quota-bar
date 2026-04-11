@@ -30,7 +30,13 @@
     "saved": "Saved",
     "saveFailed": "Save failed",
     "language": "Language",
-    "envKeyHint": "Configured via env var"
+    "envKeyHint": "Configured via env var",
+    "importFromEnv": "Import from Env",
+    "importFromEnvTooltip": "Read API Key from environment variable and save to config",
+    "importFromClaudeCode": "Import from Claude Code",
+    "importFromClaudeCodeTooltip": "Read from Claude Code config (not supported yet)",
+    "importSuccess": "Imported successfully",
+    "importFailed": "Import failed: {error}"
   },
   "provider": {
     "expired": "Expired",

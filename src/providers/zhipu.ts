@@ -53,6 +53,15 @@ function formatDateTime(date: Date): string {
 }
 
 /**
+ * 安全地将时间戳转为 ISO 字符串，无效值返回空串
+ */
+function toISODate(ts: number | undefined | null): string {
+  if (ts == null || !Number.isFinite(ts)) return '';
+  const d = new Date(ts);
+  return isNaN(d.getTime()) ? '' : d.toISOString();
+}
+
+/**
  * 根据 limit 类型生成标签
  */
 function getLimitLabel(item: ZhipuLimitItem): string {
@@ -75,20 +84,8 @@ export class ZhipuProvider implements Provider {
   private readonly MODEL_USAGE_ENDPOINT = 'https://bigmodel.cn/api/monitor/usage/model-usage';
   private httpClient = new HttpClientWithRetry(3, 1000);
 
-  /**
-   * 解析 API Key：配置文件优先，环境变量兜底
-   * 跳过占位符值（如 'your-xxx-here'）
-   */
-  private resolveApiKey(config: ProviderConfig): string {
-    const configKey = config.apiKey?.trim();
-    if (configKey && !configKey.startsWith('your-')) {
-      return configKey;
-    }
-    return process.env.Z_AI_API_KEY || '';
-  }
-
   async fetchUsage(config: ProviderConfig): Promise<UsageResult> {
-    const apiKey = this.resolveApiKey(config);
+    const apiKey = config.apiKey?.trim();
     if (!apiKey) {
       throw new Error('[Zhipu] API Key is required');
     }
@@ -130,7 +127,7 @@ export class ZhipuProvider implements Provider {
           used,
           total,
           usageRate: item.percentage,
-          resetAt: new Date(item.nextResetTime).toISOString()
+          resetAt: toISODate(item.nextResetTime)
         };
       }
       // TIME_LIMIT：API 直接提供具体用量
@@ -139,7 +136,7 @@ export class ZhipuProvider implements Provider {
         used: item.currentValue ?? 0,
         total: item.usage ?? 0,
         usageRate: item.percentage,
-        resetAt: new Date(item.nextResetTime).toISOString()
+        resetAt: toISODate(item.nextResetTime)
       };
     });
 
@@ -152,7 +149,7 @@ export class ZhipuProvider implements Provider {
     return {
       used: tokenQuota?.used ?? 0,
       total: tokenQuota?.total ?? 0,
-      expiresAt: tokenLimit ? new Date(tokenLimit.nextResetTime).toISOString() : '',
+      expiresAt: tokenLimit ? toISODate(tokenLimit.nextResetTime) : '',
       level: quotaResp.data.level,
       details: {
         quotas,
