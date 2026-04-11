@@ -2,10 +2,10 @@
   <div class="quota-card">
     <div class="card-top">
       <span class="quota-label">{{ label }}</span>
-      <span class="quota-percent" :class="color">{{ (100 - usageRate).toFixed(1) }}%</span>
+      <span class="quota-percent" :class="color">{{ usageRate.toFixed(1) }}%</span>
     </div>
     <div class="progress-bar">
-      <div class="progress-fill" :class="color" :style="{ width: (100 - usageRate) + '%' }"></div>
+      <div class="progress-fill" :class="color" :style="{ width: usageRate + '%' }"></div>
     </div>
     <div class="card-bottom">
       <span class="usage-text">{{ formatValue(used) }} / {{ formatValue(total) }}</span>
