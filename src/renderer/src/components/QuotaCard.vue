@@ -8,7 +8,6 @@
       <div class="progress-fill" :class="color" :style="{ width: usageRate + '%' }"></div>
     </div>
     <div class="card-bottom">
-      <span class="usage-text">{{ formatValue(used) }} / {{ formatValue(total) }}</span>
       <span class="reset-text">{{ formatReset(resetAt) }}</span>
     </div>
   </div>
@@ -19,20 +18,12 @@ import { useI18n } from 'vue-i18n'
 
 defineProps<{
   label: string
-  used: number
-  total: number
   usageRate: number
   resetAt: string
   color: 'green' | 'yellow' | 'red'
 }>()
 
 const { t, locale } = useI18n()
-
-function formatValue(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
-  return String(n)
-}
 
 function formatReset(iso: string): string {
   try {
@@ -104,15 +95,7 @@ function formatReset(iso: string): string {
 
 .card-bottom {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.usage-text {
-  font-size: 11px;
-  color: #666;
-  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
-  font-variant-numeric: tabular-nums;
+  justify-content: flex-end;
 }
 
 .reset-text {

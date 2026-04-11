@@ -66,7 +66,7 @@ function toISODate(ts: number | undefined | null): string {
  */
 function getLimitLabel(item: ZhipuLimitItem): string {
   if (item.type === 'TOKENS_LIMIT') {
-    return `Token 用量 (${item.number}小时)`;
+    return `${item.number}小时额度`;
   }
   if (item.type === 'TIME_LIMIT') {
     return `MCP 用量 (${item.number}个月)`;
@@ -119,8 +119,8 @@ export class ZhipuProvider implements Provider {
     // 3. 构建额度列表
     const quotas = quotaResp.data.limits.map(item => {
       if (item.type === 'TOKENS_LIMIT') {
-        // TOKENS_LIMIT API 不返回具体用量，从 model-usage 获取
-        const used = modelUsageResp?.data?.totalUsage?.totalTokensUsage ?? 0;
+        // TOKENS_LIMIT 按请求次数计费，从 model-usage 获取
+        const used = modelUsageResp?.data?.totalUsage?.totalModelCallCount ?? 0;
         const total = item.percentage > 0 ? Math.round(used / (item.percentage / 100)) : 0;
         return {
           label: getLimitLabel(item),
@@ -144,7 +144,7 @@ export class ZhipuProvider implements Provider {
     const usageHistory = this.buildUsageHistory(modelUsageResp);
 
     // 5. 构建结果（主指标取 TOKENS_LIMIT）
-    const tokenQuota = quotas.find(q => q.label.includes('Token'));
+    const tokenQuota = quotas.find(q => q.label.includes('请求'));
 
     return {
       used: tokenQuota?.used ?? 0,
@@ -163,14 +163,14 @@ export class ZhipuProvider implements Provider {
    * API 返回 'YYYY-MM-DD HH:mm'，转换为 'YYYY-MM-DDTHH' 格式
    */
   private buildUsageHistory(resp: ZhipuModelUsageResponse | null): Array<{ date: string; used: number }> {
-    if (!resp?.data?.x_time || !resp?.data?.tokensUsage) return [];
+    if (!resp?.data?.x_time || !resp?.data?.modelCallCount) return [];
 
     return resp.data.x_time
       .map((time, i) => {
-        const tokens = resp.data!.tokensUsage[i];
+        const count = resp.data!.modelCallCount[i];
         return {
           date: time.replace(' ', 'T').slice(0, 13),
-          used: tokens ?? 0
+          used: count ?? 0
         };
       })
       .filter(r => r.used > 0);
