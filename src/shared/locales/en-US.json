@@ -11,7 +11,8 @@
     "minutesAgo": "Updated {n} min ago",
     "hoursAgo": "Updated {n} hr ago",
     "tokenUsage": "Token Usage",
-    "usageStats": "Usage Stats"
+    "usageStats": "Usage Stats",
+    "toggleTheme": "Toggle Theme"
   },
   "settings": {
     "title": "Settings",
@@ -36,7 +37,11 @@
     "importFromClaudeCode": "Import from Claude Code",
     "importFromClaudeCodeTooltip": "Read from Claude Code config (not supported yet)",
     "importSuccess": "Imported successfully",
-    "importFailed": "Import failed: {error}"
+    "importFailed": "Import failed: {error}",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeAuto": "Follow System"
   },
   "provider": {
     "expired": "Expired",

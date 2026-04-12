@@ -42,16 +42,16 @@ function formatReset(iso: string): string {
 <style scoped>
 .quota-card {
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.65);
+  background: var(--bg-card);
   border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-card);
   transition: background 0.2s, box-shadow 0.2s;
   animation: cardEnter 0.3s ease-out both;
 }
 
 .quota-card:hover {
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: var(--bg-card-hover);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .card-top {
@@ -64,21 +64,21 @@ function formatReset(iso: string): string {
 .quota-label {
   font-weight: 600;
   font-size: 13px;
-  color: #1a1a1a;
+  color: var(--text-heading);
 }
 
 .quota-percent {
   font-weight: 700;
   font-size: 16px;
   font-variant-numeric: tabular-nums;
-  color: #333;
+  color: var(--text-primary);
 }
 .quota-percent.yellow { color: #a16207; }
 .quota-percent.red { color: #dc2626; }
 
 .progress-bar {
   height: 6px;
-  background: rgba(0, 0, 0, 0.06);
+  background: var(--border-subtle);
   border-radius: 3px;
   overflow: hidden;
   margin-bottom: 5px;
@@ -100,7 +100,7 @@ function formatReset(iso: string): string {
 
 .reset-text {
   font-size: 10px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 @keyframes cardEnter {

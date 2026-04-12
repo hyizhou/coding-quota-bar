@@ -32,8 +32,11 @@ import {
   Tooltip
 } from 'chart.js'
 import type { UsageRecord } from '../types'
+import { useTheme } from '../composables/useTheme'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip)
+
+const { isDark } = useTheme()
 
 const props = defineProps<{
   title: string
@@ -172,20 +175,22 @@ const barData = computed(() => ({
   labels: aggregated.value.labels,
   datasets: [{
     data: aggregated.value.values,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    hoverBackgroundColor: 'rgba(0, 0, 0, 0.9)',
+    backgroundColor: isDark.value ? 'rgba(255, 255, 255, 0.55)' : 'rgba(0, 0, 0, 0.65)',
+    hoverBackgroundColor: isDark.value ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.9)',
     borderRadius: 2,
     borderSkipped: false
   }]
 }))
 
-const chartOptions = {
+const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
     legend: { display: false },
     tooltip: {
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      backgroundColor: isDark.value ? 'rgba(40, 40, 40, 0.9)' : 'rgba(0, 0, 0, 0.8)',
+      titleColor: isDark.value ? '#e0e0e0' : '#fff',
+      bodyColor: isDark.value ? '#ccc' : '#fff',
       titleFont: { size: 11 },
       bodyFont: { size: 11 },
       padding: { top: 4, bottom: 4, left: 8, right: 8 },
@@ -199,6 +204,7 @@ const chartOptions = {
   scales: {
     x: {
       ticks: {
+        color: isDark.value ? '#666' : '#999',
         font: { size: 8 },
         maxRotation: 0,
         autoSkip: true,
@@ -209,18 +215,19 @@ const chartOptions = {
     },
     y: {
       ticks: {
+        color: isDark.value ? '#666' : '#999',
         font: { size: 9 },
         callback: (v: number) => formatCount(v),
         maxTicksLimit: 4
       },
-      grid: { color: 'rgba(0, 0, 0, 0.06)' },
+      grid: { color: isDark.value ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
       border: { display: false }
     }
   },
   layout: {
     padding: { top: 4, bottom: 0, left: 0, right: 4 }
   }
-}
+}))
 </script>
 
 <style scoped>
@@ -244,7 +251,7 @@ const chartOptions = {
 .stats-title {
   font-size: 10px;
   font-weight: 600;
-  color: #999;
+  color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -252,7 +259,7 @@ const chartOptions = {
 .stats-total {
   font-size: 11px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -263,21 +270,21 @@ const chartOptions = {
 
 .tab-btn {
   background: none;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-tab);
   border-radius: 4px;
   padding: 1px 6px;
   font-size: 10px;
-  color: #999;
+  color: var(--text-tertiary);
   cursor: pointer;
   transition: all 0.15s;
   line-height: 1.4;
 }
 
-.tab-btn:hover { color: #666; border-color: rgba(0, 0, 0, 0.2); }
+.tab-btn:hover { color: var(--text-secondary); border-color: var(--border-tab-hover); }
 .tab-btn.active {
-  background: #333;
-  color: #fff;
-  border-color: #333;
+  background: var(--bg-toggle-active);
+  color: var(--bg-input);
+  border-color: var(--bg-toggle-active);
 }
 
 .chart-wrapper {

@@ -172,7 +172,8 @@ export class ConfigManager extends EventEmitter {
         }
       },
       autoStart: false,
-      language: 'zh-CN'
+      language: 'zh-CN',
+      theme: 'auto'
     };
 
     await this.save(defaultConfig);

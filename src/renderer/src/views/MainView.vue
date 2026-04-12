@@ -3,6 +3,14 @@
     <header class="header">
       <h1>{{ $t('main.title') }}</h1>
       <div class="header-actions">
+        <button class="icon-btn" :title="$t('main.toggleTheme')" @click="toggleTheme">
+          <svg v-if="isDark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
         <button class="icon-btn" :title="$t('main.settingsBtn')" @click="$emit('open-settings')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -74,10 +82,12 @@ import { useI18n } from 'vue-i18n'
 import QuotaCard from '../components/QuotaCard.vue'
 import UsageStats from '../components/UsageStats.vue'
 import type { ProviderUsageData, UsageState } from '../types'
+import { useTheme } from '../composables/useTheme'
 
 defineEmits<{ 'open-settings': [] }>()
 
 const { t, locale } = useI18n()
+const { isDark, toggleTheme } = useTheme()
 
 const providers = ref<ProviderUsageData[]>([])
 const lastUpdate = ref('')
@@ -150,7 +160,7 @@ onMounted(() => {
 }
 
 .main-body::-webkit-scrollbar { width: 3px; }
-.main-body::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+.main-body::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
 
 .provider-section {
   margin-bottom: 10px;
@@ -166,7 +176,7 @@ onMounted(() => {
 .provider-name {
   font-size: 14px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--text-heading);
 }
 
 .provider-level {
@@ -187,18 +197,18 @@ onMounted(() => {
 .empty-state {
   text-align: center;
   padding: 24px 12px;
-  color: #aaa;
+  color: var(--text-empty);
 }
 .empty-state p { margin-bottom: 4px; }
-.empty-state .hint { font-size: 11px; color: #ccc; }
+.empty-state .hint { font-size: 11px; color: var(--text-empty-hint); }
 
 .error-card {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  background: #fff3f3;
-  border: 1px solid #fecaca;
+  background: var(--bg-error);
+  border: 1px solid var(--border-error);
   border-radius: 8px;
   margin-bottom: 6px;
 }
@@ -219,7 +229,7 @@ onMounted(() => {
 
 .error-text {
   font-size: 12px;
-  color: #991b1b;
+  color: var(--text-error);
   line-height: 1.4;
 }
 
@@ -229,7 +239,7 @@ onMounted(() => {
 
 .skeleton {
   border-radius: 8px;
-  background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%);
+  background: linear-gradient(90deg, var(--skeleton-a) 25%, var(--skeleton-b) 50%, var(--skeleton-a) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
 }

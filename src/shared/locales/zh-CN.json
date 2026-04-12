@@ -11,7 +11,8 @@
     "minutesAgo": "{n}分钟前更新",
     "hoursAgo": "{n}小时前更新",
     "tokenUsage": "Token 用量",
-    "usageStats": "使用统计"
+    "usageStats": "使用统计",
+    "toggleTheme": "切换主题"
   },
   "settings": {
     "title": "设置",
@@ -36,7 +37,11 @@
     "importFromClaudeCode": "从 Claude Code 导入",
     "importFromClaudeCodeTooltip": "从 Claude Code 配置文件读取（暂未支持）",
     "importSuccess": "导入成功",
-    "importFailed": "导入失败：{error}"
+    "importFailed": "导入失败：{error}",
+    "theme": "主题",
+    "themeLight": "浅色",
+    "themeDark": "深色",
+    "themeAuto": "跟随系统"
   },
   "provider": {
     "expired": "已过期",

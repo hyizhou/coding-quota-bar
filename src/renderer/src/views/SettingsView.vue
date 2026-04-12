@@ -75,6 +75,14 @@
             <option value="en-US">English</option>
           </select>
         </div>
+        <div class="form-group">
+          <label class="form-label">{{ $t('settings.theme') }}</label>
+          <select v-model="themePreference" class="form-select">
+            <option value="light">{{ $t('settings.themeLight') }}</option>
+            <option value="dark">{{ $t('settings.themeDark') }}</option>
+            <option value="auto">{{ $t('settings.themeAuto') }}</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -91,10 +99,12 @@
 import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AppConfig, ProviderConfig } from '../types'
+import { useTheme } from '../composables/useTheme'
 
 defineEmits<{ 'go-back': [] }>()
 
 const { t, locale } = useI18n()
+const { preference: themePreference, setTheme } = useTheme()
 
 interface ProviderInfo {
   key: string
@@ -149,6 +159,11 @@ onMounted(async () => {
   watch([providerList, refreshInterval, autoStart, language], () => {
     scheduleSave()
   }, { deep: true })
+
+  // 主题切换由 useTheme 自行持久化，不经过 scheduleSave
+  watch(themePreference, (val) => {
+    setTheme(val)
+  })
 })
 
 async function saveConfig() {
@@ -217,10 +232,10 @@ async function handleImportFromEnv(info: ProviderInfo) {
 }
 
 .settings-body::-webkit-scrollbar { width: 3px; }
-.settings-body::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+.settings-body::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
 
 .settings-card {
-  background: #f8f9fa;
+  background: var(--bg-settings-card);
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 6px;
@@ -229,7 +244,7 @@ async function handleImportFromEnv(info: ProviderInfo) {
 .provider-body {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid #e8e8e8;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .import-btns {
@@ -241,17 +256,17 @@ async function handleImportFromEnv(info: ProviderInfo) {
 .import-btn {
   flex: 1;
   padding: 4px 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-default);
   border-radius: 5px;
-  background: #fff;
-  color: #555;
+  background: var(--bg-input);
+  color: var(--text-secondary);
   font-size: 11px;
   cursor: pointer;
   transition: all 0.2s;
 }
 .import-btn:hover:not(:disabled) {
-  background: #f0f0f0;
-  border-color: #bbb;
+  background: var(--bg-import-hover);
+  border-color: var(--border-default);
 }
 .import-btn:disabled {
   opacity: 0.4;
@@ -264,7 +279,7 @@ async function handleImportFromEnv(info: ProviderInfo) {
 }
 
 .eye-btn {
-  border: 1px solid #ddd !important;
+  border: 1px solid var(--border-default) !important;
   padding: 4px 6px !important;
 }
 

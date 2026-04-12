@@ -64,6 +64,7 @@ export interface AppConfig {
   };
   autoStart: boolean;
   language?: string;
+  theme?: 'light' | 'dark' | 'auto';
 }
 
 /**
