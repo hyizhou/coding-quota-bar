@@ -93,6 +93,7 @@ const MOCK_DATA: Record<string, UsageResult> = {
 export class UsageAggregator {
   private results = new Map<string, UsageResult>();
   private lastUpdate: Date | null = null;
+  private generation = 0;
 
   /**
    * 汇总所有 Provider 的用量数据
@@ -117,9 +118,11 @@ export class UsageAggregator {
       return { lowestPercent, results: this.results, lastUpdate: this.lastUpdate };
     }
 
+    // 用代计数器防止并发 aggregate 竞争写入 results
+    const gen = ++this.generation;
+
     // 保存旧数据用于失败时回退
     const previousResults = new Map(this.results);
-    this.results.clear();
 
     // 并行请求所有 Provider
     const promises = providers.map(async ({ type, instance, config }) => {
@@ -147,7 +150,15 @@ export class UsageAggregator {
 
     const outcomes = await Promise.all(promises);
 
-    // 更新结果
+    // 如果期间有新的 aggregate 调用启动，丢弃本次结果
+    if (gen !== this.generation) {
+      console.log('[Aggregator] Discarding stale results (newer aggregate in progress)');
+      const lowestPercent = this.calculateLowestPercent();
+      return { lowestPercent, results: this.results, lastUpdate: this.lastUpdate! };
+    }
+
+    // 更新结果（先清空，确保不含已禁用 Provider 的残留数据）
+    this.results.clear();
     for (const { type, result } of outcomes) {
       this.results.set(type, result);
     }

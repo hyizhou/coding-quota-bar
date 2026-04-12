@@ -70,6 +70,11 @@ export class ProviderLoader {
         continue;
       }
 
+      // 未配置 API Key 的跳过（无 key 无意义，不参与刷新和计算）
+      if (!config.apiKey?.trim()) {
+        continue;
+      }
+
       // 检查 Provider 类是否存在
       const ProviderClass = PROVIDER_CLASSES[type as ProviderType];
       if (!ProviderClass) {
