@@ -193,7 +193,6 @@ export class TrayManager {
     // 创建初始图标
     const icon = createTrayIcon(100, 'green');
     this.tray = new Tray(icon);
-    this.tray.setToolTip(t('tray.tooltip'));
 
     // 设置右键菜单
     this.setupContextMenu();
@@ -287,7 +286,6 @@ export class TrayManager {
     if (this.tray) {
       const icon = createTrayIcon(percent, color);
       this.tray.setImage(icon);
-      this.tray.setToolTip(`Coding Quota Bar - ${t('tray.tooltipRemaining', { n: percent })}`);
     }
   }
 
