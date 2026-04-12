@@ -13,5 +13,5 @@
     "sourceMap": false,
     "types": ["node"]
   },
-  "include": ["src/main/**/*", "src/preload/**/*", "src/providers/**/*", "src/shared/**/*"]
+  "include": ["src/main/**/*", "src/preload/**/*", "src/providers/**/*", "src/shared/**/*", "electron.vite.config.ts", "app.build.ts"]
 }
