@@ -128,11 +128,19 @@ onMounted(async () => {
   const config = await window.electronAPI.getConfig()
   if (!config) return
   currentConfig.value = config
-  providerList.value = [
-    { key: 'zhipu', label: t('providers.zhipu'), enabled: config.providers.zhipu?.enabled ?? false, apiKey: config.providers.zhipu?.apiKey ?? '', showKey: false, importStatus: '', importError: false },
-    { key: 'minimax', label: 'MiniMax', enabled: config.providers.minimax?.enabled ?? false, apiKey: config.providers.minimax?.apiKey ?? '', showKey: false, importStatus: '', importError: false },
-    { key: 'kimi', label: 'Kimi', enabled: config.providers.kimi?.enabled ?? false, apiKey: config.providers.kimi?.apiKey ?? '', showKey: false, importStatus: '', importError: false }
-  ]
+
+  // 从主进程获取可用的 provider 列表
+  const availableKeys: string[] = await window.electronAPI.getAvailableProviders()
+
+  providerList.value = availableKeys.map(key => ({
+    key,
+    label: t(`providers.${key}`),
+    enabled: config.providers[key]?.enabled ?? false,
+    apiKey: config.providers[key]?.apiKey ?? '',
+    showKey: false,
+    importStatus: '',
+    importError: false,
+  }))
   refreshInterval.value = String(config.refreshInterval)
   autoStart.value = config.autoStart
   language.value = config.language || locale.value

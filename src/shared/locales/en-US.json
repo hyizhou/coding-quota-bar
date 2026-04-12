@@ -58,6 +58,8 @@
     "quit": "Quit"
   },
   "providers": {
-    "zhipu": "Zhipu"
+    "zhipu": "Zhipu",
+    "minimax": "MiniMax",
+    "kimi": "Kimi"
   }
 }

@@ -35,6 +35,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   importKeyFromEnv: (providerKey: string) => ipcRenderer.invoke('import-key-from-env', providerKey),
 
   /**
+   * 获取可用的 provider 列表（编译时配置）
+   */
+  getAvailableProviders: () => ipcRenderer.invoke('get-available-providers'),
+
+  /**
    * 监听主进程的"显示设置"事件
    */
   onShowSettings: (callback: () => void) => {

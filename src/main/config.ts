@@ -3,6 +3,7 @@ import * as fsSync from 'node:fs';
 import * as path from 'node:path';
 import { app, safeStorage } from 'electron';
 import type { AppConfig, ProviderConfig } from '../shared/types';
+import { getAvailableProviderKeys } from './loader';
 import { EventEmitter } from 'events';
 
 /**
@@ -109,6 +110,20 @@ export class ConfigManager extends EventEmitter {
       const content = await fs.readFile(this.configPath, 'utf-8');
       const raw = JSON.parse(content) as AppConfig;
       this.config = this.decryptApiKeys(raw);
+
+      // 迁移：补齐编译时可用但配置文件中缺失的 provider
+      let migrated = false;
+      for (const key of getAvailableProviderKeys()) {
+        if (!this.config.providers[key]) {
+          this.config.providers[key] = { enabled: false, apiKey: '' };
+          migrated = true;
+          console.log(`[Config] Migrated: added missing provider "${key}"`);
+        }
+      }
+      if (migrated) {
+        await this.save(this.config);
+      }
+
       this.emit('loaded', this.config);
       return this.config;
     } catch (error) {
@@ -141,22 +156,15 @@ export class ConfigManager extends EventEmitter {
    * 创建默认配置文件
    */
   private async createDefaultConfig(): Promise<void> {
+    // 只为编译时可用的 provider 生成默认配置
+    const providers: Record<string, ProviderConfig> = {};
+    for (const key of getAvailableProviderKeys()) {
+      providers[key] = { enabled: false, apiKey: '' };
+    }
+
     const defaultConfig: AppConfig = {
       refreshInterval: 300, // 5 分钟
-      providers: {
-        zhipu: {
-          enabled: false,
-          apiKey: ''
-        },
-        minimax: {
-          enabled: false,
-          apiKey: ''
-        },
-        kimi: {
-          enabled: false,
-          apiKey: ''
-        }
-      },
+      providers,
       display: {
         colorThresholds: {
           green: 50,

@@ -58,6 +58,8 @@
     "quit": "退出"
   },
   "providers": {
-    "zhipu": "智谱"
+    "zhipu": "智谱",
+    "minimax": "MiniMax",
+    "kimi": "Kimi"
   }
 }

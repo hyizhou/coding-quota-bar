@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, screen } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'path';
 import { TrayManager, getColorByPercent } from './tray';
-import { ProviderLoader } from './loader';
+import { ProviderLoader, getAvailableProviderKeys, getProviderEnvVarMap } from './loader';
 import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale, t as i18nT } from './i18n';
@@ -443,11 +443,7 @@ function setupIpcHandlers(): void {
 
   // 从环境变量导入 API Key
   ipcMain.handle('import-key-from-env', async (_, providerKey: string) => {
-    const envVarMap: Record<string, string> = {
-      zhipu: 'Z_AI_API_KEY',
-      minimax: 'MINIMAX_API_KEY',
-      kimi: 'KIMI_API_KEY'
-    };
+    const envVarMap = getProviderEnvVarMap();
     const envVar = envVarMap[providerKey];
     if (!envVar) {
       return { success: false, error: `Unknown provider: ${providerKey}` };
@@ -463,6 +459,11 @@ function setupIpcHandlers(): void {
       providers: { [providerKey]: { apiKey: value } }
     });
     return { success: true };
+  });
+
+  // 获取可用的 provider 列表（编译时配置）
+  ipcMain.handle('get-available-providers', () => {
+    return getAvailableProviderKeys();
   });
 
   // 更新配置
@@ -560,12 +561,7 @@ function convertProviderData(
  * 获取 Provider 显示名称
  */
 function getProviderDisplayName(type: string): string {
-  const names: Record<string, string> = {
-    'zhipu': i18nT('providers.zhipu'),
-    'minimax': 'MiniMax',
-    'kimi': 'Kimi'
-  };
-  return names[type] || type;
+  return i18nT(`providers.${type}`) || type;
 }
 
 /**
