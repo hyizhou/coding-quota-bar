@@ -48,9 +48,14 @@
               v-bind="q"
             />
             <UsageStats
-              v-if="p.usageHistory.length > 0"
+              v-if="p.history1d.length > 0 || p.history7d.length > 0 || p.history30d.length > 0"
               :title="$t('main.usageStats')"
-              :records="p.usageHistory"
+              :records-1d="p.history1d"
+              :records-7d="p.history7d"
+              :records-30d="p.history30d"
+              :total-1d="p.totalTokens1d"
+              :total-7d="p.totalTokens7d"
+              :total-30d="p.totalTokens30d"
             />
           </template>
         </div>

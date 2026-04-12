@@ -66,7 +66,12 @@ interface ProviderDisplayData {
   level?: string;
   error?: string;
   quotas: QuotaDisplayItem[];
-  usageHistory: SharedUsageRecord[];
+  history1d: SharedUsageRecord[];
+  history7d: SharedUsageRecord[];
+  history30d: SharedUsageRecord[];
+  totalTokens1d: number;
+  totalTokens7d: number;
+  totalTokens30d: number;
 }
 
 /**
@@ -532,17 +537,22 @@ function convertProviderData(
     color: getColorByPercent(100 - q.usageRate, thresholds)
   }));
 
-  const usageHistory: SharedUsageRecord[] = (result.details?.usageHistory ?? []).map(r => ({
-    date: r.date,
-    used: r.used
-  }));
+  const mapHistory = (key: string): SharedUsageRecord[] =>
+    ((result.details?.[key] ?? []) as SharedUsageRecord[]).map(r => ({ date: r.date, used: r.used }));
+
+  console.log(`[Data] ${type} 1d:${mapHistory('history1d').length} 7d:${mapHistory('history7d').length} 30d:${mapHistory('history30d').length}`);
 
   return {
     name: getProviderDisplayName(type),
     level: result.level,
     error: result.error,
     quotas,
-    usageHistory
+    history1d: mapHistory('history1d'),
+    history7d: mapHistory('history7d'),
+    history30d: mapHistory('history30d'),
+    totalTokens1d: (result.details?.totalTokens1d as number) ?? 0,
+    totalTokens7d: (result.details?.totalTokens7d as number) ?? 0,
+    totalTokens30d: (result.details?.totalTokens30d as number) ?? 0
   };
 }
 

@@ -3,7 +3,7 @@
     <div class="stats-header">
       <div class="stats-left">
         <span class="stats-title">{{ title }}</span>
-        <span class="stats-total">{{ formatTotal(totalUsed) }}</span>
+        <span class="stats-total">{{ formatCount(totalUsed) }}</span>
       </div>
       <div class="stats-tabs">
         <button
@@ -37,7 +37,12 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip)
 
 const props = defineProps<{
   title: string
-  records: UsageRecord[]
+  records1d: UsageRecord[]
+  records7d: UsageRecord[]
+  records30d: UsageRecord[]
+  total1d: number
+  total7d: number
+  total30d: number
 }>()
 
 type TabValue = '1d' | '7d' | '30d'
@@ -50,64 +55,72 @@ const tabs = [
   { label: '30天', value: '30d' as TabValue }
 ]
 
-function formatTotal(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M tokens`
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k tokens`
-  return `${n} tokens`
+function formatCount(n: number): string {
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
+  if (n >= 1000) return `${(n / 1000).toFixed(2)}K`
+  return `${n}`
 }
 
-/** 按1天：取今天24小时，每个bar=1小时 */
-function aggregate1d(records: UsageRecord[]): { labels: string[]; values: number[] } {
-  const now = new Date()
-  const todayStr = now.toISOString().slice(0, 10)
-  const currentHour = now.getHours()
+/** 本地日期字符串 YYYY-MM-DD */
+function localDateStr(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
-  // 初始化24个小时桶
-  const buckets = new Array(24).fill(0)
+/** 本地小时字符串 YYYY-MM-DDTHH */
+function localHourStr(d: Date): string {
+  return localDateStr(d) + 'T' + String(d.getHours()).padStart(2, '0')
+}
+
+/** 按1天：过去24小时，每个bar=1小时 */
+function aggregate1d(records: UsageRecord[]): { labels: string[]; values: number[] } {
+  // 建立 map（key 为本地 YYYY-MM-DDTHH）
+  const map = new Map<string, number>()
   for (const r of records) {
-    // r.date 格式: 'YYYY-MM-DDTHH' 或 'YYYY-MM-DD'
-    if (r.date.startsWith(todayStr + 'T')) {
-      const hour = parseInt(r.date.slice(11, 13), 10)
-      if (hour >= 0 && hour < 24) buckets[hour] += r.used
-    }
+    if (r.date.length === 13) map.set(r.date, (map.get(r.date) || 0) + r.used)
   }
 
-  // 只显示到当前小时
+  const now = new Date()
   const labels: string[] = []
   const values: number[] = []
-  for (let h = 0; h <= currentHour; h++) {
-    labels.push(`${String(h).padStart(2, '0')}:00`)
-    values.push(buckets[h])
+  // 从24小时前到当前小时，逐小时
+  for (let i = 23; i >= 0; i--) {
+    const t = new Date(now.getTime() - i * 3600000)
+    t.setMinutes(0, 0, 0)
+    const key = localHourStr(t)
+    labels.push(`${String(t.getHours()).padStart(2, '0')}:00`)
+    values.push(map.get(key) || 0)
   }
   return { labels, values }
 }
 
-/** 按7天：7x24小时，每个bar=1小时 */
+/** 按7天：7x24小时，每个bar=6小时 */
 function aggregate7d(records: UsageRecord[]): { labels: string[]; values: number[] } {
   const now = new Date()
   const msPerHour = 3600000
   const startHour = new Date(now.getTime() - 7 * 86400000)
   startHour.setMinutes(0, 0, 0)
 
-  // 建立查找 map
+  // 建立查找 map（key 为本地时间 YYYY-MM-DDTHH）
   const map = new Map<string, number>()
   for (const r of records) {
-    if (r.date.length === 13) { // 'YYYY-MM-DDTHH'
+    if (r.date.length === 13) {
       map.set(r.date, (map.get(r.date) || 0) + r.used)
     }
   }
 
   const labels: string[] = []
   const values: number[] = []
-  // 每6小时一个bar，避免168个bar太密集
-  const bucketSize = 6 // 每6小时合并
+  const bucketSize = 6
   for (let t = startHour.getTime(); t <= now.getTime(); t += msPerHour * bucketSize) {
     let sum = 0
     for (let b = 0; b < bucketSize; b++) {
       const bt = t + b * msPerHour
       if (bt > now.getTime()) break
-      const key = new Date(bt).toISOString().slice(0, 13)
-      sum += map.get(key) || 0
+      sum += map.get(localHourStr(new Date(bt))) || 0
     }
     const d = new Date(t)
     labels.push(`${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}h`)
@@ -120,7 +133,6 @@ function aggregate7d(records: UsageRecord[]): { labels: string[]; values: number
 function aggregate30d(records: UsageRecord[]): { labels: string[]; values: number[] } {
   const buckets = new Map<string, number>()
   for (const r of records) {
-    // 取日期部分
     const day = r.date.slice(0, 10)
     buckets.set(day, (buckets.get(day) || 0) + r.used)
   }
@@ -130,7 +142,7 @@ function aggregate30d(records: UsageRecord[]): { labels: string[]; values: numbe
   const values: number[] = []
   for (let i = 29; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 86400000)
-    const key = d.toISOString().slice(0, 10)
+    const key = localDateStr(d)
     labels.push(key.slice(5)) // MM-DD
     values.push(buckets.get(key) || 0)
   }
@@ -138,13 +150,23 @@ function aggregate30d(records: UsageRecord[]): { labels: string[]; values: numbe
 }
 
 const aggregated = computed(() => {
-  if (!props.records.length) return { labels: [] as string[], values: [] as number[] }
-  if (activeTab.value === '1d') return aggregate1d(props.records)
-  if (activeTab.value === '7d') return aggregate7d(props.records)
-  return aggregate30d(props.records)
+  if (activeTab.value === '1d') {
+    if (!props.records1d.length) return { labels: [] as string[], values: [] as number[] }
+    return aggregate1d(props.records1d)
+  }
+  if (activeTab.value === '7d') {
+    if (!props.records7d.length) return { labels: [] as string[], values: [] as number[] }
+    return aggregate7d(props.records7d)
+  }
+  if (!props.records30d.length) return { labels: [] as string[], values: [] as number[] }
+  return aggregate30d(props.records30d)
 })
 
-const totalUsed = computed(() => aggregated.value.values.reduce((s, v) => s + v, 0))
+const totalUsed = computed(() =>
+  activeTab.value === '1d' ? props.total1d
+    : activeTab.value === '7d' ? props.total7d
+    : props.total30d
+)
 
 const barData = computed(() => ({
   labels: aggregated.value.labels,
@@ -170,12 +192,7 @@ const chartOptions = {
       cornerRadius: 4,
       displayColors: false,
       callbacks: {
-        label: (ctx: { parsed: { y: number } }) => {
-          const v = ctx.parsed.y
-          if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M tokens`
-          if (v >= 1000) return `${(v / 1000).toFixed(1)}k tokens`
-          return `${v} tokens`
-        }
+        label: (ctx: { parsed: { y: number } }) => formatCount(ctx.parsed.y)
       }
     }
   },
@@ -193,7 +210,7 @@ const chartOptions = {
     y: {
       ticks: {
         font: { size: 9 },
-        callback: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v),
+        callback: (v: number) => formatCount(v),
         maxTicksLimit: 4
       },
       grid: { color: 'rgba(0, 0, 0, 0.06)' },

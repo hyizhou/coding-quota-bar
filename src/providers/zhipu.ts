@@ -102,16 +102,31 @@ export class ZhipuProvider implements Provider {
       throw new Error(`[Zhipu] Quota API error: ${quotaResp.msg || 'Unknown error'}`);
     }
 
-    // 2. 获取模型使用记录（用于 TOKENS_LIMIT 的实际用量 + 历史记录）
-    const tokenLimit = quotaResp.data.limits.find(item => item.type === 'TOKENS_LIMIT');
-    const windowHours = tokenLimit?.number ?? 5;
+    // 2. 并发请求三个时间范围的模型使用记录
+    // ≤7天返回小时级数据，>7天返回天级数据
     const now = new Date();
-    const windowStart = new Date(now.getTime() - windowHours * 3600000);
+    const start1d = new Date(now.getTime() - 1 * 86400000);
+    const start7d = new Date(now.getTime() - 7 * 86400000);
+    const start30d = new Date(now.getTime() - 30 * 86400000);
 
-    let modelUsageResp: ZhipuModelUsageResponse | null = null;
+    let resp1d: ZhipuModelUsageResponse | null = null;
+    let resp7d: ZhipuModelUsageResponse | null = null;
+    let resp30d: ZhipuModelUsageResponse | null = null;
     try {
-      const url = `${this.MODEL_USAGE_ENDPOINT}?startTime=${encodeURIComponent(formatDateTime(windowStart))}&endTime=${encodeURIComponent(formatDateTime(now))}`;
-      modelUsageResp = await this.httpClient.getJson<ZhipuModelUsageResponse>(url, headers);
+      [resp1d, resp7d, resp30d] = await Promise.all([
+        this.httpClient.getJson<ZhipuModelUsageResponse>(
+          `${this.MODEL_USAGE_ENDPOINT}?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+          headers
+        ),
+        this.httpClient.getJson<ZhipuModelUsageResponse>(
+          `${this.MODEL_USAGE_ENDPOINT}?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+          headers
+        ),
+        this.httpClient.getJson<ZhipuModelUsageResponse>(
+          `${this.MODEL_USAGE_ENDPOINT}?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+          headers
+        )
+      ]);
     } catch (e) {
       console.warn('[Zhipu] Failed to fetch model usage:', e);
     }
@@ -119,7 +134,7 @@ export class ZhipuProvider implements Provider {
     // 3. 构建额度列表
     const quotas = quotaResp.data.limits.map(item => {
       if (item.type === 'TOKENS_LIMIT') {
-        const used = modelUsageResp?.data?.totalUsage?.totalModelCallCount ?? 0;
+        const used = resp1d?.data?.totalUsage?.totalModelCallCount ?? 0;
         const total = item.percentage > 0 ? Math.round(used / (item.percentage / 100)) : 0;
         return {
           label: getLimitLabel(item),
@@ -138,12 +153,9 @@ export class ZhipuProvider implements Provider {
       };
     });
 
-    // 4. 构建历史使用记录
-    const usageHistory = this.buildUsageHistory(modelUsageResp);
-
-    // 5. 构建结果（主指标取 TOKENS_LIMIT，按数组索引对应 limits 原始顺序）
-    const tokenLimitIdx = quotaResp.data.limits.findIndex(item => item.type === 'TOKENS_LIMIT');
-    const tokenQuota = tokenLimitIdx >= 0 ? quotas[tokenLimitIdx] : undefined;
+    // 4. 构建各时间范围的历史记录和总量
+    const tokenLimit = quotaResp.data.limits.find(item => item.type === 'TOKENS_LIMIT');
+    const tokenQuota = tokenLimit ? quotas[quotaResp.data.limits.indexOf(tokenLimit)] : undefined;
 
     return {
       used: tokenQuota?.used ?? 0,
@@ -152,25 +164,30 @@ export class ZhipuProvider implements Provider {
       level: quotaResp.data.level,
       details: {
         quotas,
-        usageHistory
+        history1d: this.buildUsageHistory(resp1d),
+        history7d: this.buildUsageHistory(resp7d),
+        history30d: this.buildUsageHistory(resp30d),
+        totalTokens1d: resp1d?.data?.totalUsage?.totalTokensUsage ?? 0,
+        totalTokens7d: resp7d?.data?.totalUsage?.totalTokensUsage ?? 0,
+        totalTokens30d: resp30d?.data?.totalUsage?.totalTokensUsage ?? 0
       }
     };
   }
 
   /**
    * 从 model-usage 响应构建历史记录
-   * API 返回 'YYYY-MM-DD HH:mm'，转换为 'YYYY-MM-DDTHH' 格式
+   * 小时级响应: 'YYYY-MM-DD HH:mm' → 'YYYY-MM-DDTHH'
+   * 天级响应:   'YYYY-MM-DD'       → 'YYYY-MM-DD'（保持不变）
    */
   private buildUsageHistory(resp: ZhipuModelUsageResponse | null): Array<{ date: string; used: number }> {
-    if (!resp?.data?.x_time || !resp?.data?.modelCallCount) return [];
+    if (!resp?.data?.x_time || !resp?.data?.tokensUsage) return [];
 
     return resp.data.x_time
       .map((time, i) => {
-        const count = resp.data!.modelCallCount[i];
-        return {
-          date: time.replace(' ', 'T').slice(0, 13),
-          used: count ?? 0
-        };
+        const tokens = resp.data!.tokensUsage[i];
+        const hasTime = time.includes(' ');
+        const date = hasTime ? time.replace(' ', 'T').slice(0, 13) : time.slice(0, 10);
+        return { date, used: tokens ?? 0 };
       })
       .filter(r => r.used > 0);
   }

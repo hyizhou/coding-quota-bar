@@ -21,7 +21,12 @@ export interface ProviderUsageData {
   level?: string
   error?: string
   quotas: QuotaItem[]
-  usageHistory: UsageRecord[]
+  history1d: UsageRecord[]
+  history7d: UsageRecord[]
+  history30d: UsageRecord[]
+  totalTokens1d: number
+  totalTokens7d: number
+  totalTokens30d: number
 }
 
 export interface UsageState {

@@ -32,3 +32,4 @@ electron-builder.yml
 .claude/
 CLAUDE.md
 docs/
+scripts/
