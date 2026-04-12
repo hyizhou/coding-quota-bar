@@ -2,7 +2,7 @@
   <div class="quota-card">
     <div class="card-top">
       <span class="quota-label">{{ $t(label, labelParams) }}</span>
-      <span class="quota-percent" :class="color">{{ usageRate.toFixed(1) }}%</span>
+      <span class="quota-percent" :class="color">{{ Math.round(usageRate) }}%</span>
     </div>
     <div class="progress-bar">
       <div class="progress-fill" :class="color" :style="{ width: usageRate + '%' }"></div>
