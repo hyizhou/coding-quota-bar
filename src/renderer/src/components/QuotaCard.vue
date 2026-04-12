@@ -46,7 +46,6 @@ function formatReset(iso: string): string {
   border-radius: 10px;
   box-shadow: var(--shadow-card);
   transition: background 0.2s, box-shadow 0.2s;
-  animation: cardEnter 0.3s ease-out both;
 }
 
 .quota-card:hover {
@@ -103,8 +102,4 @@ function formatReset(iso: string): string {
   color: var(--text-tertiary);
 }
 
-@keyframes cardEnter {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
 </style>
