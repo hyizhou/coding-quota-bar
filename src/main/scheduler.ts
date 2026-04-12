@@ -22,7 +22,8 @@ export class Scheduler extends EventEmitter {
   private aggregator: UsageAggregator;
   private trayManager: TrayManager | null = null;
   private providers: LoadedProvider[] = [];
-  private intervalId: NodeJS.Timeout | null = null;
+  private timerId: NodeJS.Timeout | null = null;
+  private running = false;
   private refreshInterval: number;
   private thresholds: ColorThresholds;
 
@@ -48,15 +49,20 @@ export class Scheduler extends EventEmitter {
   }
 
   /**
-   * 设置刷新间隔（毫秒）
+   * 设置刷新间隔（毫秒），间隔变化时重启定时器
+   * @returns 是否因间隔变化重启了定时器
    */
-  setRefreshInterval(interval: number): void {
+  setRefreshInterval(interval: number): boolean {
+    if (this.refreshInterval === interval) {
+      return false;
+    }
     this.refreshInterval = interval;
     // 如果正在运行，重启定时器
-    if (this.isRunning()) {
+    if (this.running) {
       this.stop();
       this.start();
     }
+    return true;
   }
 
   /**
@@ -75,39 +81,37 @@ export class Scheduler extends EventEmitter {
    * 启动定时刷新
    */
   start(): void {
-    if (this.isRunning()) {
+    if (this.running) {
       console.warn('[Scheduler] Already running');
       return;
     }
 
+    this.running = true;
     console.log(`[Scheduler] Starting with interval: ${this.refreshInterval}ms`);
-
-    // 立即执行一次刷新
-    this.refresh().catch((error) => {
-      console.error('[Scheduler] Initial refresh failed:', error);
-    });
-
-    // 设置定时刷新
-    this.intervalId = setInterval(() => {
-      this.refresh().catch((error) => {
-        console.error('[Scheduler] Refresh failed:', error);
-      });
-    }, this.refreshInterval);
-
     this.emit('started');
+    this.scheduleNext();
+  }
+
+  /**
+   * 递归调度：刷新完成后等待 interval 再触发下一次
+   */
+  private scheduleNext(): void {
+    this.refresh().catch((error) => {
+      console.error('[Scheduler] Refresh failed:', error);
+    }).finally(() => {
+      if (!this.running) return;
+      this.timerId = setTimeout(() => this.scheduleNext(), this.refreshInterval);
+    });
   }
 
   /**
    * 停止定时刷新
    */
   stop(): void {
-    if (!this.isRunning()) {
-      return;
-    }
-
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
+    this.running = false;
+    if (this.timerId) {
+      clearTimeout(this.timerId);
+      this.timerId = null;
     }
 
     console.log('[Scheduler] Stopped');
@@ -118,7 +122,7 @@ export class Scheduler extends EventEmitter {
    * 检查是否正在运行
    */
   isRunning(): boolean {
-    return this.intervalId !== null;
+    return this.running;
   }
 
   /**
@@ -164,10 +168,10 @@ export class Scheduler extends EventEmitter {
    */
   getState(): SchedulerState {
     return {
-      isRunning: this.isRunning(),
+      isRunning: this.running,
       interval: this.refreshInterval,
       lastRefresh: this.aggregator.getCurrentData()?.lastUpdate || null,
-      nextRefresh: this.isRunning()
+      nextRefresh: this.running
         ? new Date(Date.now() + this.refreshInterval)
         : null
     };
