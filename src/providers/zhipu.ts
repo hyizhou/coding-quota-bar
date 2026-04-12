@@ -95,7 +95,7 @@ function getLimitLabel(item: ZhipuLimitItem): { label: string; labelParams?: Rec
     return { label: 'quota.tokensLimit', labelParams: { n: item.number } };
   }
   if (item.type === 'TIME_LIMIT') {
-    return { label: 'quota.mcpUsage', labelParams: { n: item.number } };
+    return { label: 'quota.mcpUsage' };
   }
   return { label: item.type };
 }

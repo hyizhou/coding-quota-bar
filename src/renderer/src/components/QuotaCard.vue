@@ -27,16 +27,16 @@ defineProps<{
 const { t, locale } = useI18n()
 
 function formatReset(iso: string): string {
+  if (!iso) return ''
   try {
     const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
     const diff = Math.ceil((d.getTime() - Date.now()) / 60000)
-    if (diff < 0) return t('provider.expired')
     if (diff < 1440) {
-      // 24小时内，显示具体时间点 "HH:MM"
       return d.toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit', hour12: false })
     }
     return d.toLocaleDateString(locale.value, { month: 'short', day: 'numeric' })
-  } catch { return iso }
+  } catch { return '' }
 }
 </script>
 

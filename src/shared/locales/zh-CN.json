@@ -65,7 +65,7 @@
   },
   "quota": {
     "tokensLimit": "{n}小时额度",
-    "mcpUsage": "MCP 用量 ({n}个月)"
+    "mcpUsage": "MCP 用量"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",

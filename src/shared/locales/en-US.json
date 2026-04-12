@@ -65,7 +65,7 @@
   },
   "quota": {
     "tokensLimit": "{n}-Hour Quota",
-    "mcpUsage": "MCP Usage ({n} Month)"
+    "mcpUsage": "MCP Usage"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",
