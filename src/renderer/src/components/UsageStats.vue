@@ -118,14 +118,12 @@ function aggregate1d(records: UsageRecord[]): { labels: string[]; values: number
   return { labels, values }
 }
 
-/** 按7天：7x24小时，每个bar=6小时 */
+/** 按7天：每小时一个bar */
 function aggregate7d(records: UsageRecord[]): { labels: string[]; values: number[] } {
   const now = new Date()
-  const msPerHour = 3600000
   const startHour = new Date(now.getTime() - 7 * 86400000)
   startHour.setMinutes(0, 0, 0)
 
-  // 建立查找 map（key 为本地时间 YYYY-MM-DDTHH）
   const map = new Map<string, number>()
   for (const r of records) {
     if (r.date.length === 13) {
@@ -135,17 +133,10 @@ function aggregate7d(records: UsageRecord[]): { labels: string[]; values: number
 
   const labels: string[] = []
   const values: number[] = []
-  const bucketSize = 6
-  for (let t = startHour.getTime(); t <= now.getTime(); t += msPerHour * bucketSize) {
-    let sum = 0
-    for (let b = 0; b < bucketSize; b++) {
-      const bt = t + b * msPerHour
-      if (bt > now.getTime()) break
-      sum += map.get(localHourStr(new Date(bt))) || 0
-    }
+  for (let t = startHour.getTime(); t <= now.getTime(); t += 3600000) {
     const d = new Date(t)
-    labels.push(`${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}h`)
-    values.push(sum)
+    labels.push(`${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:00`)
+    values.push(map.get(localHourStr(d)) || 0)
   }
   return { labels, values }
 }
