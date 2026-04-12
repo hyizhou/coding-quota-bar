@@ -3,7 +3,15 @@
     <div class="chart-header">
       <div class="chart-left">
         <span class="chart-title">{{ title }}</span>
-        <span class="chart-total">{{ formatCount(totalUsed) }}</span>
+        <span class="chart-total-wrapper">
+          <span class="chart-total">{{ formatCount(totalUsed) }}</span>
+          <div class="chart-total-tooltip">
+            <div v-for="[model, value] in modelTotals" :key="model" class="tooltip-row">
+              <span class="tooltip-model">{{ model }}</span>
+              <span class="tooltip-value">{{ formatCount(value) }}</span>
+            </div>
+          </div>
+        </span>
       </div>
     </div>
     <div class="chart-wrapper">
@@ -211,6 +219,14 @@ const totalUsed = computed(() => {
   return sum
 })
 
+const modelTotals = computed(() => {
+  const map = new Map<string, number>()
+  for (const [model, arr] of stacked.value.values.entries()) {
+    map.set(model, arr.reduce((s, v) => s + v, 0))
+  }
+  return map
+})
+
 const barData = computed(() => ({
   labels: stacked.value.labels,
   datasets: stacked.value.models.map((model, idx) => ({
@@ -323,6 +339,50 @@ const chartOptions = computed(() => ({
   font-size: 11px;
   font-weight: 600;
   color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+
+.chart-total-wrapper {
+  position: relative;
+}
+
+.chart-total-tooltip {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.9);
+  transform-origin: bottom center;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 10px;
+  white-space: nowrap;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.chart-total-wrapper:hover .chart-total-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  line-height: 1.6;
+}
+
+.tooltip-model {
+  color: #bbb;
+}
+
+.tooltip-value {
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 </style>
