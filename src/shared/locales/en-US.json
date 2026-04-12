@@ -52,7 +52,12 @@
     "theme": "Theme",
     "themeLight": "Light",
     "themeDark": "Dark",
-    "themeAuto": "Follow System"
+    "themeAuto": "Follow System",
+    "checkUpdate": "Check for Updates",
+    "checkingUpdate": "Checking...",
+    "noUpdate": "You're up to date",
+    "updateAvailable": "New version available: v{version}",
+    "updateFailed": "Update check failed"
   },
   "provider": {
     "expired": "Expired",

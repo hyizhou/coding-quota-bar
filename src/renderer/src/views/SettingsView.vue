@@ -84,6 +84,15 @@
           </select>
         </div>
       </div>
+
+      <div class="version-section">
+        <span class="version-text">v{{ appVersion }}</span>
+        <button class="check-update-btn" :disabled="checkingUpdate" @click="handleCheckUpdate">
+          <template v-if="checkingUpdate">{{ $t('settings.checkingUpdate') }}</template>
+          <template v-else-if="updateStatus">{{ updateStatus }}</template>
+          <template v-else>{{ $t('settings.checkUpdate') }}</template>
+        </button>
+      </div>
     </div>
 
     <footer class="footer">
@@ -124,6 +133,9 @@ const saving = ref(false)
 const saveStatus = ref('')
 const saveError = ref(false)
 const currentConfig = ref<AppConfig | null>(null)
+const appVersion = ref('')
+const checkingUpdate = ref(false)
+const updateStatus = ref('')
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 function scheduleSave() {
@@ -135,6 +147,7 @@ function scheduleSave() {
 }
 
 onMounted(async () => {
+  appVersion.value = await window.electronAPI.getAppVersion()
   const config = await window.electronAPI.getConfig()
   if (!config) return
   currentConfig.value = config
@@ -217,6 +230,22 @@ async function handleImportFromEnv(info: ProviderInfo) {
   }
   setTimeout(() => { info.importStatus = '' }, 3000)
 }
+
+async function handleCheckUpdate() {
+  checkingUpdate.value = true
+  updateStatus.value = ''
+  try {
+    const result = await window.electronAPI.checkForUpdate()
+    updateStatus.value = result.available
+      ? t('settings.updateAvailable', { version: result.version })
+      : t('settings.noUpdate')
+  } catch {
+    updateStatus.value = t('settings.updateFailed')
+  } finally {
+    checkingUpdate.value = false
+  }
+  setTimeout(() => { updateStatus.value = '' }, 5000)
+}
 </script>
 
 <style scoped>
@@ -285,4 +314,35 @@ async function handleImportFromEnv(info: ProviderInfo) {
 
 .save-status { font-size: 11px; color: #4CAF50; }
 .save-status.error { color: #F44336; }
+
+.version-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin-top: 4px;
+}
+
+.version-text {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.check-update-btn {
+  font-size: 11px;
+  padding: 3px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.check-update-btn:hover:not(:disabled) {
+  background: var(--bg-import-hover);
+}
+.check-update-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 </style>

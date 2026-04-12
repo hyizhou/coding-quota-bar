@@ -58,5 +58,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   notifyHoverState: (hovering: boolean) => {
     ipcRenderer.send('popup-hover-state', hovering);
-  }
+  },
+
+  /**
+   * 获取应用版本号
+   */
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+
+  /**
+   * 检查更新
+   */
+  checkForUpdate: () => ipcRenderer.invoke('check-for-update')
 });

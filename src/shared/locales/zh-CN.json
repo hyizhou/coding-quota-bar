@@ -52,7 +52,12 @@
     "theme": "主题",
     "themeLight": "浅色",
     "themeDark": "深色",
-    "themeAuto": "跟随系统"
+    "themeAuto": "跟随系统",
+    "checkUpdate": "检查更新",
+    "checkingUpdate": "检查中...",
+    "noUpdate": "已是最新版本",
+    "updateAvailable": "发现新版本 v{version}",
+    "updateFailed": "检查更新失败"
   },
   "provider": {
     "expired": "已过期",

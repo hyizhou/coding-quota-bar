@@ -487,6 +487,17 @@ function setupIpcHandlers(): void {
     await configManager.updateConfig(updates);
     return configManager.getConfig();
   });
+
+  // 获取应用版本号
+  ipcMain.handle('get-app-version', () => {
+    return app.getVersion();
+  });
+
+  // 检查更新
+  ipcMain.handle('check-for-update', async () => {
+    // TODO: 接入 electron-updater
+    return { available: false };
+  });
 }
 
 /**
