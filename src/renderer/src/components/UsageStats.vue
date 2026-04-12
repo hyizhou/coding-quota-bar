@@ -34,7 +34,28 @@ import {
 import type { UsageRecord } from '../types'
 import { useTheme } from '../composables/useTheme'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip)
+/** 鼠标悬停时绘制垂直辅助线 */
+const verticalLinePlugin = {
+  id: 'verticalLine',
+  afterDraw(chart: import('chart.js').Chart) {
+    if (chart.tooltip?.getActiveElements()?.length) {
+      const x = chart.tooltip.caretX
+      const yAxis = chart.scales.y
+      const ctx = chart.ctx
+      ctx.save()
+      ctx.beginPath()
+      ctx.moveTo(x, yAxis.top)
+      ctx.lineTo(x, yAxis.bottom)
+      ctx.lineWidth = 1
+      ctx.strokeStyle = chart.options.color as string || 'rgba(0,0,0,0.15)'
+      ctx.setLineDash([4, 3])
+      ctx.stroke()
+      ctx.restore()
+    }
+  }
+}
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, verticalLinePlugin)
 
 const { isDark } = useTheme()
 
