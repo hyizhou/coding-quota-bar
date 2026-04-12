@@ -61,9 +61,6 @@
               :records-1d="p.history1d"
               :records-7d="p.history7d"
               :records-30d="p.history30d"
-              :total-1d="p.totalTokens1d"
-              :total-7d="p.totalTokens7d"
-              :total-30d="p.totalTokens30d"
             />
           </template>
         </div>

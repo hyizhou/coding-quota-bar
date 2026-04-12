@@ -43,9 +43,6 @@ const props = defineProps<{
   records1d: UsageRecord[]
   records7d: UsageRecord[]
   records30d: UsageRecord[]
-  total1d: number
-  total7d: number
-  total30d: number
 }>()
 
 type TabValue = '1d' | '7d' | '30d'
@@ -166,9 +163,7 @@ const aggregated = computed(() => {
 })
 
 const totalUsed = computed(() =>
-  activeTab.value === '1d' ? props.total1d
-    : activeTab.value === '7d' ? props.total7d
-    : props.total30d
+  aggregated.value.values.reduce((sum, v) => sum + v, 0)
 )
 
 const barData = computed(() => ({
@@ -185,6 +180,10 @@ const barData = computed(() => ({
 const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
+  interaction: {
+    mode: 'index' as const,
+    intersect: false
+  },
   plugins: {
     legend: { display: false },
     tooltip: {
