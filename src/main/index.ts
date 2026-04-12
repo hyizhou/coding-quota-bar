@@ -83,8 +83,8 @@ interface UsageDataForRenderer {
   overallPercent: number;
 }
 
-const POPUP_WIDTH = 320;
-const POPUP_HEIGHT = 400;
+const POPUP_WIDTH = 336;
+const POPUP_HEIGHT = 416;
 
 /**
  * 计算弹出窗口位置：在托盘图标上方居中显示
