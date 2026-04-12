@@ -166,6 +166,49 @@ export function createTrayIcon(percent: number, color: DisplayColor): Electron.N
 }
 
 /**
+ * 旋转弧线帧数
+ */
+const LOADING_FRAMES = 6;
+const LOADING_INTERVAL = 180; // ms
+
+/**
+ * 创建加载动画的一帧（旋转弧线）
+ */
+export function createLoadingFrame(frameIndex: number): Electron.NativeImage {
+  const size = 16;
+  const cx = 7.5;
+  const cy = 7.5;
+  const radius = 5;
+
+  const pixels = Buffer.alloc(size * size * 4, 0);
+
+  // 弧线覆盖 300°（5/6 圈），缺口 60°，每帧旋转 60°
+  const gapAngle = Math.PI / 3; // 60°
+  const startAngle = (frameIndex / LOADING_FRAMES) * Math.PI * 2;
+
+  // 灰蓝色弧线
+  const cr = 140, cg = 160, cb = 190;
+
+  // 绘制弧线（两层半径让线条更粗一些）
+  for (const r of [radius, radius - 1]) {
+    for (let a = startAngle; a < startAngle + Math.PI * 2 - gapAngle; a += 0.08) {
+      const x = Math.round(cx + r * Math.cos(a));
+      const y = Math.round(cy + r * Math.sin(a));
+      if (x >= 0 && x < size && y >= 0 && y < size) {
+        const idx = (y * size + x) * 4;
+        pixels[idx] = cr;
+        pixels[idx + 1] = cg;
+        pixels[idx + 2] = cb;
+        pixels[idx + 3] = 255;
+      }
+    }
+  }
+
+  const pngBuffer = encodePng(size, size, pixels);
+  return nativeImage.createFromBuffer(pngBuffer);
+}
+
+/**
  * 托盘管理器
  */
 export class TrayManager {
@@ -174,6 +217,8 @@ export class TrayManager {
   private currentColor: DisplayColor = 'green';
   private autoStartEnabled = false;
   private callbacks: TrayCallbacks | null = null;
+  private loadingFrame = 0;
+  private loadingTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.initialize();
@@ -270,6 +315,40 @@ export class TrayManager {
   }
 
   /**
+   * 开始加载动画
+   */
+  startLoading(): void {
+    if (this.loadingTimer) return; // 已在加载中
+    this.loadingFrame = 0;
+    console.log('[Tray] Loading animation started');
+
+    const frame = createLoadingFrame(0);
+    this.tray?.setImage(frame);
+
+    this.loadingTimer = setInterval(() => {
+      this.loadingFrame = (this.loadingFrame + 1) % LOADING_FRAMES;
+      const frame = createLoadingFrame(this.loadingFrame);
+      this.tray?.setImage(frame);
+    }, LOADING_INTERVAL);
+  }
+
+  /**
+   * 停止加载动画，切换为正常百分比图标
+   */
+  stopLoading(): void {
+    if (!this.loadingTimer) return;
+    clearInterval(this.loadingTimer);
+    this.loadingTimer = null;
+    console.log('[Tray] Loading animation stopped');
+
+    // 立即显示当前百分比
+    if (this.tray) {
+      const icon = createTrayIcon(this.currentPercent, this.currentColor);
+      this.tray.setImage(icon);
+    }
+  }
+
+  /**
    * 更新托盘图标显示
    */
   updateDisplay(percent: number, thresholds: ColorThresholds): void {
@@ -282,6 +361,9 @@ export class TrayManager {
 
     this.currentPercent = percent;
     this.currentColor = color;
+
+    // 加载动画期间不更新图标（由 stopLoading 统一切换）
+    if (this.loadingTimer) return;
 
     if (this.tray) {
       const icon = createTrayIcon(percent, color);
@@ -340,6 +422,10 @@ export class TrayManager {
    * 销毁托盘
    */
   destroy(): void {
+    if (this.loadingTimer) {
+      clearInterval(this.loadingTimer);
+      this.loadingTimer = null;
+    }
     if (this.tray) {
       this.tray.destroy();
       this.tray = null;

@@ -340,7 +340,11 @@ async function initialize(): Promise<void> {
   console.log(`[App] Loaded ${providers.length} provider(s)`);
 
   // 6. 启动定时刷新
+  trayManager.startLoading();
+
   scheduler.on('refreshed', () => {
+    // 首次获取到数据后停止加载动画
+    trayManager.stopLoading();
     // 刷新完成后主动推送数据到渲染进程
     const data = buildUsageData();
     if (popupWindow && !popupWindow.isDestroyed()) {
