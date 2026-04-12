@@ -6,7 +6,7 @@ import { ProviderLoader, getAvailableProviderKeys, getProviderEnvVarMap } from '
 import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale, t as i18nT } from './i18n';
-import type { UsageResult, QuotaItem as SharedQuotaItem, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord } from '../shared/types';
+import type { UsageResult, QuotaItem as SharedQuotaItem, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord } from '../shared/types';
 
 // 加载 .env 文件
 const envPath = path.join(__dirname, '..', '..', '.env');
@@ -75,6 +75,9 @@ interface ProviderDisplayData {
   mcpHistory1d: SharedMcpUsageRecord[];
   mcpHistory7d: SharedMcpUsageRecord[];
   mcpHistory30d: SharedMcpUsageRecord[];
+  modelHistory1d: SharedModelTokenRecord[];
+  modelHistory7d: SharedModelTokenRecord[];
+  modelHistory30d: SharedModelTokenRecord[];
 }
 
 /**
@@ -551,6 +554,9 @@ function convertProviderData(
   const mapMcpHistory = (key: string): SharedMcpUsageRecord[] =>
     ((result.details?.[key] ?? []) as SharedMcpUsageRecord[]).map(r => ({ date: r.date, search: r.search, webRead: r.webRead, zread: r.zread }));
 
+  const mapModelHistory = (key: string): SharedModelTokenRecord[] =>
+    ((result.details?.[key] ?? []) as SharedModelTokenRecord[]).map(r => ({ date: r.date, model: r.model, used: r.used }));
+
   console.log(`[Data] ${type} 1d:${mapHistory('history1d').length} 7d:${mapHistory('history7d').length} 30d:${mapHistory('history30d').length}`);
 
   return {
@@ -566,7 +572,10 @@ function convertProviderData(
     totalTokens30d: (result.details?.totalTokens30d as number) ?? 0,
     mcpHistory1d: mapMcpHistory('mcpHistory1d'),
     mcpHistory7d: mapMcpHistory('mcpHistory7d'),
-    mcpHistory30d: mapMcpHistory('mcpHistory30d')
+    mcpHistory30d: mapMcpHistory('mcpHistory30d'),
+    modelHistory1d: mapModelHistory('modelHistory1d'),
+    modelHistory7d: mapModelHistory('modelHistory7d'),
+    modelHistory30d: mapModelHistory('modelHistory30d')
   };
 }
 

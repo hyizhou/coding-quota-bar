@@ -37,6 +37,15 @@ export interface McpUsageRecord {
 }
 
 /**
+ * 分模型 Token 使用历史记录
+ */
+export interface ModelTokenRecord {
+  date: string;
+  model: string;
+  used: number;
+}
+
+/**
  * 用量查询结果
  */
 export interface UsageResult {

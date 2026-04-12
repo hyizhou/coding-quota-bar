@@ -23,6 +23,12 @@ export interface McpUsageRecord {
   zread: number
 }
 
+export interface ModelTokenRecord {
+  date: string
+  model: string
+  used: number
+}
+
 export interface ProviderUsageData {
   name: string
   level?: string
@@ -37,6 +43,9 @@ export interface ProviderUsageData {
   mcpHistory1d: McpUsageRecord[]
   mcpHistory7d: McpUsageRecord[]
   mcpHistory30d: McpUsageRecord[]
+  modelHistory1d: ModelTokenRecord[]
+  modelHistory7d: ModelTokenRecord[]
+  modelHistory30d: ModelTokenRecord[]
 }
 
 export interface UsageState {

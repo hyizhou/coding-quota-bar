@@ -56,10 +56,10 @@
               v-bind="q"
             />
             <UsageStats
-              v-if="p.history1d.length > 0 || p.history7d.length > 0 || p.history30d.length > 0 || p.mcpHistory1d.length > 0 || p.mcpHistory7d.length > 0 || p.mcpHistory30d.length > 0"
-              :records-1d="p.history1d"
-              :records-7d="p.history7d"
-              :records-30d="p.history30d"
+              v-if="p.modelHistory1d.length > 0 || p.modelHistory7d.length > 0 || p.modelHistory30d.length > 0 || p.mcpHistory1d.length > 0 || p.mcpHistory7d.length > 0 || p.mcpHistory30d.length > 0"
+              :model-records-1d="p.modelHistory1d"
+              :model-records-7d="p.modelHistory7d"
+              :model-records-30d="p.modelHistory30d"
               :mcp-records-1d="p.mcpHistory1d"
               :mcp-records-7d="p.mcpHistory7d"
               :mcp-records-30d="p.mcpHistory30d"

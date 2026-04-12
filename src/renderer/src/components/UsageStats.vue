@@ -23,9 +23,9 @@
     <TokenChart
       v-if="activeChart === 'token'"
       :title="$t('main.tokenStats')"
-      :records-1d="records1d"
-      :records-7d="records7d"
-      :records-30d="records30d"
+      :model-records-1d="modelRecords1d"
+      :model-records-7d="modelRecords7d"
+      :model-records-30d="modelRecords30d"
       :active-tab="activeTab"
     />
     <McpChart
@@ -44,14 +44,14 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TokenChart from './TokenChart.vue'
 import McpChart from './McpChart.vue'
-import type { UsageRecord, McpUsageRecord } from '../types'
+import type { ModelTokenRecord, McpUsageRecord } from '../types'
 
 const { t } = useI18n()
 
 const props = defineProps<{
-  records1d: UsageRecord[]
-  records7d: UsageRecord[]
-  records30d: UsageRecord[]
+  modelRecords1d: ModelTokenRecord[]
+  modelRecords7d: ModelTokenRecord[]
+  modelRecords30d: ModelTokenRecord[]
   mcpRecords1d: McpUsageRecord[]
   mcpRecords7d: McpUsageRecord[]
   mcpRecords30d: McpUsageRecord[]

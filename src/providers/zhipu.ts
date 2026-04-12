@@ -59,6 +59,12 @@ interface ZhipuModelUsageResponse {
       totalModelCallCount: number;
       totalTokensUsage: number;
     };
+    modelDataList?: Array<{
+      modelName: string;
+      sortOrder: number;
+      tokensUsage: (number | null)[];
+      totalTokens: number;
+    }>;
   };
   msg?: string;
   success?: boolean;
@@ -210,7 +216,10 @@ export class ZhipuProvider implements Provider {
         totalTokens30d: resp30d?.data?.totalUsage?.totalTokensUsage ?? 0,
         mcpHistory1d: this.buildToolHistory(toolResp1d),
         mcpHistory7d: this.buildToolHistory(toolResp7d),
-        mcpHistory30d: this.buildToolHistory(toolResp30d)
+        mcpHistory30d: this.buildToolHistory(toolResp30d),
+        modelHistory1d: this.buildModelHistory(resp1d),
+        modelHistory7d: this.buildModelHistory(resp7d),
+        modelHistory30d: this.buildModelHistory(resp30d)
       }
     };
   }
@@ -251,5 +260,25 @@ export class ZhipuProvider implements Provider {
         };
       })
       .filter(r => r.search > 0 || r.webRead > 0 || r.zread > 0);
+  }
+
+  /**
+   * 从 model-usage 响应构建分模型历史记录
+   */
+  private buildModelHistory(resp: ZhipuModelUsageResponse | null): Array<{ date: string; model: string; used: number }> {
+    if (!resp?.data?.x_time || !resp?.data?.modelDataList) return [];
+
+    const records: Array<{ date: string; model: string; used: number }> = [];
+    for (const modelData of resp.data.modelDataList) {
+      for (let i = 0; i < resp.data.x_time.length; i++) {
+        const tokens = modelData.tokensUsage[i];
+        if (!tokens || tokens <= 0) continue;
+        const time = resp.data.x_time[i];
+        const hasTime = time.includes(' ');
+        const date = hasTime ? time.replace(' ', 'T').slice(0, 13) : time.slice(0, 10);
+        records.push({ date, model: modelData.modelName, used: tokens });
+      }
+    }
+    return records;
   }
 }
