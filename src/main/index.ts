@@ -51,6 +51,7 @@ let popupMode: PopupMode = PopupMode.Hidden;
  */
 interface QuotaDisplayItem {
   label: string;
+  labelParams?: Record<string, string | number>;
   used: number;
   total: number;
   usageRate: number;
@@ -541,6 +542,7 @@ function convertProviderData(
 ): ProviderDisplayData {
   const quotas: QuotaDisplayItem[] = (result.details?.quotas ?? []).map(q => ({
     label: q.label,
+    labelParams: (q as any).labelParams,
     used: q.used,
     total: q.total,
     usageRate: q.usageRate,

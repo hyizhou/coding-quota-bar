@@ -14,7 +14,16 @@
     "usageStats": "Usage Stats",
     "tokenStats": "Token Usage",
     "mcpStats": "MCP Stats",
-    "toggleTheme": "Toggle Theme"
+    "toggleTheme": "Toggle Theme",
+    "tab1d": "1D",
+    "tab7d": "7D",
+    "tab30d": "30D",
+    "tabToken": "Token",
+    "tabMcp": "MCP",
+    "mcpSearch": "Search",
+    "mcpWebRead": "Web Read",
+    "mcpZread": "ZRead",
+    "mcpCountUnit": ""
   },
   "settings": {
     "title": "Settings",
@@ -54,6 +63,10 @@
   "chart": {
     "tokens": "tokens"
   },
+  "quota": {
+    "tokensLimit": "{n}-Hour Quota",
+    "mcpUsage": "MCP Usage ({n} Month)"
+  },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",
     "tooltipRemaining": "{n}% remaining",
@@ -65,7 +78,7 @@
     "quit": "Quit"
   },
   "providers": {
-    "zhipu": "Zhipu",
+    "zhipu": "Z AI",
     "minimax": "MiniMax",
     "kimi": "Kimi"
   }

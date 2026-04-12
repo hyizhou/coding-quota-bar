@@ -64,14 +64,14 @@ const activeChart = ref<ChartType>('token')
 const activeTab = ref<TabValue>('7d')
 
 const chartTypes = [
-  { label: 'Token', value: 'token' as ChartType },
-  { label: 'MCP', value: 'mcp' as ChartType }
+  { label: t('main.tabToken'), value: 'token' as ChartType },
+  { label: t('main.tabMcp'), value: 'mcp' as ChartType }
 ]
 
 const tabs = [
-  { label: '1天', value: '1d' as TabValue },
-  { label: '7天', value: '7d' as TabValue },
-  { label: '30天', value: '30d' as TabValue }
+  { label: t('main.tab1d'), value: '1d' as TabValue },
+  { label: t('main.tab7d'), value: '7d' as TabValue },
+  { label: t('main.tab30d'), value: '30d' as TabValue }
 ]
 </script>
 

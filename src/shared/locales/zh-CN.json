@@ -14,7 +14,16 @@
     "usageStats": "使用统计",
     "tokenStats": "使用统计",
     "mcpStats": "MCP 统计",
-    "toggleTheme": "切换主题"
+    "toggleTheme": "切换主题",
+    "tab1d": "1天",
+    "tab7d": "7天",
+    "tab30d": "30天",
+    "tabToken": "Token",
+    "tabMcp": "MCP",
+    "mcpSearch": "搜索",
+    "mcpWebRead": "阅读",
+    "mcpZread": "ZRead",
+    "mcpCountUnit": "次"
   },
   "settings": {
     "title": "设置",
@@ -53,6 +62,10 @@
   },
   "chart": {
     "tokens": "tokens"
+  },
+  "quota": {
+    "tokensLimit": "{n}小时额度",
+    "mcpUsage": "MCP 用量 ({n}个月)"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",

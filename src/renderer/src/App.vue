@@ -10,8 +10,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import MainView from './views/MainView.vue'
 import SettingsView from './views/SettingsView.vue'
+
+const { locale } = useI18n()
 
 const currentView = ref<'main' | 'settings'>('main')
 const transitionName = ref('slide-left')
@@ -37,6 +40,11 @@ function onMouseLeave() {
 
 onMounted(async () => {
   isDev.value = await window.electronAPI.getDevMode()
+  // 从保存的配置中恢复语言设置
+  const config = await window.electronAPI.getConfig()
+  if (config?.language) {
+    locale.value = config.language
+  }
   console.log('[App.vue] isDev:', isDev.value)
   window.electronAPI.onShowSettings(() => {
     goSettings()

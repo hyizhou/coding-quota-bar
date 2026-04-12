@@ -3,7 +3,7 @@
     <div class="chart-header">
       <div class="chart-left">
         <span class="chart-title">{{ title }}</span>
-        <span class="chart-total">{{ totalCount }}次</span>
+        <span class="chart-total">{{ totalCount }}{{ $t('main.mcpCountUnit') }}</span>
       </div>
     </div>
     <div class="chart-wrapper">
@@ -24,10 +24,12 @@ import {
 } from 'chart.js'
 import type { McpUsageRecord } from '../types'
 import { useTheme } from '../composables/useTheme'
+import { useI18n } from 'vue-i18n'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip)
 
 const { isDark } = useTheme()
+const { t } = useI18n()
 
 const props = defineProps<{
   title: string
@@ -173,7 +175,7 @@ const barData = computed(() => ({
   labels: aggregated.value.labels,
   datasets: [
     {
-      label: '搜索',
+      label: t('main.mcpSearch'),
       data: aggregated.value.search,
       backgroundColor: COLORS.search.bg,
       hoverBackgroundColor: COLORS.search.hover,
@@ -181,7 +183,7 @@ const barData = computed(() => ({
       borderSkipped: false
     },
     {
-      label: '阅读',
+      label: t('main.mcpWebRead'),
       data: aggregated.value.webRead,
       backgroundColor: COLORS.webRead.bg,
       hoverBackgroundColor: COLORS.webRead.hover,
@@ -189,7 +191,7 @@ const barData = computed(() => ({
       borderSkipped: false
     },
     {
-      label: 'ZRead',
+      label: t('main.mcpZread'),
       data: aggregated.value.zread,
       backgroundColor: COLORS.zread.bg,
       hoverBackgroundColor: COLORS.zread.hover,

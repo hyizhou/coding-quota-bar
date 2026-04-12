@@ -88,16 +88,16 @@ function toISODate(ts: number | undefined | null): string {
 }
 
 /**
- * 根据 limit 类型生成标签
+ * 根据 limit 类型生成标签 key（由渲染进程翻译）
  */
-function getLimitLabel(item: ZhipuLimitItem): string {
+function getLimitLabel(item: ZhipuLimitItem): { label: string; labelParams?: Record<string, string | number> } {
   if (item.type === 'TOKENS_LIMIT') {
-    return `${item.number}小时额度`;
+    return { label: 'quota.tokensLimit', labelParams: { n: item.number } };
   }
   if (item.type === 'TIME_LIMIT') {
-    return `MCP 用量 (${item.number}个月)`;
+    return { label: 'quota.mcpUsage', labelParams: { n: item.number } };
   }
-  return item.type;
+  return { label: item.type };
 }
 
 /**
@@ -177,11 +177,13 @@ export class ZhipuProvider implements Provider {
 
     // 3. 构建额度列表
     const quotas = quotaResp.data.limits.map(item => {
+      const { label, labelParams } = getLimitLabel(item);
       if (item.type === 'TOKENS_LIMIT') {
         const used = resp1d?.data?.totalUsage?.totalModelCallCount ?? 0;
         const total = item.percentage > 0 ? Math.round(used / (item.percentage / 100)) : 0;
         return {
-          label: getLimitLabel(item),
+          label,
+          labelParams,
           used,
           total,
           usageRate: item.percentage,
@@ -189,7 +191,8 @@ export class ZhipuProvider implements Provider {
         };
       }
       return {
-        label: getLimitLabel(item),
+        label,
+        labelParams,
         used: item.currentValue ?? 0,
         total: item.usage ?? 0,
         usageRate: item.percentage,

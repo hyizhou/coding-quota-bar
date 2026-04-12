@@ -11,7 +11,8 @@ export interface ProviderConfig {
  * 单个额度项（如 5小时窗口、MCP额度）
  */
 export interface QuotaItem {
-  label: string;         // 额度名称，如 "5小时窗口"、"MCP额度"
+  label: string;         // i18n key，如 "quota.tokensLimit"
+  labelParams?: Record<string, string | number>;  // 翻译参数
   used: number;          // 已用量
   total: number;         // 总量
   usageRate: number;     // 使用率 0-100

@@ -16,7 +16,7 @@
         <label class="toggle-row">
           <input type="checkbox" v-model="info.enabled" />
           <span class="toggle-switch"></span>
-          <span class="toggle-label">{{ info.label }}</span>
+          <span class="toggle-label">{{ $t(`providers.${info.key}`) }}</span>
         </label>
         <div class="provider-body" v-if="info.enabled">
           <div class="import-btns">

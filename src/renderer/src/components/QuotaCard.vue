@@ -1,7 +1,7 @@
 <template>
   <div class="quota-card">
     <div class="card-top">
-      <span class="quota-label">{{ label }}</span>
+      <span class="quota-label">{{ $t(label, labelParams) }}</span>
       <span class="quota-percent" :class="color">{{ usageRate.toFixed(1) }}%</span>
     </div>
     <div class="progress-bar">
@@ -18,6 +18,7 @@ import { useI18n } from 'vue-i18n'
 
 defineProps<{
   label: string
+  labelParams?: Record<string, string | number>
   usageRate: number
   resetAt: string
   color: 'green' | 'yellow' | 'red'

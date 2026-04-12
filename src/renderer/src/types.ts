@@ -4,6 +4,7 @@
 
 export interface QuotaItem {
   label: string
+  labelParams?: Record<string, string | number>
   used: number
   total: number
   usageRate: number    // 使用率 0-100
