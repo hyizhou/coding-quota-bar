@@ -85,10 +85,16 @@ export class ProviderLoader {
       // 创建实例
       try {
         const instance = new ProviderClass();
+        // 注入编译时配置的 baseUrl
+        const buildEntry = buildConfig.providers.find(p => p.key === type);
+        const providerConfig = {
+          ...config,
+          _baseUrl: buildEntry?.baseUrl || '',
+        };
         loaded.push({
           type: type as ProviderType,
           instance,
-          config,
+          config: providerConfig,
         });
         console.log(`[Loader] Loaded provider: ${instance.name}`);
       } catch (error) {

@@ -80,9 +80,11 @@ function getLimitLabel(item: ZhipuLimitItem): string {
 export class ZhipuProvider implements Provider {
   name = '智谱';
 
-  private readonly QUOTA_ENDPOINT = 'https://bigmodel.cn/api/monitor/usage/quota/limit';
-  private readonly MODEL_USAGE_ENDPOINT = 'https://bigmodel.cn/api/monitor/usage/model-usage';
   private httpClient = new HttpClientWithRetry(3, 1000);
+
+  private getBaseUrl(config: ProviderConfig): string {
+    return config._baseUrl as string;
+  }
 
   async fetchUsage(config: ProviderConfig): Promise<UsageResult> {
     const apiKey = config.apiKey?.trim();
@@ -90,11 +92,12 @@ export class ZhipuProvider implements Provider {
       throw new Error('[Zhipu] API Key is required');
     }
 
+    const baseUrl = this.getBaseUrl(config);
     const headers = { 'Authorization': `Bearer ${apiKey}` };
 
     // 1. 获取配额数据
     const quotaResp = await this.httpClient.getJson<ZhipuQuotaResponse>(
-      this.QUOTA_ENDPOINT,
+      `${baseUrl}/api/monitor/usage/quota/limit`,
       headers
     );
 
@@ -115,15 +118,15 @@ export class ZhipuProvider implements Provider {
     try {
       [resp1d, resp7d, resp30d] = await Promise.all([
         this.httpClient.getJson<ZhipuModelUsageResponse>(
-          `${this.MODEL_USAGE_ENDPOINT}?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+          `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
           headers
         ),
         this.httpClient.getJson<ZhipuModelUsageResponse>(
-          `${this.MODEL_USAGE_ENDPOINT}?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+          `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
           headers
         ),
         this.httpClient.getJson<ZhipuModelUsageResponse>(
-          `${this.MODEL_USAGE_ENDPOINT}?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+          `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
           headers
         )
       ]);
