@@ -27,6 +27,26 @@ interface ZhipuQuotaResponse {
 }
 
 /**
+ * 智谱 tool-usage API 响应类型
+ */
+interface ZhipuToolUsageResponse {
+  code: number;
+  data?: {
+    x_time: string[];
+    networkSearchCount: (number | null)[];
+    webReadMcpCount: (number | null)[];
+    zreadMcpCount: (number | null)[];
+    totalUsage: {
+      totalNetworkSearchCount: number;
+      totalWebReadMcpCount: number;
+      totalZreadMcpCount: number;
+    };
+  };
+  msg?: string;
+  success?: boolean;
+}
+
+/**
  * 智谱 model-usage API 响应类型
  */
 interface ZhipuModelUsageResponse {
@@ -115,8 +135,11 @@ export class ZhipuProvider implements Provider {
     let resp1d: ZhipuModelUsageResponse | null = null;
     let resp7d: ZhipuModelUsageResponse | null = null;
     let resp30d: ZhipuModelUsageResponse | null = null;
+    let toolResp1d: ZhipuToolUsageResponse | null = null;
+    let toolResp7d: ZhipuToolUsageResponse | null = null;
+    let toolResp30d: ZhipuToolUsageResponse | null = null;
     try {
-      [resp1d, resp7d, resp30d] = await Promise.all([
+      [resp1d, resp7d, resp30d, toolResp1d, toolResp7d, toolResp30d] = await Promise.all([
         this.httpClient.getJson<ZhipuModelUsageResponse>(
           `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
           headers
@@ -128,10 +151,22 @@ export class ZhipuProvider implements Provider {
         this.httpClient.getJson<ZhipuModelUsageResponse>(
           `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
           headers
+        ),
+        this.httpClient.getJson<ZhipuToolUsageResponse>(
+          `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+          headers
+        ),
+        this.httpClient.getJson<ZhipuToolUsageResponse>(
+          `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+          headers
+        ),
+        this.httpClient.getJson<ZhipuToolUsageResponse>(
+          `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+          headers
         )
       ]);
     } catch (e) {
-      console.warn('[Zhipu] Failed to fetch model usage:', e);
+      console.warn('[Zhipu] Failed to fetch model/tool usage:', e);
     }
 
     // 3. 构建额度列表
@@ -172,7 +207,10 @@ export class ZhipuProvider implements Provider {
         history30d: this.buildUsageHistory(resp30d),
         totalTokens1d: resp1d?.data?.totalUsage?.totalTokensUsage ?? 0,
         totalTokens7d: resp7d?.data?.totalUsage?.totalTokensUsage ?? 0,
-        totalTokens30d: resp30d?.data?.totalUsage?.totalTokensUsage ?? 0
+        totalTokens30d: resp30d?.data?.totalUsage?.totalTokensUsage ?? 0,
+        mcpHistory1d: this.buildToolHistory(toolResp1d),
+        mcpHistory7d: this.buildToolHistory(toolResp7d),
+        mcpHistory30d: this.buildToolHistory(toolResp30d)
       }
     };
   }
@@ -193,5 +231,25 @@ export class ZhipuProvider implements Provider {
         return { date, used: tokens ?? 0 };
       })
       .filter(r => r.used > 0);
+  }
+
+  /**
+   * 从 tool-usage 响应构建 MCP 工具历史记录
+   */
+  private buildToolHistory(resp: ZhipuToolUsageResponse | null): Array<{ date: string; search: number; webRead: number; zread: number }> {
+    if (!resp?.data?.x_time) return [];
+
+    return resp.data.x_time
+      .map((time, i) => {
+        const hasTime = time.includes(' ');
+        const date = hasTime ? time.replace(' ', 'T').slice(0, 13) : time.slice(0, 10);
+        return {
+          date,
+          search: resp.data!.networkSearchCount[i] ?? 0,
+          webRead: resp.data!.webReadMcpCount[i] ?? 0,
+          zread: resp.data!.zreadMcpCount[i] ?? 0,
+        };
+      })
+      .filter(r => r.search > 0 || r.webRead > 0 || r.zread > 0);
   }
 }

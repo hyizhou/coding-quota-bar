@@ -6,7 +6,7 @@ import { ProviderLoader, getAvailableProviderKeys, getProviderEnvVarMap } from '
 import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale, t as i18nT } from './i18n';
-import type { UsageResult, QuotaItem as SharedQuotaItem, UsageRecord as SharedUsageRecord } from '../shared/types';
+import type { UsageResult, QuotaItem as SharedQuotaItem, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord } from '../shared/types';
 
 // 加载 .env 文件
 const envPath = path.join(__dirname, '..', '..', '.env');
@@ -72,6 +72,9 @@ interface ProviderDisplayData {
   totalTokens1d: number;
   totalTokens7d: number;
   totalTokens30d: number;
+  mcpHistory1d: SharedMcpUsageRecord[];
+  mcpHistory7d: SharedMcpUsageRecord[];
+  mcpHistory30d: SharedMcpUsageRecord[];
 }
 
 /**
@@ -545,6 +548,9 @@ function convertProviderData(
   const mapHistory = (key: string): SharedUsageRecord[] =>
     ((result.details?.[key] ?? []) as SharedUsageRecord[]).map(r => ({ date: r.date, used: r.used }));
 
+  const mapMcpHistory = (key: string): SharedMcpUsageRecord[] =>
+    ((result.details?.[key] ?? []) as SharedMcpUsageRecord[]).map(r => ({ date: r.date, search: r.search, webRead: r.webRead, zread: r.zread }));
+
   console.log(`[Data] ${type} 1d:${mapHistory('history1d').length} 7d:${mapHistory('history7d').length} 30d:${mapHistory('history30d').length}`);
 
   return {
@@ -557,7 +563,10 @@ function convertProviderData(
     history30d: mapHistory('history30d'),
     totalTokens1d: (result.details?.totalTokens1d as number) ?? 0,
     totalTokens7d: (result.details?.totalTokens7d as number) ?? 0,
-    totalTokens30d: (result.details?.totalTokens30d as number) ?? 0
+    totalTokens30d: (result.details?.totalTokens30d as number) ?? 0,
+    mcpHistory1d: mapMcpHistory('mcpHistory1d'),
+    mcpHistory7d: mapMcpHistory('mcpHistory7d'),
+    mcpHistory30d: mapMcpHistory('mcpHistory30d')
   };
 }
 

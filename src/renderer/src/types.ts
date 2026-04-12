@@ -16,6 +16,13 @@ export interface UsageRecord {
   used: number
 }
 
+export interface McpUsageRecord {
+  date: string
+  search: number
+  webRead: number
+  zread: number
+}
+
 export interface ProviderUsageData {
   name: string
   level?: string
@@ -27,6 +34,9 @@ export interface ProviderUsageData {
   totalTokens1d: number
   totalTokens7d: number
   totalTokens30d: number
+  mcpHistory1d: McpUsageRecord[]
+  mcpHistory7d: McpUsageRecord[]
+  mcpHistory30d: McpUsageRecord[]
 }
 
 export interface UsageState {

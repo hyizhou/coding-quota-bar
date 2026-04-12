@@ -56,11 +56,13 @@
               v-bind="q"
             />
             <UsageStats
-              v-if="p.history1d.length > 0 || p.history7d.length > 0 || p.history30d.length > 0"
-              :title="$t('main.usageStats')"
+              v-if="p.history1d.length > 0 || p.history7d.length > 0 || p.history30d.length > 0 || p.mcpHistory1d.length > 0 || p.mcpHistory7d.length > 0 || p.mcpHistory30d.length > 0"
               :records-1d="p.history1d"
               :records-7d="p.history7d"
               :records-30d="p.history30d"
+              :mcp-records-1d="p.mcpHistory1d"
+              :mcp-records-7d="p.mcpHistory7d"
+              :mcp-records-30d="p.mcpHistory30d"
             />
           </template>
         </div>

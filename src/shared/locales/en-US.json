@@ -12,6 +12,8 @@
     "hoursAgo": "Updated {n} hr ago",
     "tokenUsage": "Token Usage",
     "usageStats": "Usage Stats",
+    "tokenStats": "Token Usage",
+    "mcpStats": "MCP Stats",
     "toggleTheme": "Toggle Theme"
   },
   "settings": {

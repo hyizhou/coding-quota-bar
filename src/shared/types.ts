@@ -27,6 +27,16 @@ export interface UsageRecord {
 }
 
 /**
+ * MCP 工具调用历史记录
+ */
+export interface McpUsageRecord {
+  date: string;          // 'YYYY-MM-DD' (日级别) 或 'YYYY-MM-DDTHH' (小时级别)
+  search: number;        // 联网搜索次数
+  webRead: number;       // 网页阅读次数
+  zread: number;         // ZRead 次数
+}
+
+/**
  * 用量查询结果
  */
 export interface UsageResult {
