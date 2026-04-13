@@ -19,18 +19,6 @@
           <span class="toggle-label">{{ $t(`providers.${info.key}`) }}</span>
         </label>
         <div class="provider-body" v-if="info.enabled">
-          <div class="import-btns">
-            <button
-              class="import-btn"
-              :title="$t('settings.importFromEnvTooltip')"
-              @click="handleImportFromEnv(info)"
-            >{{ $t('settings.importFromEnv') }}</button>
-            <button
-              class="import-btn"
-              disabled
-              :title="$t('settings.importFromClaudeCodeTooltip')"
-            >{{ $t('settings.importFromClaudeCode') }}</button>
-          </div>
           <div class="input-group">
             <input
               :type="info.showKey ? 'text' : 'password'"
@@ -97,9 +85,6 @@
 
     <footer class="footer">
       <span class="save-status" :class="{ error: saveError }">{{ saveStatus }}</span>
-      <template v-for="info in providerList" :key="'status-'+info.key">
-        <span v-if="info.importStatus" class="save-status" :class="{ error: info.importError }">{{ info.importStatus }}</span>
-      </template>
     </footer>
   </div>
 </template>
@@ -121,8 +106,6 @@ interface ProviderInfo {
   enabled: boolean
   apiKey: string
   showKey: boolean
-  importStatus: string
-  importError: boolean
 }
 
 const providerList = ref<ProviderInfo[]>([])
@@ -161,8 +144,6 @@ onMounted(async () => {
     enabled: config.providers[key]?.enabled ?? false,
     apiKey: config.providers[key]?.apiKey ?? '',
     showKey: false,
-    importStatus: '',
-    importError: false,
   }))
   refreshInterval.value = String(config.refreshInterval)
   autoStart.value = config.autoStart
@@ -213,24 +194,6 @@ async function saveConfig() {
   }
 }
 
-async function handleImportFromEnv(info: ProviderInfo) {
-  const result = await window.electronAPI.importKeyFromEnv(info.key)
-  if (result.success) {
-    info.importStatus = t('settings.importSuccess')
-    info.importError = false
-    // 刷新配置到本地
-    const config = await window.electronAPI.getConfig()
-    if (config) {
-      currentConfig.value = config
-      info.apiKey = config.providers[info.key]?.apiKey ?? ''
-    }
-  } else {
-    info.importStatus = t('settings.importFailed', { error: result.error })
-    info.importError = true
-  }
-  setTimeout(() => { info.importStatus = '' }, 3000)
-}
-
 async function handleCheckUpdate() {
   checkingUpdate.value = true
   updateStatus.value = ''
@@ -274,32 +237,6 @@ async function handleCheckUpdate() {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--border-subtle);
-}
-
-.import-btns {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.import-btn {
-  flex: 1;
-  padding: 4px 8px;
-  border: 1px solid var(--border-default);
-  border-radius: 5px;
-  background: var(--bg-input);
-  color: var(--text-secondary);
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.import-btn:hover:not(:disabled) {
-  background: var(--bg-import-hover);
-  border-color: var(--border-default);
-}
-.import-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .input-group {

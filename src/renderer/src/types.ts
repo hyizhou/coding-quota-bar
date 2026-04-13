@@ -82,7 +82,6 @@ export interface ElectronAPI {
   refreshUsage: () => Promise<UsageState | null>
   getConfig: () => Promise<AppConfig | null>
   updateConfig: (updates: unknown) => Promise<AppConfig | null>
-  importKeyFromEnv: (providerKey: string) => Promise<{ success: boolean; error?: string }>
   getAvailableProviders: () => Promise<string[]>
   onShowSettings: (callback: () => void) => void
   onUsageDataUpdated: (callback: (data: UsageState) => void) => void

@@ -37,17 +37,6 @@ export function getAvailableProviderKeys(): string[] {
 }
 
 /**
- * 获取 provider 的环境变量名映射
- */
-export function getProviderEnvVarMap(): Record<string, string> {
-  const map: Record<string, string> = {};
-  for (const p of buildConfig.providers) {
-    map[p.key] = p.envVar;
-  }
-  return map;
-}
-
-/**
  * Provider 加载器
  * 根据配置加载启用的 Provider（仅限编译时标记为 available 的）
  */

@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, screen } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'path';
 import { TrayManager, getColorByPercent } from './tray';
-import { ProviderLoader, getAvailableProviderKeys, getProviderEnvVarMap } from './loader';
+import { ProviderLoader, getAvailableProviderKeys } from './loader';
 import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale, t as i18nT } from './i18n';
@@ -455,26 +455,6 @@ function setupIpcHandlers(): void {
   // 获取配置
   ipcMain.handle('get-config', () => {
     return configManager?.getConfig();
-  });
-
-  // 从环境变量导入 API Key
-  ipcMain.handle('import-key-from-env', async (_, providerKey: string) => {
-    const envVarMap = getProviderEnvVarMap();
-    const envVar = envVarMap[providerKey];
-    if (!envVar) {
-      return { success: false, error: `Unknown provider: ${providerKey}` };
-    }
-    const value = process.env[envVar]?.trim();
-    if (!value) {
-      return { success: false, error: `Environment variable ${envVar} not found` };
-    }
-    if (!configManager) {
-      return { success: false, error: 'Config not initialized' };
-    }
-    await configManager.updateConfig({
-      providers: { [providerKey]: { apiKey: value } }
-    });
-    return { success: true };
   });
 
   // 获取可用的 provider 列表（编译时配置）

@@ -30,11 +30,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateConfig: (updates: unknown) => ipcRenderer.invoke('update-config', updates),
 
   /**
-   * 从环境变量导入 API Key
-   */
-  importKeyFromEnv: (providerKey: string) => ipcRenderer.invoke('import-key-from-env', providerKey),
-
-  /**
    * 获取可用的 provider 列表（编译时配置）
    */
   getAvailableProviders: () => ipcRenderer.invoke('get-available-providers'),
