@@ -137,6 +137,7 @@ export class ConfigManager extends EventEmitter {
   async save(config: AppConfig): Promise<void> {
     try {
       this.ignoreNextChange = true;
+      const oldConfig = this.config;
       // 内存中保持明文，写入磁盘时加密
       this.config = config;
       const toWrite = this.encryptApiKeys(config);
@@ -144,7 +145,7 @@ export class ConfigManager extends EventEmitter {
       await fs.writeFile(this.configPath, content, 'utf-8');
       console.log('[Config] Saved configuration to', this.configPath);
       this.emit('saved', config);
-      this.emit('changed', config);
+      this.emit('changed', config, oldConfig);
     } catch (error) {
       this.ignoreNextChange = false;
       console.error('[Config] Failed to save config:', error);
@@ -237,8 +238,9 @@ export class ConfigManager extends EventEmitter {
             }
             console.log('[Config] Configuration file changed, reloading...');
             try {
+              const old = this.config;
               await this.load();
-              this.emit('changed', this.config);
+              this.emit('changed', this.config, old);
             } catch (error) {
               console.error('[Config] Failed to reload config:', error);
             }

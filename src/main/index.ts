@@ -372,30 +372,38 @@ async function initialize(): Promise<void> {
 function setupConfigListeners(): void {
   if (!configManager || !scheduler) return;
 
-  configManager.on('changed', async (newConfig) => {
+  configManager.on('changed', async (newConfig, oldConfig) => {
     console.log('[App] Configuration changed, updating...');
 
     // 更新语言
-    if (newConfig.language) {
+    if (newConfig.language && newConfig.language !== oldConfig?.language) {
       setLocale(newConfig.language);
       trayManager?.rebuildMenu();
     }
 
-    // 更新刷新间隔（间隔变化时会重启定时器并自动刷新）
-    const intervalChanged = scheduler!.setRefreshInterval(newConfig.refreshInterval * 1000);
+    // 仅在影响数据获取的配置变化时才刷新
+    const needsRefresh =
+      JSON.stringify(newConfig.providers) !== JSON.stringify(oldConfig?.providers) ||
+      newConfig.refreshInterval !== oldConfig?.refreshInterval ||
+      JSON.stringify(newConfig.display.colorThresholds) !== JSON.stringify(oldConfig?.display?.colorThresholds);
 
-    // 更新颜色阈值
-    scheduler!.setColorThresholds(newConfig.display.colorThresholds);
+    if (needsRefresh) {
+      // 更新刷新间隔（间隔变化时会重启定时器并自动刷新）
+      const intervalChanged = scheduler!.setRefreshInterval(newConfig.refreshInterval * 1000);
 
-    // 重新加载 Provider
-    const providers = ProviderLoader.loadProviders(newConfig.providers);
-    scheduler!.setProviders(providers);
+      // 更新颜色阈值
+      scheduler!.setColorThresholds(newConfig.display.colorThresholds);
 
-    // 仅当间隔未变化时才需要手动刷新（间隔变化已通过重启触发刷新）
-    if (!intervalChanged) {
-      scheduler!.refresh().catch((error) => {
-        console.error('[App] Refresh after config change failed:', error);
-      });
+      // 重新加载 Provider
+      const providers = ProviderLoader.loadProviders(newConfig.providers);
+      scheduler!.setProviders(providers);
+
+      // 仅当间隔未变化时才需要手动刷新（间隔变化已通过重启触发刷新）
+      if (!intervalChanged) {
+        scheduler!.refresh().catch((error) => {
+          console.error('[App] Refresh after config change failed:', error);
+        });
+      }
     }
 
     console.log(`[App] Reloaded ${providers.length} provider(s)`);
