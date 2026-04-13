@@ -1,7 +1,7 @@
 {
   "name": "coding-quota-bar",
-  "version": "0.1.0",
-  "description": "AI平台Coding Plan用量监控工具 - Windows桌面托盘常驻显示",
+  "version": "0.9.0",
+  "description": "Coding Plan usage monitor - system tray resident display",
   "main": "./out/main/index.js",
   "author": "coding-quota-bar-team",
   "license": "MIT",
