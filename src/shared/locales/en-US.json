@@ -70,6 +70,7 @@
   },
   "quota": {
     "tokensLimit": "{n}-Hour Quota",
+    "tokensLimitDaily": "Weekly Quota",
     "mcpUsage": "MCP Usage"
   },
   "tray": {

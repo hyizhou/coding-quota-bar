@@ -57,6 +57,7 @@ interface QuotaDisplayItem {
   usageRate: number;
   resetAt: string;
   color: 'green' | 'yellow' | 'red';
+  limitType?: string;
 }
 
 /**
@@ -562,7 +563,8 @@ function convertProviderData(
     total: q.total,
     usageRate: q.usageRate,
     resetAt: q.resetAt,
-    color: getColorByPercent(100 - q.usageRate, thresholds)
+    color: getColorByPercent(100 - q.usageRate, thresholds),
+    limitType: q.limitType
   }));
 
   const mapHistory = (key: string): SharedUsageRecord[] =>

@@ -70,6 +70,7 @@
   },
   "quota": {
     "tokensLimit": "{n}小时额度",
+    "tokensLimitDaily": "周额度",
     "mcpUsage": "MCP 用量"
   },
   "tray": {

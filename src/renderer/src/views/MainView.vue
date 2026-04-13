@@ -50,11 +50,14 @@
             <span class="error-text">{{ formatError(p.error) }}</span>
           </div>
           <template v-else>
-            <QuotaCard
-              v-for="q in p.quotas"
-              :key="q.label"
-              v-bind="q"
-            />
+            <template v-for="(row, ri) in getQuotaRows(p.quotas)" :key="ri">
+              <div v-if="row.length === 1" class="quota-row-single">
+                <QuotaCard v-bind="row[0]" />
+              </div>
+              <div v-else class="quota-row-pair">
+                <QuotaCard v-for="q in row" :key="q.label" v-bind="q" />
+              </div>
+            </template>
             <UsageStats
               v-if="p.modelHistory1d.length > 0 || p.modelHistory7d.length > 0 || p.modelHistory30d.length > 0 || p.mcpHistory1d.length > 0 || p.mcpHistory7d.length > 0 || p.mcpHistory30d.length > 0"
               :model-records-1d="p.modelHistory1d"
@@ -80,7 +83,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import QuotaCard from '../components/QuotaCard.vue'
 import UsageStats from '../components/UsageStats.vue'
-import type { ProviderUsageData, UsageState } from '../types'
+import type { ProviderUsageData, QuotaItem, UsageState } from '../types'
 import { useTheme } from '../composables/useTheme'
 
 defineEmits<{ 'open-settings': [] }>()
@@ -126,6 +129,27 @@ async function handleRefresh() {
     if (state) applyState(state)
   } catch (e) { console.error('[MainView] refresh failed:', e) }
   finally { loading.value = false }
+}
+
+/**
+ * 将 quotas 分组为行：token 限制类型的项合并到一行，其他各占一行
+ */
+function getQuotaRows(quotas: QuotaItem[]): QuotaItem[][] {
+  const tokenLimits = quotas.filter(q => q.limitType === 'tokens')
+  const others = quotas.filter(q => q.limitType !== 'tokens')
+  const rows: QuotaItem[][] = []
+
+  // 非 token 限制项（如 MCP）各占一行，保持原有顺序
+  for (const q of others) {
+    rows.push([q])
+  }
+
+  // token 限制项：多个并排一行，单个也占一行
+  if (tokenLimits.length > 0) {
+    rows.push(tokenLimits)
+  }
+
+  return rows
 }
 
 function formatError(msg: string): string {
@@ -189,8 +213,32 @@ onMounted(() => {
   letter-spacing: 0.5px;
 }
 
-.provider-section .quota-card {
+.provider-section .quota-row-single .quota-card {
   margin-bottom: 6px;
+}
+
+.quota-row-pair {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.quota-row-pair .quota-card {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+}
+
+.quota-row-pair .quota-label {
+  font-size: 11px;
+}
+
+.quota-row-pair .quota-percent {
+  font-size: 14px;
+}
+
+.quota-row-pair .reset-text {
+  font-size: 9px;
 }
 
 .empty-state {

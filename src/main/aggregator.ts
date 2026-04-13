@@ -1,5 +1,6 @@
 import type { UsageResult } from '../shared/types';
 import type { LoadedProvider } from './loader';
+import { generateMockData } from './mock-data';
 
 /**
  * 聚合后的用量数据
@@ -27,66 +28,6 @@ export interface AggregatedUsage {
 const isMockMode = () => process.env.DEV === '1' && process.env.QUOTA_MOCK === '1';
 
 /**
- * 模拟用量数据
- */
-/** 生成近7天每小时粒度的伪造历史数据 */
-function generateMockHistory(): { date: string; used: number }[] {
-  const records: { date: string; used: number }[] = [];
-  const now = new Date();
-  // 从7天前的0点开始，到当前小时
-  const start = new Date(now);
-  start.setDate(start.getDate() - 7);
-  start.setHours(0, 0, 0, 0);
-  for (let t = start.getTime(); t <= now.getTime(); t += 3600000) {
-    const d = new Date(t);
-    const dateStr = d.toISOString().slice(0, 13); // 'YYYY-MM-DDTHH'
-    records.push({ date: dateStr, used: Math.round(500 + Math.random() * 5000) });
-  }
-  return records;
-}
-
-const MOCK_DATA: Record<string, UsageResult> = {
-  zhipu: {
-    used: 250000,
-    total: 1000000,
-    expiresAt: new Date(Date.now() + 5 * 3600000).toISOString(),
-    level: 'lite',
-    details: {
-      remainingPercent: 75,
-      quotas: [
-        { label: '5小时窗口', used: 250000, total: 1000000, usageRate: 25, resetAt: new Date(Date.now() + 5 * 3600000).toISOString() },
-        { label: 'MCP额度', used: 12, total: 50, usageRate: 24, resetAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString() }
-      ],
-      usageHistory: generateMockHistory()
-    }
-  },
-  minimax: {
-    used: 460000,
-    total: 500000,
-    expiresAt: new Date(Date.now() + 15 * 24 * 3600 * 1000).toISOString(),
-    details: {
-      remainingPercent: 8,
-      quotas: [
-        { label: '配额', used: 460000, total: 500000, usageRate: 92, resetAt: new Date(Date.now() + 15 * 24 * 3600 * 1000).toISOString() }
-      ],
-      usageHistory: generateMockHistory()
-    }
-  },
-  kimi: {
-    used: 120000,
-    total: 150000,
-    expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
-    details: {
-      remainingPercent: 20,
-      quotas: [
-        { label: '配额', used: 120000, total: 150000, usageRate: 80, resetAt: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString() }
-      ],
-      usageHistory: generateMockHistory()
-    }
-  }
-};
-
-/**
  * Provider 用量数据汇总器
  * 收集所有 Provider 的结果并计算最低百分比
  */
@@ -102,6 +43,7 @@ export class UsageAggregator {
     // 开发模式：直接使用模拟数据，不发送真实请求
     if (isMockMode()) {
       console.log('[Aggregator] MOCK MODE - using simulated data');
+      const MOCK_DATA = generateMockData();
       this.results.clear();
       for (const { type } of providers) {
         const mock = MOCK_DATA[type] || { used: 0, total: 100, expiresAt: '', details: {} };
