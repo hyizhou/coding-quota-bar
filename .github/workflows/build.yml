@@ -20,40 +20,35 @@ jobs:
 
       - run: npx electron-vite build
 
-      - name: Package
-        run: npx electron-builder --win
+      - name: Package & Publish
+        run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract changelog
-        shell: pwsh
+      - name: Update release notes
         run: |
-          $tag = "${{ github.ref_name }}" -replace '^v',''
-          $lines = Get-Content CHANGELOG.md
-          $capture = $false
-          $result = @()
-          foreach ($line in $lines) {
-            if ($line -match "^## \[$tag\]") {
-              $capture = $true
-              $result += $line
-              continue
+          node -e "
+            const fs = require('fs');
+            const tag = '${{ github.ref_name }}'.replace(/^v/, '');
+            const content = fs.readFileSync('CHANGELOG.md', 'utf-8');
+            const lines = content.split('\n');
+            let capture = false;
+            const result = [];
+            for (const line of lines) {
+              if (line.startsWith('## [' + tag + ']')) {
+                capture = true;
+                result.push(line);
+                continue;
+              }
+              if (capture && line.startsWith('## [')) break;
+              if (capture) result.push(line);
             }
-            if ($capture -and $line -match "^## \[") {
-              break
-            }
-            if ($capture) {
-              $result += $line
-            }
-          }
-          ($result -join "`n").Trim() | Set-Content release_notes.md
+            fs.writeFileSync('release_notes.md', result.join('\n').trim());
+          "
 
-      - name: Create Release
+      - name: Set release body
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            release/Coding Quota Bar Setup *.exe
-            release/*.blockmap
-            release/latest.yml
           body_path: release_notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
