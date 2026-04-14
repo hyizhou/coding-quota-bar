@@ -25,12 +25,24 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract changelog
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}" -replace '^v',''
+          $content = Get-Content CHANGELOG.md -Raw
+          $pattern = "(?s)## \[$tag\].*?(?=\n## \[|\z)"
+          if ($content -match $pattern) {
+            $matches[0].Trim() | Set-Content release_notes.md -NoNewline
+          } else {
+            "## [$tag]" | Set-Content release_notes.md -NoNewline
+          }
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             release/*.exe
             release/latest.yml
-          generate_release_notes: true
+          body_path: release_notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
