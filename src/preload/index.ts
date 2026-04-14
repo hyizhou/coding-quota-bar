@@ -5,11 +5,6 @@ import { contextBridge, ipcRenderer } from 'electron';
  */
 contextBridge.exposeInMainWorld('electronAPI', {
   /**
-   * 获取开发状态
-   */
-  getDevMode: () => ipcRenderer.invoke('get-dev-mode'),
-
-  /**
    * 获取当前用量数据
    */
   getUsageData: () => ipcRenderer.invoke('get-usage-data'),

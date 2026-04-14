@@ -21,8 +21,7 @@ if (fs.existsSync(envPath)) {
 }
 
 // 是否处于开发状态（DEV=1 时生效，来源可以是 .env 文件或系统环境变量）
-const isDev = process.env.DEV === '1';
-console.log('[App] DEV mode:', isDev);
+console.log('[App] DEV mode:', process.env.DEV === '1');
 
 // 全局模块实例
 let trayManager: TrayManager | null = null;
@@ -448,11 +447,6 @@ function setupIpcHandlers(): void {
     } else {
       scheduleHide();
     }
-  });
-
-  // 获取开发状态
-  ipcMain.handle('get-dev-mode', () => {
-    return isDev;
   });
 
   // 获取当前用量数据

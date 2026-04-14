@@ -1,6 +1,5 @@
 <template>
   <div class="app">
-    <div v-if="isDev" class="dev-banner">DEV</div>
     <Transition :name="transitionName">
       <MainView v-if="currentView === 'main'" key="main" @open-settings="goSettings" />
       <SettingsView v-else key="settings" @go-back="goMain" />
@@ -18,8 +17,6 @@ const { locale } = useI18n()
 
 const currentView = ref<'main' | 'settings'>('main')
 const transitionName = ref('slide-left')
-const isDev = ref(false)
-
 function goSettings() {
   transitionName.value = 'slide-left'
   currentView.value = 'settings'
@@ -39,13 +36,11 @@ function onMouseLeave() {
 }
 
 onMounted(async () => {
-  isDev.value = await window.electronAPI.getDevMode()
   // 从保存的配置中恢复语言设置
   const config = await window.electronAPI.getConfig()
   if (config?.language) {
     locale.value = config.language
   }
-  console.log('[App.vue] isDev:', isDev.value)
   window.electronAPI.onShowSettings(() => {
     goSettings()
   })
@@ -62,17 +57,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.dev-banner {
-  background: #ff9800;
-  color: #fff;
-  text-align: center;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  padding: 2px 0;
-  user-select: none;
-}
-
 .slide-left-enter-active,
 .slide-left-leave-active,
 .slide-right-enter-active,
