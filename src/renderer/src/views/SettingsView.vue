@@ -119,6 +119,7 @@ const currentConfig = ref<AppConfig | null>(null)
 const appVersion = ref('')
 const checkingUpdate = ref(false)
 const updateStatus = ref('')
+const updateAvailable = ref(false)
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 function scheduleSave() {
@@ -204,17 +205,21 @@ async function saveConfig() {
 async function handleCheckUpdate() {
   checkingUpdate.value = true
   updateStatus.value = ''
+  updateAvailable.value = false
   try {
     const result = await window.electronAPI.checkForUpdate()
     updateStatus.value = result.available
       ? t('settings.updateAvailable', { version: result.version })
       : t('settings.noUpdate')
+    updateAvailable.value = result.available
   } catch {
     updateStatus.value = t('settings.updateFailed')
   } finally {
     checkingUpdate.value = false
   }
-  setTimeout(() => { updateStatus.value = '' }, 5000)
+  if (!updateAvailable.value) {
+    setTimeout(() => { updateStatus.value = '' }, 5000)
+  }
 }
 </script>
 

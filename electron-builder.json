@@ -10,17 +10,15 @@
     "dist/**/*",
     "package.json"
   ],
-  "extraMetadata": {
-    "version": "0.1.0"
+  "publish": {
+    "provider": "github",
+    "owner": "hyizhou",
+    "repo": "coding-quota-bar"
   },
   "win": {
     "target": [
       {
         "target": "nsis",
-        "arch": ["x64"]
-      },
-      {
-        "target": "portable",
         "arch": ["x64"]
       }
     ],
@@ -33,8 +31,5 @@
     "createStartMenuShortcut": true,
     "shortcutName": "Coding Quota Bar",
     "perMachine": false
-  },
-  "portable": {
-    "artifactName": "${productName}-${version}-portable.${ext}"
   }
 }

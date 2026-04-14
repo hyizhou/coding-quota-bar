@@ -5,6 +5,7 @@ import { TrayManager, getColorByPercent } from './tray';
 import { ProviderLoader, getAvailableProviderKeys } from './loader';
 import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
+import { HttpClient } from './http';
 import { setLocale, t as i18nT } from './i18n';
 import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord } from '../shared/types';
 
@@ -485,8 +486,18 @@ function setupIpcHandlers(): void {
 
   // 检查更新
   ipcMain.handle('check-for-update', async () => {
-    // TODO: 接入 electron-updater
-    return { available: false };
+    try {
+      const currentVersion = app.getVersion();
+      const url = 'https://api.github.com/repos/hyizhou/coding-quota-bar/releases/latest';
+      const release = await HttpClient.getJson<{ tag_name: string }>(url, {
+        'User-Agent': 'coding-quota-bar'
+      });
+      const latestVersion = release.tag_name.replace(/^v/, '');
+      const available = latestVersion > currentVersion;
+      return { available, version: latestVersion };
+    } catch {
+      return { available: false };
+    }
   });
 }
 

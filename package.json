@@ -1,6 +1,6 @@
 {
   "name": "coding-quota-bar",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Coding Plan usage monitor - system tray resident display",
   "main": "./out/main/index.js",
   "author": "coding-quota-bar-team",
@@ -24,7 +24,7 @@
     "vue-tsc": "^3.2.6"
   },
   "build": {
-    "appId": "com.codingquotabar.app",
+    "appId": "top.hyizhou.codingquotabar",
     "productName": "Coding Quota Bar",
     "copyright": "Copyright © 2026 coding-quota-bar-team",
     "electronLanguages": [
@@ -39,19 +39,10 @@
       "out/**/*",
       "package.json"
     ],
-    "extraMetadata": {
-      "version": "0.1.0"
-    },
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
           "arch": [
             "x64"
           ]
@@ -65,9 +56,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Coding Quota Bar"
-    },
-    "portable": {
-      "artifactName": "${productName}-${version}-portable.${ext}"
     }
   },
   "dependencies": {
