@@ -89,7 +89,7 @@ export interface ElectronAPI {
   getConfig: () => Promise<AppConfig | null>
   updateConfig: (updates: unknown) => Promise<AppConfig | null>
   getAvailableProviders: () => Promise<string[]>
-  onShowSettings: (callback: () => void) => void
+  onShowSettings: (callback: (options?: { checkUpdate?: boolean }) => void) => void
   onUsageDataUpdated: (callback: (data: UsageState) => void) => void
   notifyHoverState: (hovering: boolean) => void
   checkForUpdate: () => Promise<{ available: boolean; version?: string }>
@@ -97,6 +97,8 @@ export interface ElectronAPI {
   onUpdateDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number }) => void) => void
   onUpdateDownloaded: (callback: () => void) => void
   quitAndInstall: () => Promise<void>
+  onTriggerCheckUpdate: (callback: () => void) => void
+  offTriggerCheckUpdate: (callback: () => void) => void
 }
 
 declare global {

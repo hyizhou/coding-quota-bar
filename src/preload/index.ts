@@ -32,8 +32,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /**
    * 监听主进程的"显示设置"事件
    */
-  onShowSettings: (callback: () => void) => {
-    ipcRenderer.on('show-settings', () => callback());
+  onShowSettings: (callback: (options?: { checkUpdate?: boolean }) => void) => {
+    ipcRenderer.on('show-settings', (_, options) => callback(options));
   },
 
   /**
@@ -84,5 +84,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
 
-  openExternal: (url: string) => ipcRenderer.invoke('open-external', url)
+  /**
+   * 通知主进程显示弹窗
+   */
+  showPopup: () => ipcRenderer.send('show-popup'),
+
+  openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
+
+  /**
+   * 监听来自托盘菜单的检查更新触发事件
+   */
+  onTriggerCheckUpdate: (callback: () => void) => {
+    ipcRenderer.on('trigger-check-update', () => callback());
+  },
+
+  /**
+   * 取消监听检查更新触发事件
+   */
+  offTriggerCheckUpdate: (callback: () => void) => {
+    ipcRenderer.removeListener('trigger-check-update', callback);
+  }
 });

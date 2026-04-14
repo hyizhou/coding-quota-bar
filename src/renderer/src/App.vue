@@ -2,7 +2,7 @@
   <div class="app">
     <Transition :name="transitionName">
       <MainView v-if="currentView === 'main'" key="main" @open-settings="goSettings" />
-      <SettingsView v-else key="settings" @go-back="goMain" />
+      <SettingsView v-else :key="'settings-' + settingsKey" :auto-check-update="pendingCheckUpdate" @go-back="goMain" />
     </Transition>
   </div>
 </template>
@@ -17,8 +17,16 @@ const { locale } = useI18n()
 
 const currentView = ref<'main' | 'settings'>('main')
 const transitionName = ref('slide-left')
-function goSettings() {
+const pendingCheckUpdate = ref(false)
+const settingsKey = ref(0)
+
+function goSettings(options?: { checkUpdate?: boolean }) {
   transitionName.value = 'slide-left'
+  pendingCheckUpdate.value = !!options?.checkUpdate
+  if (options?.checkUpdate && currentView.value === 'settings') {
+    // 已在设置页，强制重新挂载以触发 onMounted
+    settingsKey.value++
+  }
   currentView.value = 'settings'
 }
 
@@ -41,8 +49,8 @@ onMounted(async () => {
   if (config?.language) {
     locale.value = config.language
   }
-  window.electronAPI.onShowSettings(() => {
-    goSettings()
+  window.electronAPI.onShowSettings((options) => {
+    goSettings(options)
   })
 
   // 监听整个文档的鼠标进出，确保 -webkit-app-region: drag 区域也能触发

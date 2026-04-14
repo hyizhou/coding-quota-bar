@@ -9,7 +9,7 @@
       <h1>{{ $t('settings.title') }}</h1>
     </header>
 
-    <div class="settings-body">
+    <div class="settings-body" ref="settingsBodyRef">
       <div class="section-label">{{ $t('settings.providerSection') }}</div>
 
       <div v-for="info in providerList" :key="info.key" class="settings-card">
@@ -106,12 +106,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AppConfig, ProviderConfig } from '../types'
 import { useTheme } from '../composables/useTheme'
 
 defineEmits<{ 'go-back': [] }>()
+const props = defineProps<{ autoCheckUpdate?: boolean }>()
 
 const { t, locale } = useI18n()
 const { preference: themePreference, setTheme } = useTheme()
@@ -129,6 +130,7 @@ const refreshInterval = ref('300')
 const autoStart = ref(false)
 const language = ref('zh-CN')
 const saving = ref(false)
+const settingsBodyRef = ref<HTMLElement | null>(null)
 const saveStatus = ref('')
 const saveError = ref(false)
 const currentConfig = ref<AppConfig | null>(null)
@@ -201,6 +203,25 @@ onMounted(async () => {
     } else {
       updateAvailable.value = true
     }
+  }
+
+  // 监听来自托盘菜单的检查更新事件（兼容旧路径）
+  const onTriggerCheckUpdate = () => {
+    settingsBodyRef.value?.scrollTo({ top: settingsBodyRef.value.scrollHeight })
+    handleCheckUpdate()
+  }
+  window.electronAPI.onTriggerCheckUpdate?.(onTriggerCheckUpdate)
+  onUnmounted(() => {
+    window.electronAPI.offTriggerCheckUpdate?.(onTriggerCheckUpdate)
+  })
+
+  // 从托盘菜单进入时，数据加载完后滚到底部、检查更新、再显示弹窗
+  if (props.autoCheckUpdate) {
+    nextTick(() => {
+      settingsBodyRef.value?.scrollTo({ top: settingsBodyRef.value.scrollHeight })
+      handleCheckUpdate()
+      window.electronAPI.showPopup()
+    })
   }
 })
 

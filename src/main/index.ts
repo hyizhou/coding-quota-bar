@@ -303,9 +303,14 @@ function cancelHide(): void {
 /**
  * 打开设置：弹出 popup 窗口并切换到设置视图（Pinned 模式）
  */
-function openSettings(): void {
-  showPopupWindow(PopupMode.Pinned);
-  popupWindow?.webContents.send('show-settings');
+function openSettings(options?: { checkUpdate?: boolean }): void {
+  if (options?.checkUpdate) {
+    // 先发事件让渲染进程准备，不立即显示弹窗
+    popupWindow?.webContents.send('show-settings', options);
+  } else {
+    showPopupWindow(PopupMode.Pinned);
+    popupWindow?.webContents.send('show-settings');
+  }
 }
 
 /**
@@ -344,7 +349,7 @@ async function initialize(): Promise<void> {
       }
     },
     onCheckUpdate: () => {
-      openSettings();
+      openSettings({ checkUpdate: true });
     },
     onQuit: () => {
       // 退出应用
@@ -485,6 +490,11 @@ function setupIpcHandlers(): void {
     } else {
       scheduleHide();
     }
+  });
+
+  // 渲染进程准备好后显示弹窗
+  ipcMain.on('show-popup', () => {
+    showPopupWindow(PopupMode.Pinned);
   });
 
   // 获取当前用量数据
