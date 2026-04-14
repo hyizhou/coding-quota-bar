@@ -72,6 +72,14 @@ export interface Provider {
 }
 
 /**
+ * 更新检查结果（持久化到配置文件）
+ */
+export interface UpdateInfo {
+  version: string;
+  downloaded: boolean;
+}
+
+/**
  * 应用配置
  */
 export interface AppConfig {
@@ -86,6 +94,7 @@ export interface AppConfig {
   autoStart: boolean;
   language?: string;
   theme?: 'light' | 'dark' | 'auto';
+  updateInfo?: UpdateInfo | null;
 }
 
 /**

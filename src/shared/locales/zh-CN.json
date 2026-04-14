@@ -57,7 +57,9 @@
     "checkingUpdate": "检查中...",
     "noUpdate": "已是最新版本",
     "updateAvailable": "发现新版本 v{version}",
-    "updateFailed": "检查更新失败"
+    "updateFailed": "检查更新失败",
+    "downloading": "下载中 {percent}%",
+    "restartToUpdate": "重启以更新"
   },
   "provider": {
     "expired": "已过期",

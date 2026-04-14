@@ -62,6 +62,11 @@ export interface ProviderConfig {
   [key: string]: unknown
 }
 
+export interface UpdateInfo {
+  version: string
+  downloaded: boolean
+}
+
 export interface AppConfig {
   refreshInterval: number
   providers: Record<string, ProviderConfig>
@@ -74,6 +79,7 @@ export interface AppConfig {
   autoStart: boolean
   language?: string
   theme?: 'light' | 'dark' | 'auto'
+  updateInfo?: UpdateInfo | null
 }
 
 export interface ElectronAPI {
@@ -87,8 +93,10 @@ export interface ElectronAPI {
   onUsageDataUpdated: (callback: (data: UsageState) => void) => void
   notifyHoverState: (hovering: boolean) => void
   checkForUpdate: () => Promise<{ available: boolean; version?: string }>
-  onTriggerCheckUpdate: (callback: () => void) => void
-  offTriggerCheckUpdate: (callback: () => void) => void
+  downloadUpdate: () => Promise<boolean>
+  onUpdateDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number }) => void) => void
+  onUpdateDownloaded: (callback: () => void) => void
+  quitAndInstall: () => Promise<void>
 }
 
 declare global {

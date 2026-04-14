@@ -75,8 +75,19 @@
 
       <div class="version-section">
         <span class="version-text">v{{ appVersion }}</span>
-        <button class="check-update-btn" :disabled="checkingUpdate" @click="handleCheckUpdate">
+        <button
+          class="check-update-btn"
+          :class="{
+            'update-ready': updateReady,
+            'has-update': updateAvailable && !downloading && !updateReady
+          }"
+          :disabled="checkingUpdate || downloading"
+          @click="handleUpdateClick"
+        >
           <template v-if="checkingUpdate">{{ $t('settings.checkingUpdate') }}</template>
+          <template v-else-if="downloading">{{ $t('settings.downloading', { percent: downloadProgress }) }}</template>
+          <template v-else-if="updateReady">{{ $t('settings.restartToUpdate') }}</template>
+          <template v-else-if="updateAvailable">{{ $t('settings.updateAvailable', { version: availableVersion }) }}</template>
           <template v-else-if="updateStatus">{{ updateStatus }}</template>
           <template v-else>{{ $t('settings.checkUpdate') }}</template>
         </button>
@@ -90,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AppConfig, ProviderConfig } from '../types'
 import { useTheme } from '../composables/useTheme'
@@ -120,6 +131,10 @@ const appVersion = ref('')
 const checkingUpdate = ref(false)
 const updateStatus = ref('')
 const updateAvailable = ref(false)
+const availableVersion = ref('')
+const downloading = ref(false)
+const downloadProgress = ref(0)
+const updateReady = ref(false)
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 function scheduleSave() {
@@ -160,12 +175,28 @@ onMounted(async () => {
     setTheme(val)
   })
 
-  // 监听来自托盘菜单的检查更新事件
-  const onTriggerCheckUpdate = () => handleCheckUpdate()
-  window.electronAPI.onTriggerCheckUpdate?.(onTriggerCheckUpdate)
-  onUnmounted(() => {
-    window.electronAPI.offTriggerCheckUpdate?.(onTriggerCheckUpdate)
+  // 监听更新下载进度
+  window.electronAPI.onUpdateDownloadProgress((progress) => {
+    downloading.value = true
+    downloadProgress.value = progress.percent
   })
+
+  // 监听更新下载完成
+  window.electronAPI.onUpdateDownloaded(() => {
+    downloading.value = false
+    updateReady.value = true
+    updateStatus.value = ''
+  })
+
+  // 恢复持久化的更新状态
+  if (config.updateInfo?.version && config.updateInfo.version > appVersion.value) {
+    availableVersion.value = config.updateInfo.version
+    if (config.updateInfo.downloaded) {
+      updateReady.value = true
+    } else {
+      updateAvailable.value = true
+    }
+  }
 })
 
 async function saveConfig() {
@@ -202,22 +233,51 @@ async function saveConfig() {
   }
 }
 
+function handleUpdateClick() {
+  if (updateReady.value) {
+    window.electronAPI.quitAndInstall()
+  } else if (updateAvailable.value) {
+    handleStartDownload()
+  } else {
+    handleCheckUpdate()
+  }
+}
+
 async function handleCheckUpdate() {
   checkingUpdate.value = true
   updateStatus.value = ''
   updateAvailable.value = false
+  availableVersion.value = ''
+  downloading.value = false
+  downloadProgress.value = 0
+  updateReady.value = false
   try {
     const result = await window.electronAPI.checkForUpdate()
-    updateStatus.value = result.available
-      ? t('settings.updateAvailable', { version: result.version })
-      : t('settings.noUpdate')
-    updateAvailable.value = result.available
+    if (result.available) {
+      availableVersion.value = result.version || ''
+      updateAvailable.value = true
+    } else if ((result as any).error) {
+      updateStatus.value = t('settings.updateFailed')
+      setTimeout(() => { updateStatus.value = '' }, 5000)
+    } else {
+      updateStatus.value = t('settings.noUpdate')
+      setTimeout(() => { updateStatus.value = '' }, 5000)
+    }
   } catch {
     updateStatus.value = t('settings.updateFailed')
+    setTimeout(() => { updateStatus.value = '' }, 5000)
   } finally {
     checkingUpdate.value = false
   }
-  if (!updateAvailable.value) {
+}
+
+async function handleStartDownload() {
+  downloading.value = true
+  downloadProgress.value = 0
+  const success = await window.electronAPI.downloadUpdate()
+  if (!success) {
+    downloading.value = false
+    updateStatus.value = t('settings.updateFailed')
     setTimeout(() => { updateStatus.value = '' }, 5000)
   }
 }
@@ -293,5 +353,21 @@ async function handleCheckUpdate() {
 .check-update-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+.check-update-btn.update-ready {
+  background: #22C55E;
+  color: #fff;
+  border-color: #22C55E;
+}
+.check-update-btn.update-ready:hover {
+  background: #16A34A;
+}
+.check-update-btn.has-update {
+  background: #3B82F6;
+  color: #fff;
+  border-color: #3B82F6;
+}
+.check-update-btn.has-update:hover {
+  background: #2563EB;
 }
 </style>
