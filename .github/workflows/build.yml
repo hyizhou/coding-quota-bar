@@ -13,7 +13,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
@@ -24,31 +24,3 @@ jobs:
         run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update release notes
-        run: |
-          node -e "
-            const fs = require('fs');
-            const tag = '${{ github.ref_name }}'.replace(/^v/, '');
-            const content = fs.readFileSync('CHANGELOG.md', 'utf-8');
-            const lines = content.split('\n');
-            let capture = false;
-            const result = [];
-            for (const line of lines) {
-              if (line.startsWith('## [' + tag + ']')) {
-                capture = true;
-                result.push(line);
-                continue;
-              }
-              if (capture && line.startsWith('## [')) break;
-              if (capture) result.push(line);
-            }
-            fs.writeFileSync('release_notes.md', result.join('\n').trim());
-          "
-
-      - name: Set release body
-        uses: softprops/action-gh-release@v2
-        with:
-          body_path: release_notes.md
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
