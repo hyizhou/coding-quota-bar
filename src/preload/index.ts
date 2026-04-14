@@ -61,18 +61,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkForUpdate: () => ipcRenderer.invoke('check-for-update'),
 
   /**
-   * 监听来自托盘菜单的检查更新触发事件
+   * 下载更新
    */
-  onTriggerCheckUpdate: (callback: () => void) => {
-    ipcRenderer.on('trigger-check-update', () => callback());
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+
+  /**
+   * 监听更新下载进度
+   */
+  onUpdateDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number }) => void) => {
+    ipcRenderer.on('update-download-progress', (_, progress) => callback(progress));
   },
 
   /**
-   * 取消监听检查更新触发事件
+   * 监听更新下载完成
    */
-  offTriggerCheckUpdate: (callback: () => void) => {
-    ipcRenderer.removeListener('trigger-check-update', callback);
+  onUpdateDownloaded: (callback: () => void) => {
+    ipcRenderer.on('update-downloaded', () => callback());
   },
+
+  /**
+   * 重启并安装更新
+   */
+  quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
 
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url)
 });

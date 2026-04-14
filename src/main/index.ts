@@ -5,8 +5,8 @@ import { TrayManager, getColorByPercent } from './tray';
 import { ProviderLoader, getAvailableProviderKeys } from './loader';
 import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
-import { HttpClient } from './http';
 import { setLocale, t as i18nT } from './i18n';
+import { autoUpdater } from 'electron-updater';
 import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord } from '../shared/types';
 
 // 加载 .env 文件
@@ -22,7 +22,50 @@ if (fs.existsSync(envPath)) {
 }
 
 // 是否处于开发状态（DEV=1 时生效，来源可以是 .env 文件或系统环境变量）
-console.log('[App] DEV mode:', process.env.DEV === '1');
+const isDev = process.env.DEV === '1';
+console.log('[App] DEV mode:', isDev);
+
+// 自动更新配置
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
+if (isDev) {
+  autoUpdater.forceDevUpdateConfig = false;
+}
+
+autoUpdater.on('download-progress', (progress) => {
+  console.log(`[Updater] Downloading: ${progress.percent.toFixed(1)}%`);
+  if (popupWindow && !popupWindow.isDestroyed()) {
+    popupWindow.webContents.send('update-download-progress', {
+      percent: Math.round(progress.percent),
+      transferred: progress.transferred,
+      total: progress.total
+    });
+  }
+});
+
+autoUpdater.on('update-downloaded', () => {
+  console.log('[Updater] Update downloaded');
+  // 持久化下载完成状态
+  const config = configManager?.getConfig();
+  if (config?.updateInfo) {
+    configManager?.updateConfig({
+      updateInfo: { ...config.updateInfo, downloaded: true }
+    }).catch((error) => {
+      console.error('[Updater] Failed to save update info:', error);
+    });
+  }
+  if (popupWindow && !popupWindow.isDestroyed()) {
+    popupWindow.webContents.send('update-downloaded');
+  }
+});
+
+autoUpdater.on('update-not-available', () => {
+  console.log('[Updater] No update available');
+});
+
+autoUpdater.on('error', (error) => {
+  console.error('[Updater] Error:', error.message);
+});
 
 // 全局模块实例
 let trayManager: TrayManager | null = null;
@@ -302,12 +345,6 @@ async function initialize(): Promise<void> {
     },
     onCheckUpdate: () => {
       openSettings();
-      // 延迟发送，等设置页加载完成
-      setTimeout(() => {
-        if (popupWindow && !popupWindow.isDestroyed()) {
-          popupWindow.webContents.send('trigger-check-update');
-        }
-      }, 500);
     },
     onQuit: () => {
       // 退出应用
@@ -484,20 +521,46 @@ function setupIpcHandlers(): void {
     return app.getVersion();
   });
 
-  // 检查更新
+  // 检查更新（仅检查，不下载）
   ipcMain.handle('check-for-update', async () => {
-    try {
-      const currentVersion = app.getVersion();
-      const url = 'https://api.github.com/repos/hyizhou/coding-quota-bar/releases/latest';
-      const release = await HttpClient.getJson<{ tag_name: string }>(url, {
-        'User-Agent': 'coding-quota-bar'
-      });
-      const latestVersion = release.tag_name.replace(/^v/, '');
-      const available = latestVersion > currentVersion;
-      return { available, version: latestVersion };
-    } catch {
+    if (isDev) {
       return { available: false };
     }
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      if (result?.updateInfo) {
+        const latestVersion = result.updateInfo.version;
+        const currentVersion = app.getVersion();
+        const available = latestVersion > currentVersion;
+        // 持久化更新检查结果
+        if (available) {
+          await configManager?.updateConfig({
+            updateInfo: { version: latestVersion, downloaded: false }
+          });
+        } else {
+          await configManager?.updateConfig({ updateInfo: undefined });
+        }
+        return { available, version: latestVersion };
+      }
+      return { available: false };
+    } catch {
+      return { available: false, error: true };
+    }
+  });
+
+  // 下载更新
+  ipcMain.handle('download-update', async () => {
+    try {
+      await autoUpdater.downloadUpdate();
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+  // 重启并安装更新
+  ipcMain.handle('quit-and-install', () => {
+    autoUpdater.quitAndInstall();
   });
 
   // 用系统浏览器打开链接
