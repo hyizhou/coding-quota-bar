@@ -6,7 +6,7 @@ import { ProviderLoader, getAvailableProviderKeys } from './loader';
 import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale, t as i18nT } from './i18n';
-import type { UsageResult, QuotaItem as SharedQuotaItem, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord } from '../shared/types';
+import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord } from '../shared/types';
 
 // 加载 .env 文件
 const envPath = path.join(__dirname, '..', '..', '.env');
@@ -32,7 +32,6 @@ let scheduler: Scheduler | null = null;
 let hideTimer: ReturnType<typeof setTimeout> | null = null;
 let isHoveringWindow = false;
 let isPopupVisible = false;
-let isPinned = false;
 let blurHandler: (() => void) | null = null;
 
 /**
@@ -301,6 +300,15 @@ async function initialize(): Promise<void> {
         });
       }
     },
+    onCheckUpdate: () => {
+      openSettings();
+      // 延迟发送，等设置页加载完成
+      setTimeout(() => {
+        if (popupWindow && !popupWindow.isDestroyed()) {
+          popupWindow.webContents.send('trigger-check-update');
+        }
+      }, 500);
+    },
     onQuit: () => {
       // 退出应用
       app.quit();
@@ -345,7 +353,7 @@ async function initialize(): Promise<void> {
 
   scheduler.on('refreshed', () => {
     // 首次获取到数据后停止加载动画
-    trayManager.stopLoading();
+    trayManager?.stopLoading();
     // 刷新完成后主动推送数据到渲染进程
     const data = buildUsageData();
     if (popupWindow && !popupWindow.isDestroyed()) {
@@ -398,6 +406,8 @@ function setupConfigListeners(): void {
       const providers = ProviderLoader.loadProviders(newConfig.providers);
       scheduler!.setProviders(providers);
 
+      console.log(`[App] Reloaded ${providers.length} provider(s)`);
+
       // 仅当间隔未变化时才需要手动刷新（间隔变化已通过重启触发刷新）
       if (!intervalChanged) {
         scheduler!.refresh().catch((error) => {
@@ -405,8 +415,6 @@ function setupConfigListeners(): void {
         });
       }
     }
-
-    console.log(`[App] Reloaded ${providers.length} provider(s)`);
 
     // 更新开机自启
     updateAutoStart(newConfig.autoStart);
@@ -419,8 +427,7 @@ function setupConfigListeners(): void {
 function updateAutoStart(enabled: boolean): void {
   app.setLoginItemSettings({
     openAtLogin: enabled,
-    openAsHidden: true,
-    path: process.execPath
+    openAsHidden: true
   });
   console.log(`[App] Auto-start: ${enabled ? 'enabled' : 'disabled'}`);
 

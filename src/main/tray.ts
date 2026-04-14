@@ -31,6 +31,7 @@ export interface TrayCallbacks {
   onRefresh: () => void;
   onSettings: () => void;
   onAutoStartToggle: (enabled: boolean) => void;
+  onCheckUpdate: () => void;
   onQuit: () => void;
 }
 
@@ -258,20 +259,10 @@ export class TrayManager {
         label: t('tray.settings'),
         click: () => this.handleSettings()
       },
-      { type: 'separator' },
-      {
-        label: t('tray.about'),
-        click: () => {
-          // TODO: 关于对话框
-        }
-      },
       {
         label: t('tray.checkUpdate'),
-        click: () => {
-          // TODO: 检查更新
-        }
+        click: () => this.handleCheckUpdate()
       },
-      { type: 'separator' },
       {
         label: t('tray.quit'),
         click: () => this.handleQuit()
@@ -304,6 +295,14 @@ export class TrayManager {
     console.log(`[Tray] Auto-start toggled: ${enabled}`);
     this.autoStartEnabled = enabled;
     this.callbacks?.onAutoStartToggle(enabled);
+  }
+
+  /**
+   * 处理检查更新事件
+   */
+  private handleCheckUpdate(): void {
+    console.log('[Tray] Check update clicked');
+    this.callbacks?.onCheckUpdate();
   }
 
   /**

@@ -86,6 +86,9 @@ export interface ElectronAPI {
   onShowSettings: (callback: () => void) => void
   onUsageDataUpdated: (callback: (data: UsageState) => void) => void
   notifyHoverState: (hovering: boolean) => void
+  checkForUpdate: () => Promise<{ available: boolean; version?: string }>
+  onTriggerCheckUpdate: (callback: () => void) => void
+  offTriggerCheckUpdate: (callback: () => void) => void
 }
 
 declare global {

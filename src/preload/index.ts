@@ -63,5 +63,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /**
    * 检查更新
    */
-  checkForUpdate: () => ipcRenderer.invoke('check-for-update')
+  checkForUpdate: () => ipcRenderer.invoke('check-for-update'),
+
+  /**
+   * 监听来自托盘菜单的检查更新触发事件
+   */
+  onTriggerCheckUpdate: (callback: () => void) => {
+    ipcRenderer.on('trigger-check-update', () => callback());
+  },
+
+  /**
+   * 取消监听检查更新触发事件
+   */
+  offTriggerCheckUpdate: (callback: () => void) => {
+    ipcRenderer.removeListener('trigger-check-update', callback);
+  }
 });

@@ -90,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AppConfig, ProviderConfig } from '../types'
 import { useTheme } from '../composables/useTheme'
@@ -157,6 +157,13 @@ onMounted(async () => {
   // 主题切换由 useTheme 自行持久化，不经过 scheduleSave
   watch(themePreference, (val) => {
     setTheme(val)
+  })
+
+  // 监听来自托盘菜单的检查更新事件
+  const onTriggerCheckUpdate = () => handleCheckUpdate()
+  window.electronAPI.onTriggerCheckUpdate?.(onTriggerCheckUpdate)
+  onUnmounted(() => {
+    window.electronAPI.offTriggerCheckUpdate?.(onTriggerCheckUpdate)
   })
 })
 

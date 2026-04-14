@@ -1,6 +1,6 @@
 {
   "main": {
-    "title": "AI 用量监控",
+    "title": "Coding Plan用量监控",
     "settingsBtn": "设置",
     "refreshBtn": "刷新",
     "emptyState": "暂无启用的用量监控",
