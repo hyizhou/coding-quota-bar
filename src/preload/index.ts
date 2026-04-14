@@ -72,5 +72,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   offTriggerCheckUpdate: (callback: () => void) => {
     ipcRenderer.removeListener('trigger-check-update', callback);
-  }
+  },
+
+  openExternal: (url: string) => ipcRenderer.invoke('open-external', url)
 });

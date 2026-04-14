@@ -74,7 +74,12 @@
       </div>
 
       <div class="version-section">
-        <span class="version-text">v{{ appVersion }}</span>
+        <div class="version-left">
+          <button class="icon-btn github-btn" title="GitHub" @click="openGitHub">
+            <img src="../assets/github.svg" alt="GitHub" />
+          </button>
+          <span class="version-text">v{{ appVersion }}</span>
+        </div>
         <button class="check-update-btn" :disabled="checkingUpdate" @click="handleCheckUpdate">
           <template v-if="checkingUpdate">{{ $t('settings.checkingUpdate') }}</template>
           <template v-else-if="updateStatus">{{ updateStatus }}</template>
@@ -202,6 +207,10 @@ async function saveConfig() {
   }
 }
 
+function openGitHub() {
+  window.electronAPI.openExternal('https://github.com/hyizhou/coding-quota-bar')
+}
+
 async function handleCheckUpdate() {
   checkingUpdate.value = true
   updateStatus.value = ''
@@ -272,9 +281,27 @@ async function handleCheckUpdate() {
   margin-top: 4px;
 }
 
+.version-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .version-text {
   font-size: 11px;
   color: var(--text-tertiary);
+}
+
+.github-btn {
+  padding: 2px !important;
+  color: var(--text-tertiary);
+}
+.github-btn img {
+  width: 14px;
+  height: 14px;
+}
+.github-btn:hover {
+  color: var(--text-secondary);
 }
 
 .check-update-btn {

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, shell } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'path';
 import { TrayManager, getColorByPercent } from './tray';
@@ -498,6 +498,11 @@ function setupIpcHandlers(): void {
     } catch {
       return { available: false };
     }
+  });
+
+  // 用系统浏览器打开链接
+  ipcMain.handle('open-external', async (_, url: string) => {
+    await shell.openExternal(url);
   });
 }
 
