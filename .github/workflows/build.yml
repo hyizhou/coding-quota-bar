@@ -1,7 +1,9 @@
 name: Build & Release
 
-# 手动触发，开发完成后可改为 on: push/tags 自动发布
-on: workflow_dispatch
+on:
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -23,8 +25,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: win-build
-          path: release/*.exe
+          files: |
+            release/*.exe
+            release/latest.yml
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
