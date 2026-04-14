@@ -29,19 +29,30 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}" -replace '^v',''
-          $content = Get-Content CHANGELOG.md -Raw
-          $pattern = "(?s)## \[$tag\].*?(?=\n## \[|\z)"
-          if ($content -match $pattern) {
-            $matches[0].Trim() | Set-Content release_notes.md -NoNewline
-          } else {
-            "## [$tag]" | Set-Content release_notes.md -NoNewline
+          $lines = Get-Content CHANGELOG.md
+          $capture = $false
+          $result = @()
+          foreach ($line in $lines) {
+            if ($line -match "^## \[$tag\]") {
+              $capture = $true
+              $result += $line
+              continue
+            }
+            if ($capture -and $line -match "^## \[") {
+              break
+            }
+            if ($capture) {
+              $result += $line
+            }
           }
+          ($result -join "`n").Trim() | Set-Content release_notes.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            release/*.exe
+            release/Coding Quota Bar Setup *.exe
+            release/*.blockmap
             release/latest.yml
           body_path: release_notes.md
         env:

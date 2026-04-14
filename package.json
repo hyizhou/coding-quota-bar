@@ -55,7 +55,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Coding Quota Bar"
+      "shortcutName": "Coding Quota Bar",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
     }
   },
   "dependencies": {
