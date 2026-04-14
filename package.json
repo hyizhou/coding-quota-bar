@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Coding Plan usage monitor - system tray resident display",
   "main": "./out/main/index.js",
-  "author": "coding-quota-bar-team",
+  "author": "hyizhou",
   "license": "MIT",
   "scripts": {
     "dev": "chcp 65001 >nul && electron-vite dev",
@@ -26,7 +26,7 @@
   "build": {
     "appId": "top.hyizhou.codingquotabar",
     "productName": "Coding Quota Bar",
-    "copyright": "Copyright © 2026 coding-quota-bar-team",
+    "copyright": "Copyright © 2026 hyizhou",
     "electronLanguages": [
       "zh-CN",
       "en-US"
