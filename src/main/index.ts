@@ -21,8 +21,8 @@ if (fs.existsSync(envPath)) {
   console.log('[App] Loaded .env from', envPath);
 }
 
-// 是否处于开发状态（DEV=1 时生效，来源可以是 .env 文件或系统环境变量）
-const isDev = process.env.DEV === '1';
+// 是否处于开发状态（CQB_DEV=1 时生效，来源可以是 .env 文件或系统环境变量）
+const isDev = process.env.CQB_DEV === '1';
 console.log('[App] DEV mode:', isDev);
 
 // 自动更新配置
@@ -87,6 +87,13 @@ const enum PopupMode {
 }
 
 let popupMode: PopupMode = PopupMode.Hidden;
+
+/**
+ * 检查是否启用了内存节省模式
+ */
+function isMemorySavingMode(): boolean {
+  return configManager?.getConfig()?.memorySavingMode === true;
+}
 
 /**
  * Renderer 端额度项
@@ -227,12 +234,21 @@ function detachBlurHandler(): void {
 }
 
 /**
- * 将窗口移到屏幕外实现"隐藏"
+ * 隐藏弹出窗口
+ * 内存节省模式：销毁窗口释放渲染进程
+ * 默认模式：将窗口移到屏幕外
  */
 function hidePopupWindow(): void {
   if (!popupWindow || popupWindow.isDestroyed()) return;
   detachBlurHandler();
-  popupWindow.setBounds({ x: -9999, y: -9999, width: POPUP_WIDTH, height: POPUP_HEIGHT });
+
+  if (isMemorySavingMode()) {
+    popupWindow.destroy();
+    popupWindow = null;
+  } else {
+    popupWindow.setBounds({ x: -9999, y: -9999, width: POPUP_WIDTH, height: POPUP_HEIGHT });
+  }
+
   isPopupVisible = false;
   popupMode = PopupMode.Hidden;
 }
@@ -378,7 +394,10 @@ async function initialize(): Promise<void> {
   });
 
   // 3. 预创建并加载弹出窗口（隐藏状态，后续直接 show/hide 复用）
-  createPopupWindow();
+  // 内存节省模式下不预创建，按需创建/销毁
+  if (!isMemorySavingMode()) {
+    createPopupWindow();
+  }
 
   // 4. 创建调度器
   scheduler = createScheduler(config);
@@ -460,6 +479,20 @@ function setupConfigListeners(): void {
 
     // 更新开机自启
     updateAutoStart(newConfig.autoStart);
+
+    // 内存节省模式变化时，立即应用
+    if (newConfig.memorySavingMode !== oldConfig?.memorySavingMode) {
+      if (newConfig.memorySavingMode && popupWindow && !popupWindow.isDestroyed() && !isPopupVisible) {
+        // 开启模式 + 窗口隐藏中 → 销毁窗口
+        popupWindow.destroy();
+        popupWindow = null;
+        console.log('[App] Memory saving mode enabled, destroyed hidden window');
+      } else if (!newConfig.memorySavingMode && !popupWindow) {
+        // 关闭模式 + 窗口不存在 → 预创建窗口
+        createPopupWindow();
+        console.log('[App] Memory saving mode disabled, pre-created window');
+      }
+    }
   });
 }
 

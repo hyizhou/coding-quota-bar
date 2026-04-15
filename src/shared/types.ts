@@ -92,6 +92,7 @@ export interface AppConfig {
     };
   };
   autoStart: boolean;
+  memorySavingMode?: boolean;
   language?: string;
   theme?: 'light' | 'dark' | 'auto';
   updateInfo?: UpdateInfo | null;

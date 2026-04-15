@@ -51,11 +51,6 @@
             <option value="1800">{{ $t('settings.interval30m') }}</option>
           </select>
         </div>
-        <label class="toggle-row">
-          <input type="checkbox" v-model="autoStart" />
-          <span class="toggle-switch"></span>
-          <span class="toggle-label">{{ $t('settings.autoStart') }}</span>
-        </label>
         <div class="form-group">
           <label class="form-label">{{ $t('settings.language') }}</label>
           <select v-model="language" class="form-select">
@@ -70,6 +65,18 @@
             <option value="dark">{{ $t('settings.themeDark') }}</option>
             <option value="auto">{{ $t('settings.themeAuto') }}</option>
           </select>
+        </div>
+        <div class="toggle-group">
+          <label class="toggle-row">
+            <input type="checkbox" v-model="autoStart" />
+            <span class="toggle-switch"></span>
+            <span class="toggle-label">{{ $t('settings.autoStart') }}</span>
+          </label>
+          <label class="toggle-row" :title="$t('settings.memorySavingModeHint')">
+            <input type="checkbox" v-model="memorySavingMode" />
+            <span class="toggle-switch"></span>
+            <span class="toggle-label">{{ $t('settings.memorySavingMode') }}</span>
+          </label>
         </div>
       </div>
 
@@ -129,6 +136,7 @@ const providerList = ref<ProviderInfo[]>([])
 const refreshInterval = ref('300')
 const autoStart = ref(false)
 const language = ref('zh-CN')
+const memorySavingMode = ref(false)
 const saving = ref(false)
 const settingsBodyRef = ref<HTMLElement | null>(null)
 const saveStatus = ref('')
@@ -171,9 +179,10 @@ onMounted(async () => {
   refreshInterval.value = String(config.refreshInterval)
   autoStart.value = config.autoStart
   language.value = config.language || locale.value
+  memorySavingMode.value = config.memorySavingMode ?? false
 
   // 配置加载完后开始监听变化，自动保存
-  watch([providerList, refreshInterval, autoStart, language], () => {
+  watch([providerList, refreshInterval, autoStart, language, memorySavingMode], () => {
     scheduleSave()
   }, { deep: true })
 
@@ -245,6 +254,7 @@ async function saveConfig() {
       providers,
       refreshInterval: parseInt(refreshInterval.value, 10),
       autoStart: autoStart.value,
+      memorySavingMode: memorySavingMode.value,
       language: language.value
     })
     locale.value = language.value
@@ -417,5 +427,12 @@ async function handleStartDownload() {
 }
 .check-update-btn.has-update:hover {
   background: #2563EB;
+}
+
+.toggle-group {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 </style>

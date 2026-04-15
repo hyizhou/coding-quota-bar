@@ -53,6 +53,8 @@
     "themeLight": "浅色",
     "themeDark": "深色",
     "themeAuto": "跟随系统",
+    "memorySavingMode": "内存节省模式",
+    "memorySavingModeHint": "关闭弹窗时释放渲染进程，降低内存占用（弹窗响应会稍慢）",
     "checkUpdate": "检查更新",
     "checkingUpdate": "检查中...",
     "noUpdate": "已是最新版本",

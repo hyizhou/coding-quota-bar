@@ -23,9 +23,9 @@ export interface AggregatedUsage {
 }
 
 /**
- * 是否为 Mock 模式（仅 DEV=1 且 QUOTA_MOCK=1 时生效）
+ * 是否为 Mock 模式（仅 CQB_DEV=1 且 CQB_MOCK=1 时生效）
  */
-const isMockMode = () => process.env.DEV === '1' && process.env.QUOTA_MOCK === '1';
+const isMockMode = () => process.env.CQB_DEV === '1' && process.env.CQB_MOCK === '1';
 
 /**
  * Provider 用量数据汇总器
