@@ -122,6 +122,10 @@
     "tokPerSec": "tok/s",
     "ms": "ms",
     "seconds": "s",
-    "disclaimer": "For reference only. Results may vary due to network conditions and server load."
+    "disclaimer": "For reference only. Results may vary due to network conditions and server load.",
+    "clearAll": "Clear All",
+    "clearConfirm": "Clear all history records?",
+    "confirmYes": "Yes",
+    "confirmNo": "Cancel"
   }
 }
