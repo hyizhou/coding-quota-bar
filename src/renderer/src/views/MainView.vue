@@ -44,7 +44,7 @@
           <div class="provider-name-row">
             <span class="provider-name" :class="{ clickable: !!p.websiteUrl }" @click="openProviderWebsite(p.websiteUrl)">{{ p.name }}</span>
             <!-- 账户切换按钮：仅当 2 个及以上账户时显示 -->
-            <div v-if="p.accounts.length > 1" class="account-tabs">
+            <div v-if="p.accounts.length > 1" class="account-tabs" @wheel.passive="onTabsWheel">
               <button
                 v-for="(acc, idx) in p.accounts"
                 :key="acc.id"
@@ -211,6 +211,11 @@ function openProviderWebsite(url?: string) {
   if (url) window.electronAPI.openExternal(url)
 }
 
+function onTabsWheel(e: WheelEvent) {
+  const el = e.currentTarget as HTMLElement
+  el.scrollLeft += e.deltaY
+}
+
 setInterval(() => { now.value = Date.now() }, 60000)
 
 onMounted(() => {
@@ -267,6 +272,12 @@ onMounted(() => {
   display: flex;
   gap: 4px;
   flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.account-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .account-tab {
@@ -301,6 +312,7 @@ onMounted(() => {
   letter-spacing: 0.5px;
   white-space: nowrap;
   margin-left: auto;
+  flex-shrink: 0;
   line-height: 1;
 }
 
