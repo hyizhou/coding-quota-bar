@@ -669,7 +669,7 @@ function buildUsageData(): UsageDataForRenderer | null {
     return {
       providers: [],
       lastUpdate: new Date().toISOString(),
-      overallPercent: 100
+      overallPercent: -1
     };
   }
 
@@ -680,7 +680,7 @@ function buildUsageData(): UsageDataForRenderer | null {
     return {
       providers: [],
       lastUpdate: new Date().toISOString(),
-      overallPercent: 100
+      overallPercent: -1
     };
   }
 
