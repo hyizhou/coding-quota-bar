@@ -1,7 +1,8 @@
 <template>
   <div class="app">
     <Transition :name="transitionName">
-      <MainView v-if="currentView === 'main'" key="main" @open-settings="goSettings" />
+      <MainView v-if="currentView === 'main'" key="main" @open-settings="goSettings" @open-concurrency-test="goConcurrencyTest" />
+      <ConcurrencyTestView v-else-if="currentView === 'concurrency-test'" key="concurrency-test" @go-back="goMain" />
       <SettingsView v-else :key="'settings-' + settingsKey" :auto-check-update="pendingCheckUpdate" @go-back="goMain" />
     </Transition>
   </div>
@@ -12,10 +13,11 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MainView from './views/MainView.vue'
 import SettingsView from './views/SettingsView.vue'
+import ConcurrencyTestView from './views/ConcurrencyTestView.vue'
 
 const { locale } = useI18n()
 
-const currentView = ref<'main' | 'settings'>('main')
+const currentView = ref<'main' | 'settings' | 'concurrency-test'>('main')
 const transitionName = ref('slide-left')
 const pendingCheckUpdate = ref(false)
 const settingsKey = ref(0)
@@ -28,6 +30,11 @@ function goSettings(options?: { checkUpdate?: boolean }) {
     settingsKey.value++
   }
   currentView.value = 'settings'
+}
+
+function goConcurrencyTest() {
+  transitionName.value = 'slide-left'
+  currentView.value = 'concurrency-test'
 }
 
 function goMain() {
@@ -77,7 +84,6 @@ onUnmounted(() => {
 .slide-left-enter-from {
   transform: translateX(100%);
 }
-
 .slide-left-leave-to {
   transform: translateX(-100%);
 }
@@ -85,7 +91,6 @@ onUnmounted(() => {
 .slide-right-enter-from {
   transform: translateX(-100%);
 }
-
 .slide-right-leave-to {
   transform: translateX(100%);
 }

@@ -83,6 +83,42 @@ export interface AppConfig {
   updateInfo?: UpdateInfo | null
 }
 
+export type ApiFormat = 'openai' | 'anthropic'
+
+export interface ConcurrencyTestConfig {
+  providerKey: string
+  model: string
+  concurrency: number
+  apiFormat: ApiFormat
+}
+
+export interface RequestMetrics {
+  success: boolean
+  ttftMs: number
+  totalMs: number
+  tokensPerSec: number
+  tokenCount: number
+  error?: string
+}
+
+export interface ConcurrencyTestResult {
+  id: string
+  providerKey: string
+  model: string
+  concurrency: number
+  successCount: number
+  failCount: number
+  totalTimeMs: number
+  timestamp: string
+  errors: string[]
+  avgTtftMs: number
+  avgTokensPerSec: number
+  minTtftMs: number
+  maxTtftMs: number
+  avgTotalMs: number
+  requestDetails?: RequestMetrics[]
+}
+
 export interface ElectronAPI {
   getDevMode: () => Promise<boolean>
   getUsageData: () => Promise<UsageState | null>
@@ -100,6 +136,11 @@ export interface ElectronAPI {
   quitAndInstall: () => Promise<void>
   onTriggerCheckUpdate: (callback: () => void) => void
   offTriggerCheckUpdate: (callback: () => void) => void
+  concurrencyTestStart: (config: ConcurrencyTestConfig) => Promise<ConcurrencyTestResult>
+  concurrencyTestGetHistory: (providerKey: string) => Promise<ConcurrencyTestResult[]>
+  concurrencyTestDelete: (providerKey: string, id: string) => Promise<void>
+  onConcurrencyTestProgress: (callback: (progress: { completed: number; total: number }) => void) => void
+  offConcurrencyTestProgress: (callback: (progress: { completed: number; total: number }) => void) => void
 }
 
 declare global {

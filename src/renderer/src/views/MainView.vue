@@ -39,11 +39,23 @@
         </div>
       </template>
 
-      <template v-for="p in providers" :key="p.name">
+      <template v-for="(p, pIdx) in providers" :key="p.name">
         <div class="provider-section">
           <div class="provider-name-row">
             <span class="provider-name" :class="{ clickable: !!p.websiteUrl }" @click="openProviderWebsite(p.websiteUrl)">{{ p.name }}</span>
-            <span v-if="p.level" class="provider-level">{{ p.level }}</span>
+            <div class="provider-name-actions">
+              <span v-if="p.level" class="provider-level">{{ p.level }}</span>
+              <button
+                v-if="providerKeys[pIdx] === 'zhipu'"
+                class="icon-btn concurrency-btn"
+                :title="$t('concurrencyTest.tooltip')"
+                @click="$emit('open-concurrency-test')"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+              </button>
+            </div>
           </div>
           <div v-if="p.error" class="error-card">
             <span class="error-icon">!</span>
@@ -86,7 +98,7 @@ import UsageStats from '../components/UsageStats.vue'
 import type { ProviderUsageData, QuotaItem, UsageState } from '../types'
 import { useTheme } from '../composables/useTheme'
 
-defineEmits<{ 'open-settings': [] }>()
+defineEmits<{ 'open-settings': []; 'open-concurrency-test': [] }>()
 
 const { t, locale } = useI18n()
 const { isDark, toggleTheme } = useTheme()
@@ -96,6 +108,7 @@ const lastUpdate = ref('')
 const loading = ref(false)
 const initialLoading = ref(true)
 const now = ref(Date.now())
+const providerKeys = ref<string[]>([])
 
 const lastUpdateText = computed(() => {
   if (!lastUpdate.value) return t('main.lastUpdateFallback')
@@ -113,6 +126,14 @@ function applyState(state: UsageState) {
   providers.value = state.providers
   lastUpdate.value = state.lastUpdate
   initialLoading.value = false
+  // 加载 provider key 映射
+  loadProviderKeys()
+}
+
+async function loadProviderKeys() {
+  try {
+    providerKeys.value = await window.electronAPI.getAvailableProviders()
+  } catch { providerKeys.value = [] }
 }
 
 async function fetchData() {
@@ -213,6 +234,12 @@ onMounted(() => {
   color: var(--color-primary, #3B82F6);
 }
 
+.provider-name-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .provider-level {
   font-size: 10px;
   font-weight: 600;
@@ -222,6 +249,16 @@ onMounted(() => {
   border-radius: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.concurrency-btn {
+  padding: 2px !important;
+  opacity: 0.5;
+  color: var(--text-secondary);
+}
+.concurrency-btn:hover {
+  opacity: 1;
+  color: #3B82F6;
 }
 
 .provider-section .quota-row-single .quota-card {

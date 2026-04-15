@@ -94,5 +94,29 @@
     "zhipu": "智谱",
     "minimax": "MiniMax",
     "kimi": "Kimi"
+  },
+  "concurrencyTest": {
+    "title": "并发测试",
+    "tooltip": "并发测试",
+    "apiFormat": "接口",
+    "model": "模型",
+    "concurrency": "并发数",
+    "start": "开始测试",
+    "running": "测试中... ({completed}/{total} 已返回)",
+    "results": "测试结果",
+    "success": "成功",
+    "fail": "失败",
+    "totalTime": "耗时",
+    "avgTtft": "平均首字延迟",
+    "avgSpeed": "平均输出速度",
+    "ttftRange": "最快/最慢延迟",
+    "history": "历史记录",
+    "noHistory": "暂无记录",
+    "delete": "删除",
+    "collapse": "收起",
+    "tokPerSec": "tok/s",
+    "ms": "ms",
+    "seconds": "秒",
+    "disclaimer": "仅供参考娱乐，结果受网络状况、服务器负载等因素影响，仅能反映大致并发上限。"
   }
 }

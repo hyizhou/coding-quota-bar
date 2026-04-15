@@ -8,7 +8,8 @@ import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale, t as i18nT } from './i18n';
 import { autoUpdater } from 'electron-updater';
-import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord } from '../shared/types';
+import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, ConcurrencyTestConfig } from '../shared/types';
+import { ConcurrencyTestEngine } from './concurrency-test';
 
 // 加载 .env 文件
 const envPath = path.join(__dirname, '..', '..', '.env');
@@ -613,6 +614,31 @@ function setupIpcHandlers(): void {
   // 用系统浏览器打开链接
   ipcMain.handle('open-external', async (_, url: string) => {
     await shell.openExternal(url);
+  });
+
+  // 并发测试：启动
+  ipcMain.handle('concurrency-test-start', async (_, config: ConcurrencyTestConfig) => {
+    const cfg = configManager?.getConfig();
+    if (!cfg) throw new Error('Config not loaded');
+
+    const providerConfig = cfg.providers[config.providerKey];
+    if (!providerConfig?.apiKey) throw new Error('No API key configured');
+
+    return ConcurrencyTestEngine.run(config, providerConfig.apiKey, (completed, total) => {
+      if (popupWindow && !popupWindow.isDestroyed()) {
+        popupWindow.webContents.send('concurrency-test-progress', { completed, total });
+      }
+    });
+  });
+
+  // 并发测试：获取历史记录
+  ipcMain.handle('concurrency-test-history', async (_, providerKey: string) => {
+    return ConcurrencyTestEngine.loadHistory(providerKey);
+  });
+
+  // 并发测试：删除历史记录
+  ipcMain.handle('concurrency-test-delete', async (_, providerKey: string, id: string) => {
+    await ConcurrencyTestEngine.deleteResult(providerKey, id);
   });
 }
 

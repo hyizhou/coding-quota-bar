@@ -103,3 +103,62 @@ export interface AppConfig {
  * 显示颜色
  */
 export type DisplayColor = 'green' | 'yellow' | 'red';
+
+/**
+ * API 接口格式
+ */
+export type ApiFormat = 'openai' | 'anthropic';
+
+/**
+ * 并发测试配置
+ */
+export interface ConcurrencyTestConfig {
+  providerKey: string;
+  model: string;
+  concurrency: number;
+  apiFormat: ApiFormat;
+}
+
+/**
+ * 单个并发请求的指标
+ */
+export interface RequestMetrics {
+  success: boolean;
+  ttftMs: number;
+  totalMs: number;
+  tokensPerSec: number;
+  tokenCount: number;
+  error?: string;
+}
+
+/**
+ * 并发测试结果
+ */
+export interface ConcurrencyTestResult {
+  id: string;
+  providerKey: string;
+  model: string;
+  concurrency: number;
+  successCount: number;
+  failCount: number;
+  totalTimeMs: number;
+  timestamp: string;
+  errors: string[];
+  avgTtftMs: number;
+  avgTokensPerSec: number;
+  minTtftMs: number;
+  maxTtftMs: number;
+  avgTotalMs: number;
+  requestDetails?: RequestMetrics[];
+}
+
+/**
+ * 智谱 Coding Plan 可用模型
+ */
+export const ZHIPU_CODING_MODELS = [
+  'GLM-5.1',
+  'GLM-5-Turbo',
+  'GLM-5v-Turbo',
+  'GLM-4.7',
+  'GLM-4.5-Air',
+] as const;

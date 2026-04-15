@@ -103,5 +103,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   offTriggerCheckUpdate: (callback: () => void) => {
     ipcRenderer.removeListener('trigger-check-update', callback);
-  }
+  },
+
+  /**
+   * 并发测试：启动
+   */
+  concurrencyTestStart: (config: unknown) => ipcRenderer.invoke('concurrency-test-start', config),
+
+  /**
+   * 并发测试：获取历史记录
+   */
+  concurrencyTestGetHistory: (providerKey: string) => ipcRenderer.invoke('concurrency-test-history', providerKey),
+
+  /**
+   * 并发测试：监听进度
+   */
+  onConcurrencyTestProgress: (callback: (progress: { completed: number; total: number }) => void) => {
+    ipcRenderer.on('concurrency-test-progress', (_, data) => callback(data));
+  },
+
+  /**
+   * 并发测试：取消监听进度
+   */
+  offConcurrencyTestProgress: (callback: (progress: { completed: number; total: number }) => void) => {
+    ipcRenderer.removeListener('concurrency-test-progress', callback as any);
+  },
+
+  /**
+   * 并发测试：删除历史记录
+   */
+  concurrencyTestDelete: (providerKey: string, id: string) => ipcRenderer.invoke('concurrency-test-delete', providerKey, id),
 });

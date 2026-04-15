@@ -94,5 +94,29 @@
     "zhipu": "Z AI",
     "minimax": "MiniMax",
     "kimi": "Kimi"
+  },
+  "concurrencyTest": {
+    "title": "Concurrency Test",
+    "tooltip": "Concurrency Test",
+    "apiFormat": "API Format",
+    "model": "Model",
+    "concurrency": "Concurrency",
+    "start": "Start Test",
+    "running": "Testing... ({completed}/{total} returned)",
+    "results": "Results",
+    "success": "Success",
+    "fail": "Fail",
+    "totalTime": "Time",
+    "avgTtft": "Avg TTFT",
+    "avgSpeed": "Avg Output Speed",
+    "ttftRange": "Min/Max TTFT",
+    "history": "History",
+    "noHistory": "No records",
+    "delete": "Delete",
+    "collapse": "Collapse",
+    "tokPerSec": "tok/s",
+    "ms": "ms",
+    "seconds": "s",
+    "disclaimer": "For reference only. Results may vary due to network conditions and server load."
   }
 }
