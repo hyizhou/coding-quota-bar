@@ -13,28 +13,50 @@
       <div class="section-label">{{ $t('settings.providerSection') }}</div>
 
       <div v-for="info in providerList" :key="info.key" class="settings-card">
-        <label class="toggle-row">
-          <input type="checkbox" v-model="info.enabled" />
-          <span class="toggle-switch"></span>
-          <span class="toggle-label">{{ $t(`providers.${info.key}`) }}</span>
-        </label>
-        <div class="provider-body" v-if="info.enabled">
-          <div class="input-group">
+        <div class="provider-header">
+          <span class="provider-title">{{ $t(`providers.${info.key}`) }}</span>
+          <button class="add-account-btn" @click="addAccount(info.key)">
+            + {{ $t('settings.addAccount') }}
+          </button>
+        </div>
+
+        <div v-for="(account, idx) in info.accounts" :key="account.id" class="account-item">
+          <label class="toggle-row">
+            <input type="checkbox" v-model="account.enabled" />
+            <span class="toggle-switch"></span>
             <input
-              :type="info.showKey ? 'text' : 'password'"
-              class="form-input"
-              v-model="info.apiKey"
-              placeholder="API Key"
+              class="account-label-input"
+              v-model="account.label"
+              :placeholder="$t('settings.accountLabelPlaceholder')"
             />
-            <button class="icon-btn eye-btn" @click="info.showKey = !info.showKey">
-              <svg v-if="info.showKey" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
-              </svg>
-              <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
+          </label>
+          <div class="provider-body" v-if="account.enabled">
+            <div class="input-group">
+              <input
+                :type="account.showKey ? 'text' : 'password'"
+                class="form-input"
+                v-model="account.apiKey"
+                placeholder="API Key"
+              />
+              <button class="icon-btn eye-btn" @click="account.showKey = !account.showKey">
+                <svg v-if="account.showKey" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+                <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+              <button class="icon-btn delete-btn" :title="$t('settings.removeAccount')" @click="removeAccount(info.key, idx)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+              </button>
+            </div>
           </div>
+        </div>
+
+        <div v-if="info.accounts.length === 0" class="no-accounts">
+          {{ $t('settings.noAccounts') }}
         </div>
       </div>
 
@@ -122,7 +144,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AppConfig, ProviderConfig } from '../types'
+import type { AppConfig, ProviderTypeConfig, AccountConfig } from '../types'
 import { useTheme } from '../composables/useTheme'
 
 defineEmits<{ 'go-back': [] }>()
@@ -131,12 +153,18 @@ const props = defineProps<{ autoCheckUpdate?: boolean }>()
 const { t, locale } = useI18n()
 const { preference: themePreference, setTheme } = useTheme()
 
-interface ProviderInfo {
-  key: string
+interface AccountInfo {
+  id: string
   label: string
   enabled: boolean
   apiKey: string
   showKey: boolean
+}
+
+interface ProviderInfo {
+  key: string
+  label: string
+  accounts: AccountInfo[]
 }
 
 const providerList = ref<ProviderInfo[]>([])
@@ -160,6 +188,28 @@ const downloadProgress = ref(0)
 const updateReady = ref(false)
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
+function generateId(): string {
+  return Math.random().toString(16).slice(2, 10)
+}
+
+function addAccount(providerKey: string) {
+  const provider = providerList.value.find(p => p.key === providerKey)
+  if (!provider) return
+  provider.accounts.push({
+    id: generateId(),
+    label: '',
+    enabled: true,
+    apiKey: '',
+    showKey: false,
+  })
+}
+
+function removeAccount(providerKey: string, index: number) {
+  const provider = providerList.value.find(p => p.key === providerKey)
+  if (!provider) return
+  provider.accounts.splice(index, 1)
+}
+
 function scheduleSave() {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
@@ -177,13 +227,20 @@ onMounted(async () => {
   // 从主进程获取可用的 provider 列表
   const availableKeys: string[] = await window.electronAPI.getAvailableProviders()
 
-  providerList.value = availableKeys.map(key => ({
-    key,
-    label: t(`providers.${key}`),
-    enabled: config.providers[key]?.enabled ?? false,
-    apiKey: config.providers[key]?.apiKey ?? '',
-    showKey: false,
-  }))
+  providerList.value = availableKeys.map(key => {
+    const providerConfig = config.providers[key] as ProviderTypeConfig | undefined
+    return {
+      key,
+      label: t(`providers.${key}`),
+      accounts: (providerConfig?.accounts ?? []).map((account: AccountConfig) => ({
+        id: account.id,
+        label: account.label ?? '',
+        enabled: account.enabled ?? false,
+        apiKey: account.apiKey ?? '',
+        showKey: false,
+      }))
+    }
+  })
   refreshInterval.value = String(config.refreshInterval)
   autoStart.value = config.autoStart
   language.value = config.language || locale.value
@@ -249,12 +306,15 @@ async function saveConfig() {
   saveStatus.value = t('settings.saving')
   saveError.value = false
 
-  const providers: Record<string, ProviderConfig> = {}
+  const providers: Record<string, ProviderTypeConfig> = {}
   for (const info of providerList.value) {
     providers[info.key] = {
-      ...currentConfig.value!.providers[info.key],
-      enabled: info.enabled,
-      apiKey: info.apiKey
+      accounts: info.accounts.map(a => ({
+        id: a.id,
+        label: a.label,
+        enabled: a.enabled,
+        apiKey: a.apiKey,
+      }))
     }
   }
 
@@ -355,10 +415,55 @@ async function handleStartDownload() {
   margin-bottom: 6px;
 }
 
+.provider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.provider-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.add-account-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px dashed var(--border-default);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.add-account-btn:hover {
+  border-color: #3B82F6;
+  color: #3B82F6;
+}
+
+.account-item {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.account-label-input {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0 4px;
+}
+.account-label-input::placeholder {
+  color: var(--text-tertiary);
+}
+
 .provider-body {
   margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-subtle);
 }
 
 .input-group {
@@ -369,6 +474,22 @@ async function handleStartDownload() {
 .eye-btn {
   border: 1px solid var(--border-default) !important;
   padding: 4px 6px !important;
+}
+
+.delete-btn {
+  border: 1px solid var(--border-default) !important;
+  padding: 4px 6px !important;
+  color: var(--text-tertiary);
+}
+.delete-btn:hover {
+  color: #ef4444;
+}
+
+.no-accounts {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 8px 0;
 }
 
 .save-status { font-size: 11px; color: #4CAF50; }

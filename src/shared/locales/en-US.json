@@ -23,7 +23,8 @@
     "mcpSearch": "Search",
     "mcpWebRead": "Web Read",
     "mcpZread": "ZRead",
-    "mcpCountUnit": ""
+    "mcpCountUnit": "",
+    "defaultAccountLabel": "Account {n}"
   },
   "settings": {
     "title": "Settings",
@@ -58,6 +59,10 @@
     "popupTriggerLabel": "Popup Trigger",
     "memorySavingMode": "Memory Saving Mode",
     "memorySavingModeHint": "Release renderer process when popup is hidden to reduce memory usage (popup response may be slightly slower)",
+    "addAccount": "Add Account",
+    "removeAccount": "Remove Account",
+    "accountLabelPlaceholder": "Account label (e.g. Work)",
+    "noAccounts": "No accounts. Click above to add one.",
     "checkUpdate": "Check for Updates",
     "checkingUpdate": "Checking...",
     "noUpdate": "You're up to date",

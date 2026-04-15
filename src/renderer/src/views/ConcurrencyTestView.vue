@@ -44,6 +44,16 @@
         <template v-else>{{ $t('concurrencyTest.start') }}</template>
       </button>
 
+      <!-- 测试过程 -->
+      <div v-if="testing" class="progress-card">
+        <div class="progress-dots">
+          <span v-for="(s, i) in requestStates" :key="i" class="dot" :class="s" />
+        </div>
+        <div v-if="streamText" ref="streamEl" class="stream-preview">
+          <span class="stream-text">{{ streamText }}</span><span class="stream-cursor">|</span>
+        </div>
+      </div>
+
       <!-- 结果 -->
       <div v-if="result" class="result-card">
         <div class="result-row main-result">
@@ -101,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ApiFormat, ConcurrencyTestResult } from '../types'
 
@@ -122,6 +132,9 @@ const result = ref<ConcurrencyTestResult | null>(null)
 const history = ref<ConcurrencyTestResult[]>([])
 const showHistory = ref(false)
 const progress = ref({ completed: 0, total: 0 })
+const requestStates = ref<('pending' | 'success' | 'fail')[]>([])
+const streamText = ref('')
+const streamEl = ref<HTMLElement | null>(null)
 
 const runningText = computed(() => {
   return t('concurrencyTest.running', {
@@ -130,14 +143,30 @@ const runningText = computed(() => {
   })
 })
 
-function onProgress(data: { completed: number; total: number }) {
-  progress.value = data
+function onProgress(data: { index: number; total: number; success: boolean }) {
+  if (requestStates.value.length !== data.total) {
+    requestStates.value = Array(data.total).fill('pending')
+  }
+  requestStates.value[data.index] = data.success ? 'success' : 'fail'
+  progress.value = {
+    completed: requestStates.value.filter(s => s !== 'pending').length,
+    total: data.total,
+  }
+}
+
+function onStreamText(text: string) {
+  streamText.value += text
+  nextTick(() => {
+    if (streamEl.value) streamEl.value.scrollTop = streamEl.value.scrollHeight
+  })
 }
 
 async function startTest() {
   testing.value = true
   result.value = null
   progress.value = { completed: 0, total: concurrency.value }
+  requestStates.value = Array(concurrency.value).fill('pending')
+  streamText.value = ''
 
   try {
     const res = await window.electronAPI.concurrencyTestStart({
@@ -146,11 +175,11 @@ async function startTest() {
       concurrency: concurrency.value,
       apiFormat: apiFormat.value,
     })
+    testing.value = false
     result.value = res
     await loadHistory()
   } catch (e) {
     console.error('[ConcurrencyTest] Test failed:', e)
-  } finally {
     testing.value = false
   }
 }
@@ -186,10 +215,12 @@ function formatTimestamp(iso: string): string {
 onMounted(() => {
   loadHistory()
   window.electronAPI.onConcurrencyTestProgress(onProgress)
+  window.electronAPI.onConcurrencyTestStream(onStreamText)
 })
 
 onUnmounted(() => {
   window.electronAPI.offConcurrencyTestProgress(onProgress)
+  window.electronAPI.offConcurrencyTestStream(onStreamText)
 })
 </script>
 
@@ -268,6 +299,50 @@ onUnmounted(() => {
 .start-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.progress-card {
+  background: var(--bg-settings-card);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+
+.progress-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+.dot.pending { background: var(--border-default, rgba(255,255,255,0.12)); }
+.dot.success { background: #22C55E; }
+.dot.fail { background: #EAB308; }
+
+.stream-preview {
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-height: 80px;
+  overflow-y: auto;
+  word-break: break-all;
+}
+.stream-preview::-webkit-scrollbar { width: 2px; }
+.stream-preview::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+
+.stream-cursor {
+  animation: blink 0.8s step-end infinite;
+  color: var(--text-tertiary);
+}
+@keyframes blink {
+  50% { opacity: 0; }
 }
 
 .result-card {
@@ -366,7 +441,7 @@ onUnmounted(() => {
 }
 
 .history-time { min-width: 72px; }
-.history-model { }
+.history-model { flex: 1; text-align: center; }
 
 .history-metrics {
   display: flex;

@@ -5,7 +5,7 @@ import { t } from './i18n';
 /**
  * 显示颜色类型
  */
-export type DisplayColor = 'green' | 'yellow' | 'red';
+export type DisplayColor = 'green' | 'yellow' | 'red' | 'gray';
 
 /**
  * 颜色配置
@@ -13,7 +13,8 @@ export type DisplayColor = 'green' | 'yellow' | 'red';
 const COLORS = {
   green: '#22C55E',
   yellow: '#F59E0B',
-  red: '#EF4444'
+  red: '#EF4444',
+  gray: '#888888'
 };
 
 /**
@@ -39,6 +40,7 @@ export interface TrayCallbacks {
  * 根据剩余百分比获取显示颜色
  */
 export function getColorByPercent(percent: number, thresholds: ColorThresholds): DisplayColor {
+  if (percent < 0) return 'gray';
   if (percent >= thresholds.green) return 'green';
   if (percent >= thresholds.yellow) return 'yellow';
   return 'red';
@@ -58,6 +60,7 @@ const DIGIT_FONT: Record<string, string[]> = {
   '7': ['11111', '00001', '00010', '00100', '01000', '01000', '01000'],
   '8': ['01110', '10001', '10001', '01110', '10001', '10001', '01110'],
   '9': ['01110', '10001', '10001', '01111', '00001', '00010', '01100'],
+  '-': ['00000', '00000', '00000', '11111', '00000', '00000', '00000'],
 };
 
 /**
@@ -132,8 +135,9 @@ export function createTrayIcon(percent: number, color: DisplayColor): Electron.N
   // 初始化透明像素缓冲
   const pixels = Buffer.alloc(size * size * 4, 0);
 
-  // 渲染数字文本（位图字体 5x7，三位数时间距缩为 0）
-  const text = String(Math.round(percent));
+  // 渲染文本（位图字体 5x7）
+  const noData = percent < 0;
+  const text = noData ? '--' : String(Math.round(percent));
   const charWidth = 5;
   const charHeight = 7;
   const charGap = text.length > 2 ? 0 : 1;
@@ -214,8 +218,8 @@ export function createLoadingFrame(frameIndex: number): Electron.NativeImage {
  */
 export class TrayManager {
   private tray: Tray | null = null;
-  private currentPercent = 0;
-  private currentColor: DisplayColor = 'green';
+  private currentPercent = -1;
+  private currentColor: DisplayColor = 'gray';
   private autoStartEnabled = false;
   private callbacks: TrayCallbacks | null = null;
   private loadingFrame = 0;
@@ -236,8 +240,8 @@ export class TrayManager {
    * 初始化托盘
    */
   private initialize(): void {
-    // 创建初始图标
-    const icon = createTrayIcon(100, 'green');
+    // 创建初始图标（灰色 "--" 表示无数据）
+    const icon = createTrayIcon(-1, 'gray');
     this.tray = new Tray(icon);
 
     // 设置右键菜单
@@ -350,22 +354,23 @@ export class TrayManager {
   /**
    * 更新托盘图标显示
    */
-  updateDisplay(percent: number, thresholds: ColorThresholds): void {
-    const color = getColorByPercent(percent, thresholds);
+  updateDisplay(percent: number | null, thresholds: ColorThresholds): void {
+    const pct = percent ?? -1;
+    const color = getColorByPercent(pct, thresholds);
 
     // 只有当百分比或颜色变化时才更新
-    if (this.currentPercent === percent && this.currentColor === color) {
+    if (this.currentPercent === pct && this.currentColor === color) {
       return;
     }
 
-    this.currentPercent = percent;
+    this.currentPercent = pct;
     this.currentColor = color;
 
     // 加载动画期间不更新图标（由 stopLoading 统一切换）
     if (this.loadingTimer) return;
 
     if (this.tray) {
-      const icon = createTrayIcon(percent, color);
+      const icon = createTrayIcon(pct, color);
       this.tray.setImage(icon);
     }
   }

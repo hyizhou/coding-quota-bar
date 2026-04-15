@@ -10,12 +10,11 @@ import type { ApiFormat, ConcurrencyTestConfig, ConcurrencyTestResult, RequestMe
 interface StreamStats {
   firstChunkTime: number;
   hasReceivedContent: boolean;
-  estimatedTokens: number;   // 逐 chunk 累计估算
-  reportedTokens: number;    // API 报告的真实 token 数
+  estimatedTokens: number;
 }
 
 function newStats(): StreamStats {
-  return { firstChunkTime: 0, hasReceivedContent: false, estimatedTokens: 0, reportedTokens: 0 };
+  return { firstChunkTime: 0, hasReceivedContent: false, estimatedTokens: 0 };
 }
 
 function markFirstContent(stats: StreamStats): void {
@@ -55,7 +54,6 @@ function buildMessages(): Array<{ role: string; content: string }> {
 }
 
 function finalTokenCount(stats: StreamStats): number {
-  // 始终用自身估算（CJK 1字=1token，英文1词=1token），API 报告值通常偏高
   return stats.estimatedTokens;
 }
 
@@ -86,7 +84,7 @@ interface AnthropicMessageDelta {
   usage?: { output_tokens?: number };
 }
 
-type AnthropicSSEEvent = AnthropicContentDelta | AnthropicMessageDelta | { type: string };
+type AnthropicSSEEvent = AnthropicContentDelta | { type: string };
 
 /**
  * 单次流式请求结果
@@ -114,16 +112,18 @@ export class ConcurrencyTestEngine {
   static async run(
     config: ConcurrencyTestConfig,
     apiKey: string,
-    onProgress?: (completed: number, total: number) => void,
+    onProgress?: (info: { index: number; total: number; success: boolean }) => void,
+    onStreamText?: (text: string) => void,
   ): Promise<ConcurrencyTestResult> {
     const startTime = Date.now();
-    let completed = 0;
     const total = config.concurrency;
 
-    const promises = Array.from({ length: total }, () =>
-      executeStreamRequest(config.model, apiKey, config.apiFormat).then((result) => {
-        completed++;
-        onProgress?.(completed, total);
+    const promises = Array.from({ length: total }, (_, i) =>
+      executeStreamRequest(
+        config.model, apiKey, config.apiFormat,
+        i === 0 ? (text) => onStreamText?.(text) : undefined,
+      ).then((result) => {
+        onProgress?.({ index: i, total, success: result.success });
         return result;
       }),
     );
@@ -236,11 +236,14 @@ export class ConcurrencyTestEngine {
 /**
  * 执行单次流式请求，根据 apiFormat 选择不同接口
  */
-function executeStreamRequest(model: string, apiKey: string, apiFormat: ApiFormat): Promise<StreamResult> {
+function executeStreamRequest(
+  model: string, apiKey: string, apiFormat: ApiFormat,
+  onTextChunk?: (text: string) => void,
+): Promise<StreamResult> {
   if (apiFormat === 'anthropic') {
-    return executeAnthropicStream(model, apiKey);
+    return executeAnthropicStream(model, apiKey, onTextChunk);
   }
-  return executeOpenAIStream(model, apiKey);
+  return executeOpenAIStream(model, apiKey, onTextChunk);
 }
 
 /**
@@ -248,7 +251,7 @@ function executeStreamRequest(model: string, apiKey: string, apiFormat: ApiForma
  * POST {API_BASE_OPENAI}/chat/completions
  * SSE: data: {"choices":[{"delta":{"content":"..."}}]}
  */
-function executeOpenAIStream(model: string, apiKey: string): Promise<StreamResult> {
+function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text: string) => void): Promise<StreamResult> {
   return new Promise((resolve) => {
     const startTime = performance.now();
     const stats = newStats();
@@ -315,9 +318,7 @@ function executeOpenAIStream(model: string, apiKey: string): Promise<StreamResul
             if (delta?.content) {
               markFirstContent(stats);
               stats.estimatedTokens += estimateTokens(delta.content);
-            }
-            if (parsed.usage?.completion_tokens) {
-              stats.reportedTokens = parsed.usage.completion_tokens;
+              onTextChunk?.(delta.content);
             }
           } catch {
             // 忽略解析错误
@@ -354,7 +355,7 @@ function executeOpenAIStream(model: string, apiKey: string): Promise<StreamResul
  * POST {API_BASE_ANTHROPIC}/v1/messages
  * SSE: event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"text":"..."}}
  */
-function executeAnthropicStream(model: string, apiKey: string): Promise<StreamResult> {
+function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (text: string) => void): Promise<StreamResult> {
   return new Promise((resolve) => {
     const startTime = performance.now();
     const stats = newStats();
@@ -429,11 +430,7 @@ function executeAnthropicStream(model: string, apiKey: string): Promise<StreamRe
               if (text) {
                 markFirstContent(stats);
                 stats.estimatedTokens += estimateTokens(text);
-              }
-            } else if (parsed.type === 'message_delta') {
-              const outputTokens = (parsed as AnthropicMessageDelta).usage?.output_tokens;
-              if (outputTokens) {
-                stats.reportedTokens = outputTokens;
+                onTextChunk?.(text);
               }
             }
           } catch {

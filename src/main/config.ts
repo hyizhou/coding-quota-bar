@@ -2,7 +2,8 @@ import { promises as fs } from 'node:fs';
 import * as fsSync from 'node:fs';
 import * as path from 'node:path';
 import { app, safeStorage } from 'electron';
-import type { AppConfig, ProviderConfig } from '../shared/types';
+import type { AppConfig, ProviderConfig, ProviderTypeConfig, AccountConfig } from '../shared/types';
+import { generateAccountId } from '../shared/types';
 import { getAvailableProviderKeys } from './loader';
 import { EventEmitter } from 'events';
 
@@ -83,8 +84,13 @@ export class ConfigManager extends EventEmitter {
   private encryptApiKeys(config: AppConfig): AppConfig {
     const encrypted = structuredClone(config);
     for (const provider of Object.values(encrypted.providers)) {
-      if (provider.apiKey) {
-        provider.apiKey = this.encryptApiKey(provider.apiKey);
+      const accounts = (provider as ProviderTypeConfig).accounts;
+      if (Array.isArray(accounts)) {
+        for (const account of accounts) {
+          if (account.apiKey) {
+            account.apiKey = this.encryptApiKey(account.apiKey);
+          }
+        }
       }
     }
     return encrypted;
@@ -92,11 +98,22 @@ export class ConfigManager extends EventEmitter {
 
   /**
    * 解密配置中所有 provider 的 apiKey（用于读取磁盘后）
+   * 兼容旧格式（apiKey 直接在 provider 上）和新格式（apiKey 在 accounts[] 内）
+   * 注意：此兼容逻辑不可删除，旧版本用户升级时需用到
    */
   private decryptApiKeys(config: AppConfig): AppConfig {
     for (const provider of Object.values(config.providers)) {
-      if (provider.apiKey) {
-        provider.apiKey = this.decryptApiKey(provider.apiKey);
+      const accounts = (provider as any).accounts;
+      if (Array.isArray(accounts)) {
+        // 新格式：多账户
+        for (const account of accounts) {
+          if (account.apiKey) {
+            account.apiKey = this.decryptApiKey(account.apiKey);
+          }
+        }
+      } else if ((provider as any).apiKey) {
+        // 旧格式：单账户（迁移前）
+        (provider as any).apiKey = this.decryptApiKey((provider as any).apiKey);
       }
     }
     return config;
@@ -111,11 +128,28 @@ export class ConfigManager extends EventEmitter {
       const raw = JSON.parse(content) as AppConfig;
       this.config = this.decryptApiKeys(raw);
 
-      // 迁移：补齐编译时可用但配置文件中缺失的 provider
+      // 迁移：旧格式 { enabled, apiKey } → 新格式 { accounts: [...] }
       let migrated = false;
+      for (const [key, val] of Object.entries(this.config.providers)) {
+        if (val && typeof (val as any).apiKey === 'string' && !Array.isArray((val as any).accounts)) {
+          const old = val as any;
+          (this.config.providers as any)[key] = {
+            accounts: [{
+              id: generateAccountId(),
+              enabled: old.enabled ?? false,
+              apiKey: old.apiKey ?? '',
+              label: '',
+            }]
+          };
+          migrated = true;
+          console.log(`[Config] Migrated: converted provider "${key}" to multi-account format`);
+        }
+      }
+
+      // 迁移：补齐编译时可用但配置文件中缺失的 provider
       for (const key of getAvailableProviderKeys()) {
         if (!this.config.providers[key]) {
-          this.config.providers[key] = { enabled: false, apiKey: '' };
+          (this.config.providers as any)[key] = { accounts: [] };
           migrated = true;
           console.log(`[Config] Migrated: added missing provider "${key}"`);
         }
@@ -158,9 +192,9 @@ export class ConfigManager extends EventEmitter {
    */
   private async createDefaultConfig(): Promise<void> {
     // 只为编译时可用的 provider 生成默认配置
-    const providers: Record<string, ProviderConfig> = {};
+    const providers: Record<string, ProviderTypeConfig> = {};
     for (const key of getAvailableProviderKeys()) {
-      providers[key] = { enabled: false, apiKey: '' };
+      providers[key] = { accounts: [] };
     }
 
     const defaultConfig: AppConfig = {

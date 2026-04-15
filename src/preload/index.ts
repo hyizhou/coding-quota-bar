@@ -118,15 +118,35 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /**
    * 并发测试：监听进度
    */
-  onConcurrencyTestProgress: (callback: (progress: { completed: number; total: number }) => void) => {
-    ipcRenderer.on('concurrency-test-progress', (_, data) => callback(data));
+  onConcurrencyTestProgress: (callback: (progress: { index: number; total: number; success: boolean }) => void) => {
+    const handler = (_: any, data: any) => callback(data);
+    (callback as any).__ipcHandler = handler;
+    ipcRenderer.on('concurrency-test-progress', handler);
   },
 
   /**
    * 并发测试：取消监听进度
    */
-  offConcurrencyTestProgress: (callback: (progress: { completed: number; total: number }) => void) => {
-    ipcRenderer.removeListener('concurrency-test-progress', callback as any);
+  offConcurrencyTestProgress: (callback: (progress: { index: number; total: number; success: boolean }) => void) => {
+    const handler = (callback as any).__ipcHandler;
+    if (handler) ipcRenderer.removeListener('concurrency-test-progress', handler);
+  },
+
+  /**
+   * 并发测试：监听实时文字流
+   */
+  onConcurrencyTestStream: (callback: (text: string) => void) => {
+    const handler = (_: any, data: any) => callback(data);
+    (callback as any).__ipcStreamHandler = handler;
+    ipcRenderer.on('concurrency-test-stream', handler);
+  },
+
+  /**
+   * 并发测试：取消监听文字流
+   */
+  offConcurrencyTestStream: (callback: (text: string) => void) => {
+    const handler = (callback as any).__ipcStreamHandler;
+    if (handler) ipcRenderer.removeListener('concurrency-test-stream', handler);
   },
 
   /**

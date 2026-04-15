@@ -31,9 +31,12 @@ export interface ModelTokenRecord {
   used: number
 }
 
-export interface ProviderUsageData {
-  name: string
-  websiteUrl?: string
+/**
+ * 单个账户的用量数据
+ */
+export interface AccountUsageData {
+  id: string
+  label?: string
   level?: string
   error?: string
   quotas: QuotaItem[]
@@ -51,16 +54,31 @@ export interface ProviderUsageData {
   modelHistory30d: ModelTokenRecord[]
 }
 
+/**
+ * Provider 用量数据（含多账户）
+ */
+export interface ProviderUsageData {
+  key: string
+  name: string
+  websiteUrl?: string
+  accounts: AccountUsageData[]
+}
+
 export interface UsageState {
   providers: ProviderUsageData[]
   lastUpdate: string
   overallPercent: number
 }
 
-export interface ProviderConfig {
+export interface AccountConfig {
+  id: string
   enabled: boolean
   apiKey: string
-  [key: string]: unknown
+  label: string
+}
+
+export interface ProviderTypeConfig {
+  accounts: AccountConfig[]
 }
 
 export interface UpdateInfo {
@@ -70,7 +88,7 @@ export interface UpdateInfo {
 
 export interface AppConfig {
   refreshInterval: number
-  providers: Record<string, ProviderConfig>
+  providers: Record<string, ProviderTypeConfig>
   display: {
     colorThresholds: {
       green: number
@@ -78,6 +96,8 @@ export interface AppConfig {
     }
   }
   autoStart: boolean
+  popupTrigger?: 'hover' | 'click'
+  memorySavingMode?: boolean
   language?: string
   theme?: 'light' | 'dark' | 'auto'
   updateInfo?: UpdateInfo | null
@@ -136,11 +156,16 @@ export interface ElectronAPI {
   quitAndInstall: () => Promise<void>
   onTriggerCheckUpdate: (callback: () => void) => void
   offTriggerCheckUpdate: (callback: () => void) => void
+  openExternal: (url: string) => Promise<void>
+  showPopup: () => void
+  getAppVersion: () => Promise<string>
   concurrencyTestStart: (config: ConcurrencyTestConfig) => Promise<ConcurrencyTestResult>
   concurrencyTestGetHistory: (providerKey: string) => Promise<ConcurrencyTestResult[]>
   concurrencyTestDelete: (providerKey: string, id: string) => Promise<void>
-  onConcurrencyTestProgress: (callback: (progress: { completed: number; total: number }) => void) => void
-  offConcurrencyTestProgress: (callback: (progress: { completed: number; total: number }) => void) => void
+  onConcurrencyTestProgress: (callback: (progress: { index: number; total: number; success: boolean }) => void) => void
+  offConcurrencyTestProgress: (callback: (progress: { index: number; total: number; success: boolean }) => void) => void
+  onConcurrencyTestStream: (callback: (text: string) => void) => void
+  offConcurrencyTestStream: (callback: (text: string) => void) => void
 }
 
 declare global {

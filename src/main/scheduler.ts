@@ -133,7 +133,7 @@ export class Scheduler extends EventEmitter {
       // 无 Provider 时清空数据并通知
       this.aggregator.clear();
       if (this.trayManager) {
-        this.trayManager.updateDisplay(100, this.thresholds);
+        this.trayManager.updateDisplay(null, this.thresholds);
       }
       this.emit('refreshed', null);
       return;
