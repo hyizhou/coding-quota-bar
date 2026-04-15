@@ -1,4 +1,4 @@
-import type { Provider, ProviderConfig } from '../shared/types';
+import type { Provider, ProviderConfig, ProviderTypeConfig } from '../shared/types';
 import { ZhipuProvider } from '../providers/zhipu';
 import { MiniMaxProvider } from '../providers/minimax';
 import { KimiProvider } from '../providers/kimi';
@@ -19,10 +19,11 @@ const PROVIDER_CLASSES = {
 export type ProviderType = keyof typeof PROVIDER_CLASSES;
 
 /**
- * 已加载的 Provider 实例
+ * 已加载的 Provider 实例（每个账户一个）
  */
 export interface LoadedProvider {
   type: ProviderType;
+  accountId: string;   // 稳定账户 ID（如 "a3f1b2c4"）
   instance: Provider;
   config: ProviderConfig;
 }
@@ -42,25 +43,15 @@ export function getAvailableProviderKeys(): string[] {
  */
 export class ProviderLoader {
   /**
-   * 根据配置加载所有启用的 Provider
+   * 根据配置加载所有启用的 Provider（支持多账户）
    */
-  static loadProviders(providerConfigs: Record<string, ProviderConfig>): LoadedProvider[] {
+  static loadProviders(providerConfigs: Record<string, ProviderTypeConfig>): LoadedProvider[] {
     const availableKeys = new Set(getAvailableProviderKeys());
     const loaded: LoadedProvider[] = [];
 
-    for (const [type, config] of Object.entries(providerConfigs)) {
+    for (const [type, providerConfig] of Object.entries(providerConfigs)) {
       // 编译时未标记为 available 的直接跳过
       if (!availableKeys.has(type)) {
-        continue;
-      }
-
-      // 用户未启用
-      if (!config.enabled) {
-        continue;
-      }
-
-      // 未配置 API Key 的跳过（无 key 无意义，不参与刷新和计算）
-      if (!config.apiKey?.trim()) {
         continue;
       }
 
@@ -71,23 +62,36 @@ export class ProviderLoader {
         continue;
       }
 
-      // 创建实例
-      try {
-        const instance = new ProviderClass();
-        // 注入编译时配置的 baseUrl
-        const buildEntry = buildConfig.providers.find(p => p.key === type);
-        const providerConfig = {
-          ...config,
-          _baseUrl: buildEntry?.baseUrl || '',
-        };
-        loaded.push({
-          type: type as ProviderType,
-          instance,
-          config: providerConfig,
-        });
-        console.log(`[Loader] Loaded provider: ${instance.name}`);
-      } catch (error) {
-        console.error(`[Loader] Failed to load provider ${type}:`, error);
+      const buildEntry = buildConfig.providers.find(p => p.key === type);
+
+      // 遍历该 provider 下的所有账户
+      for (const account of providerConfig.accounts) {
+        // 用户未启用
+        if (!account.enabled) {
+          continue;
+        }
+
+        // 未配置 API Key 的跳过
+        if (!account.apiKey?.trim()) {
+          continue;
+        }
+
+        try {
+          const instance = new ProviderClass();
+          loaded.push({
+            type: type as ProviderType,
+            accountId: account.id,
+            instance,
+            config: {
+              enabled: true,
+              apiKey: account.apiKey,
+              _baseUrl: buildEntry?.baseUrl || '',
+            },
+          });
+          console.log(`[Loader] Loaded provider: ${instance.name} (${account.label || account.id})`);
+        } catch (error) {
+          console.error(`[Loader] Failed to load provider ${type}:`, error);
+        }
       }
     }
 
@@ -99,7 +103,7 @@ export class ProviderLoader {
    */
   static reloadProviders(
     currentProviders: LoadedProvider[],
-    newConfigs: Record<string, ProviderConfig>,
+    newConfigs: Record<string, ProviderTypeConfig>,
   ): LoadedProvider[] {
     return this.loadProviders(newConfigs);
   }

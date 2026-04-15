@@ -23,7 +23,8 @@
     "mcpSearch": "搜索",
     "mcpWebRead": "阅读",
     "mcpZread": "ZRead",
-    "mcpCountUnit": "次"
+    "mcpCountUnit": "次",
+    "defaultAccountLabel": "账号{n}"
   },
   "settings": {
     "title": "设置",
@@ -58,6 +59,10 @@
     "popupTriggerLabel": "弹窗触发方式",
     "memorySavingMode": "内存节省模式",
     "memorySavingModeHint": "关闭弹窗时释放渲染进程，降低内存占用（弹窗响应会稍慢）",
+    "addAccount": "添加账号",
+    "removeAccount": "删除账号",
+    "accountLabelPlaceholder": "账号备注（如：工作号）",
+    "noAccounts": "暂无账号，点击上方按钮添加",
     "checkUpdate": "检查更新",
     "checkingUpdate": "检查中...",
     "noUpdate": "已是最新版本",

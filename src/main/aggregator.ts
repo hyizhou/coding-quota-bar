@@ -45,14 +45,15 @@ export class UsageAggregator {
       console.log('[Aggregator] MOCK MODE - using simulated data');
       const MOCK_DATA = generateMockData();
       this.results.clear();
-      for (const { type } of providers) {
+      for (const { type, accountId } of providers) {
+        const compoundKey = `${type}:${accountId}`;
         const mock = MOCK_DATA[type] || { used: 0, total: 100, expiresAt: '', details: {} };
-        this.results.set(type, mock);
+        this.results.set(compoundKey, mock);
       }
       if (this.results.size === 0) {
         // 没有启用的 provider 时，填充所有模拟数据
         for (const [type, data] of Object.entries(MOCK_DATA)) {
-          this.results.set(type, data);
+          this.results.set(`${type}:mock`, data);
         }
       }
       this.lastUpdate = new Date();
@@ -67,23 +68,24 @@ export class UsageAggregator {
     const previousResults = new Map(this.results);
 
     // 并行请求所有 Provider
-    const promises = providers.map(async ({ type, instance, config }) => {
+    const promises = providers.map(async ({ type, accountId, instance, config }) => {
+      const compoundKey = `${type}:${accountId}`;
       try {
         const result = await instance.fetchUsage(config);
-        return { type, result, success: true };
+        return { compoundKey, result, success: true };
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);
-        console.error(`[Aggregator] Failed to fetch ${type}:`, errMsg);
+        console.error(`[Aggregator] Failed to fetch ${compoundKey}:`, errMsg);
         // 失败时保留上次数据（如果有），附加错误信息
-        const previous = previousResults.get(type);
+        const previous = previousResults.get(compoundKey);
         if (previous) {
-          console.warn(`[Aggregator] Using previous data for ${type}`);
+          console.warn(`[Aggregator] Using previous data for ${compoundKey}`);
           previous.error = errMsg;
-          return { type, result: previous, success: false };
+          return { compoundKey, result: previous, success: false };
         }
         // 没有历史数据时返回错误结果
         return {
-          type,
+          compoundKey,
           result: { used: 0, total: 100, expiresAt: '', error: errMsg, details: {} },
           success: false
         };
@@ -101,8 +103,8 @@ export class UsageAggregator {
 
     // 更新结果（先清空，确保不含已禁用 Provider 的残留数据）
     this.results.clear();
-    for (const { type, result } of outcomes) {
-      this.results.set(type, result);
+    for (const { compoundKey, result } of outcomes) {
+      this.results.set(compoundKey, result);
     }
 
     this.lastUpdate = new Date();

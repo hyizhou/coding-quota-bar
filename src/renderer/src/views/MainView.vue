@@ -43,30 +43,45 @@
         <div class="provider-section">
           <div class="provider-name-row">
             <span class="provider-name" :class="{ clickable: !!p.websiteUrl }" @click="openProviderWebsite(p.websiteUrl)">{{ p.name }}</span>
-            <span v-if="p.level" class="provider-level">{{ p.level }}</span>
+            <!-- 账户切换按钮：仅当 2 个及以上账户时显示 -->
+            <div v-if="p.accounts.length > 1" class="account-tabs">
+              <button
+                v-for="(acc, idx) in p.accounts"
+                :key="acc.id"
+                class="account-tab"
+                :class="{ active: getActiveAccountId(p) === acc.id }"
+                @click="setActiveAccount(p, acc.id)"
+              >
+                {{ acc.label || $t('main.defaultAccountLabel', { n: idx + 1 }) }}
+              </button>
+            </div>
+            <span v-if="getActiveAccount(p)?.level" class="provider-level">{{ getActiveAccount(p)!.level }}</span>
           </div>
-          <div v-if="p.error" class="error-card">
-            <span class="error-icon">!</span>
-            <span class="error-text">{{ formatError(p.error) }}</span>
-          </div>
-          <template v-else>
-            <template v-for="(row, ri) in getQuotaRows(p.quotas)" :key="ri">
-              <div v-if="row.length === 1" class="quota-row-single">
-                <QuotaCard v-bind="row[0]" />
-              </div>
-              <div v-else class="quota-row-pair">
-                <QuotaCard v-for="q in row" :key="q.label" v-bind="q" />
-              </div>
+
+          <template v-if="getActiveAccount(p)">
+            <div v-if="getActiveAccount(p)!.error" class="error-card">
+              <span class="error-icon">!</span>
+              <span class="error-text">{{ formatError(getActiveAccount(p)!.error!) }}</span>
+            </div>
+            <template v-else>
+              <template v-for="(row, ri) in getQuotaRows(getActiveAccount(p)!.quotas)" :key="ri">
+                <div v-if="row.length === 1" class="quota-row-single">
+                  <QuotaCard v-bind="row[0]" />
+                </div>
+                <div v-else class="quota-row-pair">
+                  <QuotaCard v-for="q in row" :key="q.label" v-bind="q" />
+                </div>
+              </template>
+              <UsageStats
+                v-if="hasHistoryData(getActiveAccount(p)!)"
+                :model-records-1d="getActiveAccount(p)!.modelHistory1d"
+                :model-records-7d="getActiveAccount(p)!.modelHistory7d"
+                :model-records-30d="getActiveAccount(p)!.modelHistory30d"
+                :mcp-records-1d="getActiveAccount(p)!.mcpHistory1d"
+                :mcp-records-7d="getActiveAccount(p)!.mcpHistory7d"
+                :mcp-records-30d="getActiveAccount(p)!.mcpHistory30d"
+              />
             </template>
-            <UsageStats
-              v-if="p.modelHistory1d.length > 0 || p.modelHistory7d.length > 0 || p.modelHistory30d.length > 0 || p.mcpHistory1d.length > 0 || p.mcpHistory7d.length > 0 || p.mcpHistory30d.length > 0"
-              :model-records-1d="p.modelHistory1d"
-              :model-records-7d="p.modelHistory7d"
-              :model-records-30d="p.modelHistory30d"
-              :mcp-records-1d="p.mcpHistory1d"
-              :mcp-records-7d="p.mcpHistory7d"
-              :mcp-records-30d="p.mcpHistory30d"
-            />
           </template>
         </div>
       </template>
@@ -83,7 +98,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import QuotaCard from '../components/QuotaCard.vue'
 import UsageStats from '../components/UsageStats.vue'
-import type { ProviderUsageData, QuotaItem, UsageState } from '../types'
+import type { ProviderUsageData, AccountUsageData, QuotaItem, UsageState } from '../types'
 import { useTheme } from '../composables/useTheme'
 
 defineEmits<{ 'open-settings': [] }>()
@@ -97,6 +112,22 @@ const loading = ref(false)
 const initialLoading = ref(true)
 const now = ref(Date.now())
 
+// 每个选中的账户提供者名称 -> 活动账户ID
+const activeAccounts = ref<Record<string, string>>({})
+
+function getActiveAccountId(p: ProviderUsageData): string {
+  return activeAccounts.value[p.name] || (p.accounts[0]?.id ?? '')
+}
+
+function getActiveAccount(p: ProviderUsageData): AccountUsageData | undefined {
+  const id = getActiveAccountId(p)
+  return p.accounts.find(a => a.id === id) || p.accounts[0]
+}
+
+function setActiveAccount(p: ProviderUsageData, accountId: string): void {
+  activeAccounts.value[p.name] = accountId
+}
+
 const lastUpdateText = computed(() => {
   if (!lastUpdate.value) return t('main.lastUpdateFallback')
   try {
@@ -108,6 +139,11 @@ const lastUpdateText = computed(() => {
     return date.toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' })
   } catch { return lastUpdate.value }
 })
+
+function hasHistoryData(acc: AccountUsageData): boolean {
+  return acc.modelHistory1d.length > 0 || acc.modelHistory7d.length > 0 || acc.modelHistory30d.length > 0 ||
+    acc.mcpHistory1d.length > 0 || acc.mcpHistory7d.length > 0 || acc.mcpHistory30d.length > 0
+}
 
 function applyState(state: UsageState) {
   providers.value = state.providers
@@ -166,7 +202,6 @@ setInterval(() => { now.value = Date.now() }, 60000)
 onMounted(() => {
   fetchData()
   // 监听主进程推送的数据更新
-  // 监听主进程推送的数据更新
   window.electronAPI.onUsageDataUpdated((data) => {
     if (data) applyState(data)
   })
@@ -195,8 +230,8 @@ onMounted(() => {
 
 .provider-name-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
   margin-bottom: 6px;
 }
 
@@ -204,13 +239,41 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 700;
   color: var(--text-heading);
+  white-space: nowrap;
 }
 .provider-name.clickable {
   cursor: pointer;
-  transition: color 0.15s;
+  transition: opacity 0.15s;
 }
 .provider-name.clickable:hover {
   opacity: 0.8;
+}
+
+.account-tabs {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.account-tab {
+  font-size: 11px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  line-height: 1;
+}
+.account-tab:hover {
+  border-color: var(--border-default);
+}
+.account-tab.active {
+  color: var(--text-heading);
+  font-weight: 600;
+  border-color: var(--border-default);
 }
 
 .provider-level {
@@ -218,10 +281,13 @@ onMounted(() => {
   font-weight: 600;
   color: #fff;
   background: #555;
-  padding: 1px 6px;
+  padding: 2px 6px;
   border-radius: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  margin-left: auto;
+  line-height: 1;
 }
 
 .provider-section .quota-row-single .quota-card {

@@ -8,7 +8,7 @@ import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale, t as i18nT } from './i18n';
 import { autoUpdater } from 'electron-updater';
-import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord } from '../shared/types';
+import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, ProviderTypeConfig } from '../shared/types';
 
 // 加载 .env 文件
 const envPath = path.join(__dirname, '..', '..', '.env');
@@ -111,11 +111,11 @@ interface QuotaDisplayItem {
 }
 
 /**
- * Provider 显示数据
+ * 单个账户的显示数据
  */
-interface ProviderDisplayData {
-  name: string;
-  websiteUrl?: string;
+interface AccountDisplayData {
+  id: string;
+  label?: string;
   level?: string;
   error?: string;
   quotas: QuotaDisplayItem[];
@@ -131,6 +131,15 @@ interface ProviderDisplayData {
   modelHistory1d: SharedModelTokenRecord[];
   modelHistory7d: SharedModelTokenRecord[];
   modelHistory30d: SharedModelTokenRecord[];
+}
+
+/**
+ * Provider 显示数据（含多个账户）
+ */
+interface ProviderDisplayData {
+  name: string;
+  websiteUrl?: string;
+  accounts: AccountDisplayData[];
 }
 
 /**
@@ -622,7 +631,30 @@ function setupIpcHandlers(): void {
 function hasEnabledProviders(): boolean {
   const config = configManager?.getConfig();
   if (!config) return false;
-  return Object.values(config.providers).some(p => p.enabled);
+  return Object.values(config.providers).some(p => {
+    const accounts = (p as ProviderTypeConfig).accounts;
+    return Array.isArray(accounts) && accounts.some(a => a.enabled && a.apiKey?.trim());
+  });
+}
+
+/**
+ * 拆分复合键 "providerType:accountId"
+ */
+function splitCompoundKey(key: string): [string, string] {
+  const idx = key.indexOf(':');
+  if (idx === -1) return [key, ''];
+  return [key.slice(0, idx), key.slice(idx + 1)];
+}
+
+/**
+ * 获取账户标签
+ */
+function getAccountLabel(type: string, accountId: string): string {
+  const config = configManager?.getConfig();
+  const providerConfig = config?.providers[type] as ProviderTypeConfig | undefined;
+  if (!providerConfig?.accounts) return '';
+  const account = providerConfig.accounts.find(a => a.id === accountId);
+  return account?.label ?? '';
 }
 
 /**
@@ -651,10 +683,25 @@ function buildUsageData(): UsageDataForRenderer | null {
     };
   }
 
+  // 按 provider type 分组
+  const grouped = new Map<string, Array<{ accountId: string; result: UsageResult }>>();
+  for (const [compoundKey, result] of aggregated.results.entries()) {
+    const [type, accountId] = splitCompoundKey(compoundKey);
+    if (!grouped.has(type)) grouped.set(type, []);
+    grouped.get(type)!.push({ accountId, result });
+  }
+
   // 转换为 renderer 期望的格式
-  const providers = Array.from(aggregated.results.entries()).map(([type, result]) => {
-    return convertProviderData(type, result, thresholds);
-  });
+  const providers: ProviderDisplayData[] = [];
+  for (const [type, accounts] of grouped.entries()) {
+    providers.push({
+      name: getProviderDisplayName(type),
+      websiteUrl: buildConfig.providers.find(p => p.key === type)?.websiteUrl || undefined,
+      accounts: accounts.map(({ accountId, result }) =>
+        convertAccountData(type, accountId, result, thresholds)
+      ),
+    });
+  }
 
   return {
     providers,
@@ -664,13 +711,14 @@ function buildUsageData(): UsageDataForRenderer | null {
 }
 
 /**
- * 转换单个 Provider 数据为显示格式
+ * 转换单个账户数据为显示格式
  */
-function convertProviderData(
+function convertAccountData(
   type: string,
+  accountId: string,
   result: UsageResult,
   thresholds: { green: number; yellow: number }
-): ProviderDisplayData {
+): AccountDisplayData {
   const quotas: QuotaDisplayItem[] = (result.details?.quotas ?? []).map(q => ({
     label: q.label,
     labelParams: (q as any).labelParams,
@@ -691,11 +739,11 @@ function convertProviderData(
   const mapModelHistory = (key: string): SharedModelTokenRecord[] =>
     ((result.details?.[key] ?? []) as SharedModelTokenRecord[]).map(r => ({ date: r.date, model: r.model, used: r.used }));
 
-  console.log(`[Data] ${type} 1d:${mapHistory('history1d').length} 7d:${mapHistory('history7d').length} 30d:${mapHistory('history30d').length}`);
+  console.log(`[Data] ${type}:${accountId} 1d:${mapHistory('history1d').length} 7d:${mapHistory('history7d').length} 30d:${mapHistory('history30d').length}`);
 
   return {
-    name: getProviderDisplayName(type),
-    websiteUrl: buildConfig.providers.find(p => p.key === type)?.websiteUrl || undefined,
+    id: accountId,
+    label: getAccountLabel(type, accountId) || undefined,
     level: result.level,
     error: result.error,
     quotas,

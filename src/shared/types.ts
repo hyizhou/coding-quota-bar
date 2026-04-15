@@ -1,9 +1,27 @@
 /**
- * Provider 配置接口
+ * 单个账户配置
+ */
+export interface AccountConfig {
+  id: string;       // 稳定随机 ID，创建时生成
+  enabled: boolean;
+  apiKey: string;
+  label: string;    // 用户自定义备注，如 "工作号"
+}
+
+/**
+ * Provider 类型配置（支持多账户）
+ */
+export interface ProviderTypeConfig {
+  accounts: AccountConfig[];
+}
+
+/**
+ * Provider 配置接口（向后兼容，同时供 Provider 实例使用）
  */
 export interface ProviderConfig {
   enabled: boolean;
   apiKey: string;
+  _baseUrl?: string;
   [key: string]: unknown;
 }
 
@@ -84,7 +102,7 @@ export interface UpdateInfo {
  */
 export interface AppConfig {
   refreshInterval: number;
-  providers: Record<string, ProviderConfig>;
+  providers: Record<string, ProviderTypeConfig>;
   display: {
     colorThresholds: {
       green: number;
@@ -103,3 +121,10 @@ export interface AppConfig {
  * 显示颜色
  */
 export type DisplayColor = 'green' | 'yellow' | 'red';
+
+/**
+ * 生成账户 ID（8 位随机 hex）
+ */
+export function generateAccountId(): string {
+  return Math.random().toString(16).slice(2, 10);
+}
