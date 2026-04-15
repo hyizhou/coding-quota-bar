@@ -79,16 +79,16 @@
             <div class="history-main">
               <span class="history-time">{{ formatTimestamp(h.timestamp) }}</span>
               <span class="history-model">{{ h.model }}</span>
-              <span class="history-result" :class="h.successCount === h.concurrency ? 'text-green' : 'text-yellow'">{{ h.successCount }}/{{ h.concurrency }}</span>
               <button class="history-delete" :title="$t('concurrencyTest.delete')" @click="deleteHistory(h.id)">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
               </button>
             </div>
-            <div v-if="h.successCount > 0" class="history-metrics">
-              <span>TTFT {{ h.avgTtftMs }}{{ $t('concurrencyTest.ms') }}</span>
-              <span>{{ h.avgTokensPerSec }}{{ $t('concurrencyTest.tokPerSec') }}</span>
+            <div class="history-metrics">
+              <span :class="h.successCount === h.concurrency ? 'text-green' : 'text-yellow'">{{ h.successCount }}/{{ h.concurrency }}</span>
+              <span v-if="h.successCount > 0">TTFT {{ h.avgTtftMs }}{{ $t('concurrencyTest.ms') }}</span>
+              <span v-if="h.successCount > 0">{{ h.avgTokensPerSec }}{{ $t('concurrencyTest.tokPerSec') }}</span>
             </div>
           </div>
         </div>
@@ -112,7 +112,7 @@ const ZHIPU_CODING_MODELS = ['GLM-5.1', 'GLM-5-Turbo', 'GLM-5v-Turbo', 'GLM-4.7'
 const { t } = useI18n()
 
 const models = ZHIPU_CODING_MODELS
-const concurrencyOptions = [3, 5, 10, 15, 20, 30, 50]
+const concurrencyOptions = [1, 3, 5, 10, 15, 20, 30, 50]
 
 const selectedModel = ref<string>('GLM-5.1')
 const concurrency = ref(10)
@@ -346,30 +346,40 @@ onUnmounted(() => {
 .history-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04));
+}
+
+.history-item:last-child {
+  border-bottom: none;
 }
 
 .history-main {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
   font-size: 10px;
-  color: var(--text-tertiary);
-}
-
-.history-metrics {
-  display: flex;
-  gap: 10px;
-  font-size: 9px;
-  color: var(--text-quaternary, rgba(120, 120, 140, 0.6));
-  padding-left: 2px;
+  color: var(--text-secondary);
+  padding-right: 16px;
+  position: relative;
 }
 
 .history-time { min-width: 72px; }
-.history-model { flex: 1; }
-.history-result { font-weight: 600; }
+.history-model { }
+
+.history-metrics {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--text-tertiary);
+}
 
 .history-delete {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   padding: 1px;
