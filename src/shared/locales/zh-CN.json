@@ -17,6 +17,7 @@
     "toggleTheme": "切换主题",
     "tab1d": "1天",
     "tab7d": "7天",
+    "tab15d": "15天",
     "tab30d": "30天",
     "tabToken": "Token",
     "tabMcp": "MCP",
@@ -24,7 +25,14 @@
     "mcpWebRead": "阅读",
     "mcpZread": "ZRead",
     "mcpCountUnit": "次",
-    "defaultAccountLabel": "账号{n}"
+    "defaultAccountLabel": "账号{n}",
+    "performanceStats": "系统健康度",
+    "perfSpeed": "速度",
+    "perfRate": "成功率",
+    "perfLite": "Lite",
+    "perfProMax": "Pro/Max",
+    "perfAvgSpeed": "平均速度",
+    "perfAvgSuccessRate": "平均成功率"
   },
   "settings": {
     "title": "设置",

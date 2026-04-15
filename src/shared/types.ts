@@ -66,6 +66,17 @@ export interface ModelTokenRecord {
 }
 
 /**
+ * 模型性能历史记录（单日数据点）
+ */
+export interface PerformanceRecord {
+  date: string;              // 'YYYY-MM-DD'
+  liteDecodeSpeed: number;   // tokens/s
+  proMaxDecodeSpeed: number; // tokens/s
+  liteSuccessRate: number;   // 0~1
+  proMaxSuccessRate: number; // 0~1
+}
+
+/**
  * 用量查询结果
  */
 export interface UsageResult {

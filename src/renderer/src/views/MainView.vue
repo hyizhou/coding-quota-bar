@@ -81,6 +81,12 @@
                 :mcp-records-7d="getActiveAccount(p)!.mcpHistory7d"
                 :mcp-records-30d="getActiveAccount(p)!.mcpHistory30d"
               />
+              <PerformanceChart
+                v-if="hasPerformanceData(getActiveAccount(p)!)"
+                :records-7d="getActiveAccount(p)!.performanceHistory7d"
+                :records-15d="getActiveAccount(p)!.performanceHistory15d"
+                :records-30d="getActiveAccount(p)!.performanceHistory30d"
+              />
             </template>
           </template>
         </div>
@@ -98,6 +104,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import QuotaCard from '../components/QuotaCard.vue'
 import UsageStats from '../components/UsageStats.vue'
+import PerformanceChart from '../components/PerformanceChart.vue'
 import type { ProviderUsageData, AccountUsageData, QuotaItem, UsageState } from '../types'
 import { useTheme } from '../composables/useTheme'
 
@@ -156,6 +163,10 @@ const lastUpdateText = computed(() => {
 function hasHistoryData(acc: AccountUsageData): boolean {
   return acc.modelHistory1d.length > 0 || acc.modelHistory7d.length > 0 || acc.modelHistory30d.length > 0 ||
     acc.mcpHistory1d.length > 0 || acc.mcpHistory7d.length > 0 || acc.mcpHistory30d.length > 0
+}
+
+function hasPerformanceData(acc: AccountUsageData): boolean {
+  return acc.performanceHistory7d.length > 0 || acc.performanceHistory15d.length > 0 || acc.performanceHistory30d.length > 0
 }
 
 function applyState(state: UsageState) {
@@ -241,7 +252,8 @@ onMounted(() => {
 }
 
 .main-body::-webkit-scrollbar { width: 3px; }
-.main-body::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+.main-body::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
+.main-body:hover::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
 
 .provider-section {
   margin-bottom: 10px;

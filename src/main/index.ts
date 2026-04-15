@@ -8,7 +8,7 @@ import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale, t as i18nT } from './i18n';
 import { autoUpdater } from 'electron-updater';
-import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, ProviderTypeConfig } from '../shared/types';
+import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig } from '../shared/types';
 
 // 加载 .env 文件
 const envPath = path.join(__dirname, '..', '..', '.env');
@@ -131,6 +131,9 @@ interface AccountDisplayData {
   modelHistory1d: SharedModelTokenRecord[];
   modelHistory7d: SharedModelTokenRecord[];
   modelHistory30d: SharedModelTokenRecord[];
+  performanceHistory7d: SharedPerformanceRecord[];
+  performanceHistory15d: SharedPerformanceRecord[];
+  performanceHistory30d: SharedPerformanceRecord[];
 }
 
 /**
@@ -741,6 +744,15 @@ function convertAccountData(
   const mapModelHistory = (key: string): SharedModelTokenRecord[] =>
     ((result.details?.[key] ?? []) as SharedModelTokenRecord[]).map(r => ({ date: r.date, model: r.model, used: r.used }));
 
+  const mapPerformanceHistory = (key: string): SharedPerformanceRecord[] =>
+    ((result.details?.[key] ?? []) as SharedPerformanceRecord[]).map(r => ({
+      date: r.date,
+      liteDecodeSpeed: r.liteDecodeSpeed,
+      proMaxDecodeSpeed: r.proMaxDecodeSpeed,
+      liteSuccessRate: r.liteSuccessRate,
+      proMaxSuccessRate: r.proMaxSuccessRate,
+    }));
+
   console.log(`[Data] ${type}:${accountId} 1d:${mapHistory('history1d').length} 7d:${mapHistory('history7d').length} 30d:${mapHistory('history30d').length}`);
 
   return {
@@ -760,7 +772,10 @@ function convertAccountData(
     mcpHistory30d: mapMcpHistory('mcpHistory30d'),
     modelHistory1d: mapModelHistory('modelHistory1d'),
     modelHistory7d: mapModelHistory('modelHistory7d'),
-    modelHistory30d: mapModelHistory('modelHistory30d')
+    modelHistory30d: mapModelHistory('modelHistory30d'),
+    performanceHistory7d: mapPerformanceHistory('performanceHistory7d'),
+    performanceHistory15d: mapPerformanceHistory('performanceHistory15d'),
+    performanceHistory30d: mapPerformanceHistory('performanceHistory30d')
   };
 }
 

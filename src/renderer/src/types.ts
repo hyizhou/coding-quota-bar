@@ -31,6 +31,14 @@ export interface ModelTokenRecord {
   used: number
 }
 
+export interface PerformanceRecord {
+  date: string
+  liteDecodeSpeed: number
+  proMaxDecodeSpeed: number
+  liteSuccessRate: number
+  proMaxSuccessRate: number
+}
+
 /**
  * 单个账户的用量数据
  */
@@ -52,6 +60,9 @@ export interface AccountUsageData {
   modelHistory1d: ModelTokenRecord[]
   modelHistory7d: ModelTokenRecord[]
   modelHistory30d: ModelTokenRecord[]
+  performanceHistory7d: PerformanceRecord[]
+  performanceHistory15d: PerformanceRecord[]
+  performanceHistory30d: PerformanceRecord[]
 }
 
 /**

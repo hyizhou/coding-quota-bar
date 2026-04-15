@@ -71,6 +71,22 @@ interface ZhipuModelUsageResponse {
 }
 
 /**
+ * 智谱 model-performance-day API 响应类型
+ */
+interface ZhipuPerformanceResponse {
+  code: number;
+  data?: {
+    x_time: string[];
+    liteDecodeSpeed: (number | null)[];
+    proMaxDecodeSpeed: (number | null)[];
+    liteSuccessRate: (number | null)[];
+    proMaxSuccessRate: (number | null)[];
+  };
+  msg?: string;
+  success?: boolean;
+}
+
+/**
  * 格式化日期为 API 要求的格式
  */
 function formatDateTime(date: Date): string {
@@ -139,6 +155,7 @@ export class ZhipuProvider implements Provider {
     const now = new Date();
     const start1d = new Date(now.getTime() - 1 * 86400000);
     const start7d = new Date(now.getTime() - 7 * 86400000);
+    const start15d = new Date(now.getTime() - 15 * 86400000);
     const start30d = new Date(now.getTime() - 30 * 86400000);
 
     let resp1d: ZhipuModelUsageResponse | null = null;
@@ -147,8 +164,11 @@ export class ZhipuProvider implements Provider {
     let toolResp1d: ZhipuToolUsageResponse | null = null;
     let toolResp7d: ZhipuToolUsageResponse | null = null;
     let toolResp30d: ZhipuToolUsageResponse | null = null;
+    let perfResp7d: ZhipuPerformanceResponse | null = null;
+    let perfResp15d: ZhipuPerformanceResponse | null = null;
+    let perfResp30d: ZhipuPerformanceResponse | null = null;
     try {
-      [resp1d, resp7d, resp30d, toolResp1d, toolResp7d, toolResp30d] = await Promise.all([
+      [resp1d, resp7d, resp30d, toolResp1d, toolResp7d, toolResp30d, perfResp7d, perfResp15d, perfResp30d] = await Promise.all([
         this.httpClient.getJson<ZhipuModelUsageResponse>(
           `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
           headers
@@ -171,6 +191,18 @@ export class ZhipuProvider implements Provider {
         ),
         this.httpClient.getJson<ZhipuToolUsageResponse>(
           `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+          headers
+        ),
+        this.httpClient.getJson<ZhipuPerformanceResponse>(
+          `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+          headers
+        ),
+        this.httpClient.getJson<ZhipuPerformanceResponse>(
+          `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start15d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+          headers
+        ),
+        this.httpClient.getJson<ZhipuPerformanceResponse>(
+          `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
           headers
         )
       ]);
@@ -227,7 +259,10 @@ export class ZhipuProvider implements Provider {
         mcpHistory30d: this.buildToolHistory(toolResp30d),
         modelHistory1d: this.buildModelHistory(resp1d),
         modelHistory7d: this.buildModelHistory(resp7d),
-        modelHistory30d: this.buildModelHistory(resp30d)
+        modelHistory30d: this.buildModelHistory(resp30d),
+        performanceHistory7d: this.buildPerformanceHistory(perfResp7d),
+        performanceHistory15d: this.buildPerformanceHistory(perfResp15d),
+        performanceHistory30d: this.buildPerformanceHistory(perfResp30d)
       }
     };
   }
@@ -288,5 +323,27 @@ export class ZhipuProvider implements Provider {
       }
     }
     return records;
+  }
+
+  /**
+   * 从 model-performance-day 响应构建性能历史记录
+   */
+  private buildPerformanceHistory(resp: ZhipuPerformanceResponse | null): Array<{
+    date: string;
+    liteDecodeSpeed: number;
+    proMaxDecodeSpeed: number;
+    liteSuccessRate: number;
+    proMaxSuccessRate: number;
+  }> {
+    if (!resp?.data?.x_time) return [];
+    return resp.data.x_time
+      .map((time, i) => ({
+        date: time.slice(0, 10),
+        liteDecodeSpeed: resp.data!.liteDecodeSpeed[i] ?? 0,
+        proMaxDecodeSpeed: resp.data!.proMaxDecodeSpeed[i] ?? 0,
+        liteSuccessRate: resp.data!.liteSuccessRate[i] ?? 0,
+        proMaxSuccessRate: resp.data!.proMaxSuccessRate[i] ?? 0,
+      }))
+      .filter(r => r.liteDecodeSpeed > 0 || r.proMaxDecodeSpeed > 0);
   }
 }
