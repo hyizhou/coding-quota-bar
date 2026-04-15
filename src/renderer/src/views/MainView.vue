@@ -39,7 +39,7 @@
         </div>
       </template>
 
-      <template v-for="p in providers" :key="p.name">
+      <template v-for="p in providers" :key="p.key">
         <div class="provider-section">
           <div class="provider-name-row">
             <span class="provider-name" :class="{ clickable: !!p.websiteUrl }" @click="openProviderWebsite(p.websiteUrl)">{{ p.name }}</span>
@@ -112,11 +112,23 @@ const loading = ref(false)
 const initialLoading = ref(true)
 const now = ref(Date.now())
 
-// 每个选中的账户提供者名称 -> 活动账户ID
+// 每个选中的账户 provider key -> active account ID
+const STORAGE_KEY = 'active-accounts'
 const activeAccounts = ref<Record<string, string>>({})
 
+function saveActiveAccounts() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(activeAccounts.value)) } catch {}
+}
+
+function restoreActiveAccounts() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) activeAccounts.value = JSON.parse(saved)
+  } catch {}
+}
+
 function getActiveAccountId(p: ProviderUsageData): string {
-  return activeAccounts.value[p.name] || (p.accounts[0]?.id ?? '')
+  return activeAccounts.value[p.key] || (p.accounts[0]?.id ?? '')
 }
 
 function getActiveAccount(p: ProviderUsageData): AccountUsageData | undefined {
@@ -125,7 +137,8 @@ function getActiveAccount(p: ProviderUsageData): AccountUsageData | undefined {
 }
 
 function setActiveAccount(p: ProviderUsageData, accountId: string): void {
-  activeAccounts.value[p.name] = accountId
+  activeAccounts.value[p.key] = accountId
+  saveActiveAccounts()
 }
 
 const lastUpdateText = computed(() => {
@@ -149,6 +162,7 @@ function applyState(state: UsageState) {
   providers.value = state.providers
   lastUpdate.value = state.lastUpdate
   initialLoading.value = false
+  restoreActiveAccounts()
 }
 
 async function fetchData() {

@@ -67,32 +67,40 @@ export class UsageAggregator {
     // 保存旧数据用于失败时回退
     const previousResults = new Map(this.results);
 
-    // 并行请求所有 Provider
-    const promises = providers.map(async ({ type, accountId, instance, config }) => {
-      const compoundKey = `${type}:${accountId}`;
-      try {
-        const result = await instance.fetchUsage(config);
-        return { compoundKey, result, success: true };
-      } catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error);
-        console.error(`[Aggregator] Failed to fetch ${compoundKey}:`, errMsg);
-        // 失败时保留上次数据（如果有），附加错误信息
-        const previous = previousResults.get(compoundKey);
-        if (previous) {
-          console.warn(`[Aggregator] Using previous data for ${compoundKey}`);
-          previous.error = errMsg;
-          return { compoundKey, result: previous, success: false };
-        }
-        // 没有历史数据时返回错误结果
-        return {
-          compoundKey,
-          result: { used: 0, total: 100, expiresAt: '', error: errMsg, details: {} },
-          success: false
-        };
-      }
-    });
+    // 按服务商分组：不同服务商并行，同服务商内串行避免请求风暴
+    const groups = new Map<string, typeof providers>();
+    for (const p of providers) {
+      if (!groups.has(p.type)) groups.set(p.type, []);
+      groups.get(p.type)!.push(p);
+    }
 
-    const outcomes = await Promise.all(promises);
+    const outcomes = await Promise.all(
+      Array.from(groups.entries()).map(async ([, group]) => {
+        const results: Array<{ compoundKey: string; result: UsageResult }> = [];
+        for (const { type, accountId, instance, config } of group) {
+          const compoundKey = `${type}:${accountId}`;
+          try {
+            const result = await instance.fetchUsage(config);
+            results.push({ compoundKey, result });
+          } catch (error) {
+            const errMsg = error instanceof Error ? error.message : String(error);
+            console.error(`[Aggregator] Failed to fetch ${compoundKey}:`, errMsg);
+            const previous = previousResults.get(compoundKey);
+            if (previous) {
+              console.warn(`[Aggregator] Using previous data for ${compoundKey}`);
+              previous.error = errMsg;
+              results.push({ compoundKey, result: previous });
+            } else {
+              results.push({
+                compoundKey,
+                result: { used: 0, total: 100, expiresAt: '', error: errMsg, details: {} },
+              });
+            }
+          }
+        }
+        return results;
+      })
+    );
 
     // 如果期间有新的 aggregate 调用启动，丢弃本次结果
     if (gen !== this.generation) {
@@ -103,8 +111,10 @@ export class UsageAggregator {
 
     // 更新结果（先清空，确保不含已禁用 Provider 的残留数据）
     this.results.clear();
-    for (const { compoundKey, result } of outcomes) {
-      this.results.set(compoundKey, result);
+    for (const groupResults of outcomes) {
+      for (const { compoundKey, result } of groupResults) {
+        this.results.set(compoundKey, result);
+      }
     }
 
     this.lastUpdate = new Date();

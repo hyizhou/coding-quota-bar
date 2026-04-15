@@ -58,6 +58,7 @@ export interface AccountUsageData {
  * Provider 用量数据（含多账户）
  */
 export interface ProviderUsageData {
+  key: string
   name: string
   websiteUrl?: string
   accounts: AccountUsageData[]

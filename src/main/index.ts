@@ -137,6 +137,7 @@ interface AccountDisplayData {
  * Provider 显示数据（含多个账户）
  */
 interface ProviderDisplayData {
+  key: string;
   name: string;
   websiteUrl?: string;
   accounts: AccountDisplayData[];
@@ -695,6 +696,7 @@ function buildUsageData(): UsageDataForRenderer | null {
   const providers: ProviderDisplayData[] = [];
   for (const [type, accounts] of grouped.entries()) {
     providers.push({
+      key: type,
       name: getProviderDisplayName(type),
       websiteUrl: buildConfig.providers.find(p => p.key === type)?.websiteUrl || undefined,
       accounts: accounts.map(({ accountId, result }) =>
