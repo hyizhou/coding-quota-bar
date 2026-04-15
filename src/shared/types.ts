@@ -92,6 +92,7 @@ export interface AppConfig {
     };
   };
   autoStart: boolean;
+  popupTrigger?: 'hover' | 'click';
   memorySavingMode?: boolean;
   language?: string;
   theme?: 'light' | 'dark' | 'auto';

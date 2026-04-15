@@ -270,6 +270,7 @@ function showPopupWindow(mode: PopupMode.Hover | PopupMode.Pinned): void {
     popupMode = mode;
 
     if (mode === PopupMode.Pinned) {
+      popupWindow.focus();
       attachBlurHandler();
     } else {
       detachBlurHandler();
@@ -373,6 +374,7 @@ async function initialize(): Promise<void> {
     }
   });
   trayManager.onMouseEnter(() => {
+    if (configManager?.getConfig()?.popupTrigger === 'click') return;
     if (popupMode === PopupMode.Hidden) {
       showPopupWindow(PopupMode.Hover);
     }

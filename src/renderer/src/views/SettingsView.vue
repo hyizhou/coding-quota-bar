@@ -52,6 +52,13 @@
           </select>
         </div>
         <div class="form-group">
+          <label class="form-label">{{ $t('settings.popupTriggerLabel') }}</label>
+          <select v-model="popupTrigger" class="form-select">
+            <option value="hover">{{ $t('settings.popupTriggerHover') }}</option>
+            <option value="click">{{ $t('settings.popupTriggerClick') }}</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label class="form-label">{{ $t('settings.language') }}</label>
           <select v-model="language" class="form-select">
             <option value="zh-CN">中文</option>
@@ -136,6 +143,7 @@ const providerList = ref<ProviderInfo[]>([])
 const refreshInterval = ref('300')
 const autoStart = ref(false)
 const language = ref('zh-CN')
+const popupTrigger = ref<'hover' | 'click'>('hover')
 const memorySavingMode = ref(false)
 const saving = ref(false)
 const settingsBodyRef = ref<HTMLElement | null>(null)
@@ -179,10 +187,11 @@ onMounted(async () => {
   refreshInterval.value = String(config.refreshInterval)
   autoStart.value = config.autoStart
   language.value = config.language || locale.value
+  popupTrigger.value = config.popupTrigger ?? 'hover'
   memorySavingMode.value = config.memorySavingMode ?? false
 
   // 配置加载完后开始监听变化，自动保存
-  watch([providerList, refreshInterval, autoStart, language, memorySavingMode], () => {
+  watch([providerList, refreshInterval, autoStart, language, popupTrigger, memorySavingMode], () => {
     scheduleSave()
   }, { deep: true })
 
@@ -254,6 +263,7 @@ async function saveConfig() {
       providers,
       refreshInterval: parseInt(refreshInterval.value, 10),
       autoStart: autoStart.value,
+      popupTrigger: popupTrigger.value,
       memorySavingMode: memorySavingMode.value,
       language: language.value
     })
