@@ -99,6 +99,7 @@ export class ConfigManager extends EventEmitter {
   /**
    * 解密配置中所有 provider 的 apiKey（用于读取磁盘后）
    * 兼容旧格式（apiKey 直接在 provider 上）和新格式（apiKey 在 accounts[] 内）
+   * 注意：此兼容逻辑不可删除，旧版本用户升级时需用到
    */
   private decryptApiKeys(config: AppConfig): AppConfig {
     for (const provider of Object.values(config.providers)) {
