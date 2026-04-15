@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'path';
 import { TrayManager, getColorByPercent } from './tray';
 import { ProviderLoader, getAvailableProviderKeys } from './loader';
+import buildConfig from '../../app.build';
 import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale, t as i18nT } from './i18n';
@@ -114,6 +115,7 @@ interface QuotaDisplayItem {
  */
 interface ProviderDisplayData {
   name: string;
+  websiteUrl?: string;
   level?: string;
   error?: string;
   quotas: QuotaDisplayItem[];
@@ -693,6 +695,7 @@ function convertProviderData(
 
   return {
     name: getProviderDisplayName(type),
+    websiteUrl: buildConfig.providers.find(p => p.key === type)?.websiteUrl || undefined,
     level: result.level,
     error: result.error,
     quotas,

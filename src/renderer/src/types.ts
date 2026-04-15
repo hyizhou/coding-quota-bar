@@ -33,6 +33,7 @@ export interface ModelTokenRecord {
 
 export interface ProviderUsageData {
   name: string
+  websiteUrl?: string
   level?: string
   error?: string
   quotas: QuotaItem[]

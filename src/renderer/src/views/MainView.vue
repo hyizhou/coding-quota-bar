@@ -42,7 +42,7 @@
       <template v-for="p in providers" :key="p.name">
         <div class="provider-section">
           <div class="provider-name-row">
-            <span class="provider-name">{{ p.name }}</span>
+            <span class="provider-name" :class="{ clickable: !!p.websiteUrl }" @click="openProviderWebsite(p.websiteUrl)">{{ p.name }}</span>
             <span v-if="p.level" class="provider-level">{{ p.level }}</span>
           </div>
           <div v-if="p.error" class="error-card">
@@ -157,6 +157,10 @@ function formatError(msg: string): string {
   return msg.replace(/^\[[\w]+\]\s*/, '')
 }
 
+function openProviderWebsite(url?: string) {
+  if (url) window.electronAPI.openExternal(url)
+}
+
 setInterval(() => { now.value = Date.now() }, 60000)
 
 onMounted(() => {
@@ -200,6 +204,13 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 700;
   color: var(--text-heading);
+}
+.provider-name.clickable {
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.provider-name.clickable:hover {
+  color: var(--color-primary, #3B82F6);
 }
 
 .provider-level {
