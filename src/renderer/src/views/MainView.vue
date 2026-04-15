@@ -210,7 +210,7 @@ onMounted(() => {
   transition: color 0.15s;
 }
 .provider-name.clickable:hover {
-  color: var(--color-primary, #3B82F6);
+  opacity: 0.8;
 }
 
 .provider-level {
