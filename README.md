@@ -1,4 +1,6 @@
 # Coding Quota Bar
+![release](https://img.shields.io/github/release/hyizhou/coding-quota-bar)
+![license](https://img.shields.io/github/license/hyizhou/coding-quota-bar)
 
 Windows 系统托盘应用，实时监控 AI 平台 Coding Plan 用量配额。常驻托盘，一眼掌握剩余额度，不打断编码流程。
 
