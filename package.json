@@ -1,6 +1,6 @@
 {
   "name": "coding-quota-bar",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Coding Plan usage monitor - system tray resident display",
   "main": "./out/main/index.js",
   "author": "hyizhou",
