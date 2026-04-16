@@ -679,12 +679,9 @@ function buildUsageData(): UsageDataForRenderer | null {
   const aggregated = scheduler.getAggregatedData();
   const thresholds = scheduler.getThresholds();
 
+  // 有启用的 Provider 但首次请求尚未完成，返回 null 让渲染进程保持骨架屏
   if (!aggregated) {
-    return {
-      providers: [],
-      lastUpdate: new Date().toISOString(),
-      overallPercent: -1
-    };
+    return null;
   }
 
   // 按 provider type 分组
@@ -731,7 +728,7 @@ function convertAccountData(
     total: q.total,
     usageRate: q.usageRate,
     resetAt: q.resetAt,
-    color: getColorByPercent(100 - q.usageRate, thresholds),
+    color: getColorByPercent(100 - q.usageRate, thresholds) as 'green' | 'yellow' | 'red',
     limitType: q.limitType
   }));
 
