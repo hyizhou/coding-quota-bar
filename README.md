@@ -11,6 +11,7 @@ Windows 系统托盘应用，实时监控 AI 平台 Coding Plan 用量配额。
 
 ### 截图
 ![截图](img/2.png)
+![截图](img/3.png)
 
 
 ## 功能
