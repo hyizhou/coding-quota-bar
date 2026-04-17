@@ -36,7 +36,7 @@ const props = defineProps<{
   records1d: McpUsageRecord[]
   records7d: McpUsageRecord[]
   records30d: McpUsageRecord[]
-  activeTab: '1d' | '7d' | '30d'
+  activeTab: 'today' | '24h' | '7d' | '30d'
 }>()
 
 /** 本地日期字符串 YYYY-MM-DD */
@@ -53,6 +53,35 @@ function localHourStr(d: Date): string {
 }
 
 interface AggregatedMcp { labels: string[]; search: number[]; webRead: number[]; zread: number[] }
+
+/** 本日：从今天 00:00 到当前小时 */
+function aggregateToday(records: McpUsageRecord[]): AggregatedMcp {
+  const todayStr = localDateStr(new Date())
+  const searchMap = new Map<string, number>()
+  const webReadMap = new Map<string, number>()
+  const zreadMap = new Map<string, number>()
+  for (const r of records) {
+    if (r.date.length === 13 && r.date.startsWith(todayStr)) {
+      searchMap.set(r.date, (searchMap.get(r.date) || 0) + r.search)
+      webReadMap.set(r.date, (webReadMap.get(r.date) || 0) + r.webRead)
+      zreadMap.set(r.date, (zreadMap.get(r.date) || 0) + r.zread)
+    }
+  }
+
+  const now = new Date()
+  const labels: string[] = []
+  const search: number[] = []
+  const webRead: number[] = []
+  const zread: number[] = []
+  for (let h = 0; h <= now.getHours(); h++) {
+    const key = `${todayStr}T${String(h).padStart(2, '0')}`
+    labels.push(`${String(h).padStart(2, '0')}:00`)
+    search.push(searchMap.get(key) || 0)
+    webRead.push(webReadMap.get(key) || 0)
+    zread.push(zreadMap.get(key) || 0)
+  }
+  return { labels, search, webRead, zread }
+}
 
 /** 按1天：过去24小时，每个bar=1小时 */
 function aggregate1d(records: McpUsageRecord[]): AggregatedMcp {
@@ -144,7 +173,11 @@ function aggregate30d(records: McpUsageRecord[]): AggregatedMcp {
 }
 
 const aggregated = computed(() => {
-  if (props.activeTab === '1d') {
+  if (props.activeTab === 'today') {
+    if (!props.records1d.length) return { labels: [] as string[], search: [] as number[], webRead: [] as number[], zread: [] as number[] }
+    return aggregateToday(props.records1d)
+  }
+  if (props.activeTab === '24h') {
     if (!props.records1d.length) return { labels: [] as string[], search: [] as number[], webRead: [] as number[], zread: [] as number[] }
     return aggregate1d(props.records1d)
   }

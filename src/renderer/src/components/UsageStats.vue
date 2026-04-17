@@ -58,7 +58,7 @@ const props = defineProps<{
 }>()
 
 type ChartType = 'token' | 'mcp'
-type TabValue = '1d' | '7d' | '30d'
+type TabValue = 'today' | '24h' | '7d' | '30d'
 
 const activeChart = ref<ChartType>('token')
 const activeTab = ref<TabValue>('7d')
@@ -69,7 +69,8 @@ const chartTypes = [
 ]
 
 const tabs = [
-  { label: t('main.tab1d'), value: '1d' as TabValue },
+  { label: t('main.tabToday'), value: 'today' as TabValue },
+  { label: t('main.tab24h'), value: '24h' as TabValue },
   { label: t('main.tab7d'), value: '7d' as TabValue },
   { label: t('main.tab30d'), value: '30d' as TabValue }
 ]

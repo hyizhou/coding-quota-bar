@@ -63,7 +63,7 @@ const props = defineProps<{
   modelRecords1d: ModelTokenRecord[]
   modelRecords7d: ModelTokenRecord[]
   modelRecords30d: ModelTokenRecord[]
-  activeTab: '1d' | '7d' | '30d'
+  activeTab: 'today' | '24h' | '7d' | '30d'
 }>()
 
 function formatCount(n: number): string {
@@ -99,6 +99,35 @@ const MODEL_COLORS = [
 ]
 
 interface StackedResult { labels: string[]; models: string[]; values: Map<string, number[]> }
+
+/** 本日：从今天 00:00 到当前小时 */
+function aggregateTodayStacked(records: ModelTokenRecord[]): StackedResult {
+  const todayStr = localDateStr(new Date())
+  const modelSet = new Set<string>()
+  const buckets = new Map<string, Map<string, number>>()
+  for (const r of records) {
+    if (r.date.length !== 13 || !r.date.startsWith(todayStr)) continue
+    modelSet.add(r.model)
+    if (!buckets.has(r.date)) buckets.set(r.date, new Map())
+    const m = buckets.get(r.date)!
+    m.set(r.model, (m.get(r.model) || 0) + r.used)
+  }
+
+  const now = new Date()
+  const labels: string[] = []
+  const timeKeys: string[] = []
+  for (let h = 0; h <= now.getHours(); h++) {
+    labels.push(`${String(h).padStart(2, '0')}:00`)
+    timeKeys.push(`${todayStr}T${String(h).padStart(2, '0')}`)
+  }
+
+  const models = Array.from(modelSet)
+  const values = new Map<string, number[]>()
+  for (const model of models) {
+    values.set(model, timeKeys.map(key => buckets.get(key)?.get(model) || 0))
+  }
+  return { labels, models, values }
+}
 
 /** 按1天：过去24小时 */
 function aggregate1dStacked(records: ModelTokenRecord[]): StackedResult {
@@ -199,7 +228,11 @@ function aggregate30dStacked(records: ModelTokenRecord[]): StackedResult {
 }
 
 const stacked = computed(() => {
-  if (props.activeTab === '1d') {
+  if (props.activeTab === 'today') {
+    if (!props.modelRecords1d.length) return { labels: [] as string[], models: [] as string[], values: new Map<string, number[]>() }
+    return aggregateTodayStacked(props.modelRecords1d)
+  }
+  if (props.activeTab === '24h') {
     if (!props.modelRecords1d.length) return { labels: [] as string[], models: [] as string[], values: new Map<string, number[]>() }
     return aggregate1dStacked(props.modelRecords1d)
   }
