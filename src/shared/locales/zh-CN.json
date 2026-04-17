@@ -122,7 +122,7 @@
     "tokPerSec": "tok/s",
     "ms": "ms",
     "seconds": "秒",
-    "disclaimer": "仅供参考娱乐，结果受网络状况、服务器负载等因素影响，仅能反映大致并发上限。",
+    "disclaimer": "结果仅供娱乐，请勿过度频繁测试，谨防系统风控。",
     "clearAll": "清空",
     "clearConfirm": "确定清空所有历史记录？",
     "confirmYes": "确定",

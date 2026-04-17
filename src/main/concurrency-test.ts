@@ -112,8 +112,9 @@ export class ConcurrencyTestEngine {
   static async run(
     config: ConcurrencyTestConfig,
     apiKey: string,
-    onProgress?: (info: { index: number; total: number; success: boolean }) => void,
-    onStreamText?: (text: string) => void,
+    onProgress?: (info: { index: number; total: number; success: boolean; ttftMs: number; totalMs: number; tokenCount: number; tokensPerSec: number; error?: string }) => void,
+    onStreamText?: (info: { index: number; text: string }) => void,
+    onFirstContent?: (info: { index: number; total: number }) => void,
   ): Promise<ConcurrencyTestResult> {
     const startTime = Date.now();
     const total = config.concurrency;
@@ -121,9 +122,10 @@ export class ConcurrencyTestEngine {
     const promises = Array.from({ length: total }, (_, i) =>
       executeStreamRequest(
         config.model, apiKey, config.apiFormat,
-        i === 0 ? (text) => onStreamText?.(text) : undefined,
+        (text) => onStreamText?.({ index: i, text }),
+        () => onFirstContent?.({ index: i, total }),
       ).then((result) => {
-        onProgress?.({ index: i, total, success: result.success });
+        onProgress?.({ index: i, total, success: result.success, ttftMs: result.ttftMs, totalMs: result.totalMs, tokenCount: result.tokenCount, tokensPerSec: result.tokensPerSec, error: result.error });
         return result;
       }),
     );
@@ -239,11 +241,12 @@ export class ConcurrencyTestEngine {
 function executeStreamRequest(
   model: string, apiKey: string, apiFormat: ApiFormat,
   onTextChunk?: (text: string) => void,
+  onFirstContent?: () => void,
 ): Promise<StreamResult> {
   if (apiFormat === 'anthropic') {
-    return executeAnthropicStream(model, apiKey, onTextChunk);
+    return executeAnthropicStream(model, apiKey, onTextChunk, onFirstContent);
   }
-  return executeOpenAIStream(model, apiKey, onTextChunk);
+  return executeOpenAIStream(model, apiKey, onTextChunk, onFirstContent);
 }
 
 /**
@@ -251,7 +254,7 @@ function executeStreamRequest(
  * POST {API_BASE_OPENAI}/chat/completions
  * SSE: data: {"choices":[{"delta":{"content":"..."}}]}
  */
-function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text: string) => void): Promise<StreamResult> {
+function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text: string) => void, onFirstContent?: () => void): Promise<StreamResult> {
   return new Promise((resolve) => {
     const startTime = performance.now();
     const stats = newStats();
@@ -275,6 +278,8 @@ function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text:
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
         'Accept': 'text/event-stream',
+        'User-Agent': 'opencode/1.4.7',
+        'x-session-affinity': generateId(),
       },
       timeout: 30000,
     };
@@ -316,7 +321,10 @@ function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text:
             const parsed: OpenAIStreamChunk = JSON.parse(trimmed.slice(6));
             const delta = parsed.choices?.[0]?.delta;
             if (delta?.content) {
-              markFirstContent(stats);
+              if (!stats.hasReceivedContent) {
+                markFirstContent(stats);
+                onFirstContent?.();
+              }
               stats.estimatedTokens += estimateTokens(delta.content);
               onTextChunk?.(delta.content);
             }
@@ -355,7 +363,7 @@ function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text:
  * POST {API_BASE_ANTHROPIC}/v1/messages
  * SSE: event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"text":"..."}}
  */
-function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (text: string) => void): Promise<StreamResult> {
+function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (text: string) => void, onFirstContent?: () => void): Promise<StreamResult> {
   return new Promise((resolve) => {
     const startTime = performance.now();
     const stats = newStats();
@@ -428,7 +436,10 @@ function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (te
             if (parsed.type === 'content_block_delta') {
               const text = (parsed as AnthropicContentDelta).delta?.text;
               if (text) {
-                markFirstContent(stats);
+                if (!stats.hasReceivedContent) {
+                  markFirstContent(stats);
+                  onFirstContent?.();
+                }
                 stats.estimatedTokens += estimateTokens(text);
                 onTextChunk?.(text);
               }

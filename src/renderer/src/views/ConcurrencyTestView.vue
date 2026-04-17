@@ -1,121 +1,135 @@
 <template>
   <div class="view-concurrency">
     <header class="header">
-      <button class="icon-btn back-btn" :title="$t('settings.backBtn')" @click="$emit('go-back')">
+      <button class="icon-btn back-btn" :title="$t('settings.backBtn')" @click="showHistory ? (showHistory = false) : $emit('go-back')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
       </button>
-      <h1>{{ $t('concurrencyTest.title') }}</h1>
+      <h1>{{ showHistory ? $t('concurrencyTest.history') : $t('concurrencyTest.title') }}</h1>
+      <button v-if="!showHistory" class="icon-btn history-btn" :title="$t('concurrencyTest.history')" @click="openHistory">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </button>
     </header>
 
-    <div class="test-body">
-      <!-- 第一页：测试 -->
-      <section class="page test-page">
-        <p class="disclaimer">{{ $t('concurrencyTest.disclaimer') }}</p>
-        <div class="settings-card">
-          <div class="config-row">
-            <label class="config-label">{{ $t('concurrencyTest.apiFormat') }}</label>
-            <select v-model="apiFormat" class="config-select" :disabled="testing">
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic</option>
-            </select>
-          </div>
-
-          <div class="config-row">
-            <label class="config-label">{{ $t('concurrencyTest.model') }}</label>
-            <select v-model="selectedModel" class="config-select" :disabled="testing">
-              <option v-for="m in models" :key="m" :value="m">{{ m }}</option>
-            </select>
-          </div>
-
-          <div class="config-row">
-            <label class="config-label">{{ $t('concurrencyTest.concurrency') }}</label>
-            <select v-model="concurrency" class="config-select" :disabled="testing">
-              <option v-for="n in concurrencyOptions" :key="n" :value="n">{{ n }}</option>
-            </select>
-          </div>
-        </div>
-
-        <button
-          class="start-btn"
-          :disabled="testing || !selectedModel"
-          @click="startTest"
-        >
-          <template v-if="testing">{{ runningText }}</template>
-          <template v-else>{{ $t('concurrencyTest.start') }}</template>
+    <!-- 历史记录页 -->
+    <div v-if="showHistory" class="history-body">
+      <div v-if="showClearConfirm" class="clear-confirm">
+        <span>{{ $t('concurrencyTest.clearConfirm') }}</span>
+        <button class="confirm-yes" @click="clearAllHistory">{{ $t('concurrencyTest.confirmYes') }}</button>
+        <button class="confirm-no" @click="showClearConfirm = false">{{ $t('concurrencyTest.confirmNo') }}</button>
+      </div>
+      <div class="history-top">
+        <span class="history-count">{{ history.length }} {{ $t('concurrencyTest.noHistory').length > 0 ? '' : '' }}</span>
+        <button v-if="history.length > 0" class="clear-all-btn" @click="confirmClearAll">
+          {{ $t('concurrencyTest.clearAll') }}
         </button>
+      </div>
+      <div v-if="history.length > 0" class="history-list">
+        <div v-for="h in history" :key="h.id" class="history-item">
+          <div class="history-main">
+            <span class="history-time">{{ formatTimestamp(h.timestamp) }}</span>
+            <span class="history-model">{{ h.model }}</span>
+            <button class="history-delete" :title="$t('concurrencyTest.delete')" @click="deleteHistory(h.id)">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div class="history-metrics">
+            <span :class="h.successCount === h.concurrency ? 'text-green' : 'text-yellow'">{{ h.successCount }}/{{ h.concurrency }}</span>
+            <span v-if="h.successCount > 0">TTFT {{ h.avgTtftMs }}{{ $t('concurrencyTest.ms') }}</span>
+            <span v-if="h.successCount > 0">{{ h.avgTokensPerSec }}{{ $t('concurrencyTest.tokPerSec') }}</span>
+          </div>
+        </div>
+      </div>
+      <div v-else class="history-empty">
+        {{ $t('concurrencyTest.noHistory') }}
+      </div>
+    </div>
 
-        <!-- 测试过程 -->
-        <div v-if="testing" class="progress-card">
-          <div class="progress-dots">
-            <span v-for="(s, i) in requestStates" :key="i" class="dot" :class="s" />
-          </div>
-          <div v-if="streamText" ref="streamEl" class="stream-preview">
-            <span class="stream-text">{{ streamText }}</span><span class="stream-cursor">|</span>
-          </div>
+    <!-- 测试页 -->
+    <div v-else class="test-body">
+      <p class="disclaimer">{{ $t('concurrencyTest.disclaimer') }}</p>
+      <div class="settings-card">
+        <div class="config-row">
+          <label class="config-label">{{ $t('concurrencyTest.apiFormat') }}</label>
+          <select v-model="apiFormat" class="config-select" :disabled="testing">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+          </select>
         </div>
 
-        <!-- 结果 -->
-        <div v-if="result" class="result-card">
-          <div class="result-row main-result">
-            <span>{{ $t('concurrencyTest.success') }}: <strong :class="result.successCount === result.concurrency ? 'text-green' : 'text-yellow'">{{ result.successCount }}/{{ result.concurrency }}</strong></span>
-            <span>{{ $t('concurrencyTest.totalTime') }}: {{ formatTime(result.totalTimeMs) }}</span>
-          </div>
-          <div v-if="result.successCount > 0" class="result-details">
-            <div class="detail-row">
-              <span>{{ $t('concurrencyTest.avgTtft') }}</span>
-              <span>{{ result.avgTtftMs }} {{ $t('concurrencyTest.ms') }}</span>
-            </div>
-            <div class="detail-row">
-              <span>{{ $t('concurrencyTest.avgSpeed') }}</span>
-              <span>{{ result.avgTokensPerSec }} {{ $t('concurrencyTest.tokPerSec') }}</span>
-            </div>
-            <div class="detail-row">
-              <span>{{ $t('concurrencyTest.ttftRange') }}</span>
-              <span>{{ result.minTtftMs }}/{{ result.maxTtftMs }} {{ $t('concurrencyTest.ms') }}</span>
-            </div>
-          </div>
+        <div class="config-row">
+          <label class="config-label">{{ $t('concurrencyTest.model') }}</label>
+          <select v-model="selectedModel" class="config-select" :disabled="testing">
+            <option v-for="m in models" :key="m" :value="m">{{ m }}</option>
+          </select>
         </div>
 
-        <div class="page-hint">{{ $t('concurrencyTest.history') }} ↓</div>
-      </section>
+        <div class="config-row">
+          <label class="config-label">{{ $t('concurrencyTest.concurrency') }}</label>
+          <select v-model="concurrency" class="config-select" :disabled="testing">
+            <option v-for="n in concurrencyOptions" :key="n" :value="n">{{ n }}</option>
+          </select>
+        </div>
+      </div>
 
-      <!-- 第二页：历史记录 -->
-      <section class="page history-page">
-        <div class="history-header">
-          <span>{{ $t('concurrencyTest.history') }} ({{ history.length }})</span>
-          <button v-if="history.length > 0" class="clear-all-btn" @click="confirmClearAll">
-            {{ $t('concurrencyTest.clearAll') }}
-          </button>
-        </div>
-        <div v-if="showClearConfirm" class="clear-confirm">
-          <span>{{ $t('concurrencyTest.clearConfirm') }}</span>
-          <button class="confirm-yes" @click="clearAllHistory">{{ $t('concurrencyTest.confirmYes') }}</button>
-          <button class="confirm-no" @click="showClearConfirm = false">{{ $t('concurrencyTest.confirmNo') }}</button>
-        </div>
-        <div v-if="history.length > 0" class="history-list">
-          <div v-for="h in history" :key="h.id" class="history-item">
-            <div class="history-main">
-              <span class="history-time">{{ formatTimestamp(h.timestamp) }}</span>
-              <span class="history-model">{{ h.model }}</span>
-              <button class="history-delete" :title="$t('concurrencyTest.delete')" @click="deleteHistory(h.id)">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            <div class="history-metrics">
-              <span :class="h.successCount === h.concurrency ? 'text-green' : 'text-yellow'">{{ h.successCount }}/{{ h.concurrency }}</span>
-              <span v-if="h.successCount > 0">TTFT {{ h.avgTtftMs }}{{ $t('concurrencyTest.ms') }}</span>
-              <span v-if="h.successCount > 0">{{ h.avgTokensPerSec }}{{ $t('concurrencyTest.tokPerSec') }}</span>
-            </div>
+      <button
+        class="start-btn"
+        :disabled="testing || !selectedModel"
+        @click="startTest"
+      >
+        <template v-if="testing">{{ runningText }}</template>
+        <template v-else>{{ $t('concurrencyTest.start') }}</template>
+      </button>
+
+      <!-- 测试过程：每个请求一行 -->
+      <div v-if="testing || result" class="progress-list">
+        <div v-for="(s, i) in requestStates" :key="i" class="request-row" @mouseenter="hoveredIndex = i" @mouseleave="hoveredIndex = -1">
+          <span class="indicator" :class="s" />
+          <span class="request-text">{{ tailText(requestTexts[i]) }}</span>
+          <!-- 悬浮信息 -->
+          <div v-if="hoveredIndex === i" class="row-tooltip">
+            <template v-if="s === 'pending'">
+              <span>Waiting... {{ elapsedStr(i) }}</span>
+            </template>
+            <template v-else-if="s === 'streaming'">
+              <span>Streaming {{ elapsedStr(i) }}</span>
+            </template>
+            <template v-else-if="s === 'success'">
+              <span>TTFT {{ (requestMetrics[i].ttftMs / 1000).toFixed(2) }}s · Total {{ (requestMetrics[i].totalMs / 1000).toFixed(2) }}s · {{ requestMetrics[i].tokensPerSec }} tok/s</span>
+            </template>
+            <template v-else-if="s === 'fail'">
+              <span class="tooltip-error">{{ requestMetrics[i].error || 'Failed' }}</span>
+            </template>
           </div>
         </div>
-        <div v-else class="history-empty">
-          {{ $t('concurrencyTest.noHistory') }}
+      </div>
+
+      <!-- 结果 -->
+      <div v-if="result" class="result-card">
+        <div class="result-row main-result">
+          <span>{{ $t('concurrencyTest.success') }}: <strong :class="result.successCount === result.concurrency ? 'text-green' : 'text-yellow'">{{ result.successCount }}/{{ result.concurrency }}</strong></span>
+          <span>{{ $t('concurrencyTest.totalTime') }}: {{ formatTime(result.totalTimeMs) }}</span>
         </div>
-      </section>
+        <div v-if="result.successCount > 0" class="result-details">
+          <div class="detail-row">
+            <span>{{ $t('concurrencyTest.avgTtft') }}</span>
+            <span>{{ (result.avgTtftMs / 1000).toFixed(2) }} {{ $t('concurrencyTest.seconds') }}</span>
+          </div>
+          <div class="detail-row">
+            <span>{{ $t('concurrencyTest.avgSpeed') }}</span>
+            <span>{{ result.avgTokensPerSec }} {{ $t('concurrencyTest.tokPerSec') }}</span>
+          </div>
+          <div class="detail-row">
+            <span>{{ $t('concurrencyTest.ttftRange') }}</span>
+            <span>{{ (result.minTtftMs / 1000).toFixed(2) }}/{{ (result.maxTtftMs / 1000).toFixed(2) }} {{ $t('concurrencyTest.seconds') }}</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -141,9 +155,14 @@ const testing = ref(false)
 const result = ref<ConcurrencyTestResult | null>(null)
 const history = ref<ConcurrencyTestResult[]>([])
 const progress = ref({ completed: 0, total: 0 })
-const requestStates = ref<('pending' | 'success' | 'fail')[]>([])
-const streamText = ref('')
-const streamEl = ref<HTMLElement | null>(null)
+const requestStates = ref<('pending' | 'streaming' | 'success' | 'fail')[]>([])
+const requestTexts = ref<string[]>([])
+const requestMetrics = ref<{ ttftMs: number; totalMs: number; tokenCount: number; tokensPerSec: number; error?: string }[]>([])
+const showHistory = ref(false)
+const hoveredIndex = ref(-1)
+const testStartTime = ref(0)
+const now = ref(Date.now())
+let timerHandle: ReturnType<typeof setInterval> | undefined
 
 const runningText = computed(() => {
   return t('concurrencyTest.running', {
@@ -152,22 +171,41 @@ const runningText = computed(() => {
   })
 })
 
-function onProgress(data: { index: number; total: number; success: boolean }) {
+function onProgress(data: { index: number; total: number; success: boolean; ttftMs: number; totalMs: number; tokenCount: number; tokensPerSec: number; error?: string }) {
   if (requestStates.value.length !== data.total) {
     requestStates.value = Array(data.total).fill('pending')
+    requestTexts.value = Array(data.total).fill('')
+    requestMetrics.value = Array(data.total).fill(null)
   }
   requestStates.value[data.index] = data.success ? 'success' : 'fail'
+  requestMetrics.value[data.index] = { ttftMs: data.ttftMs, totalMs: data.totalMs, tokenCount: data.tokenCount, tokensPerSec: data.tokensPerSec, error: data.error }
   progress.value = {
-    completed: requestStates.value.filter(s => s !== 'pending').length,
+    completed: requestStates.value.filter(s => s !== 'pending' && s !== 'streaming').length,
     total: data.total,
   }
 }
 
-function onStreamText(text: string) {
-  streamText.value += text
-  nextTick(() => {
-    if (streamEl.value) streamEl.value.scrollTop = streamEl.value.scrollHeight
-  })
+function onStreamText(info: { index: number; text: string }) {
+  if (requestTexts.value.length > info.index) {
+    requestTexts.value[info.index] += info.text
+  }
+}
+
+function onFirstContent(info: { index: number; total: number }) {
+  if (requestStates.value[info.index] === 'pending') {
+    requestStates.value[info.index] = 'streaming'
+  }
+}
+
+function tailText(text: string | undefined): string {
+  if (!text) return ''
+  return text.length > 80 ? '…' + text.slice(-80) : text
+}
+
+function elapsedStr(_index: number): string {
+  const ms = now.value - testStartTime.value
+  if (ms < 1000) return `${ms}ms`
+  return `${(ms / 1000).toFixed(1)}s`
 }
 
 async function startTest() {
@@ -175,7 +213,11 @@ async function startTest() {
   result.value = null
   progress.value = { completed: 0, total: concurrency.value }
   requestStates.value = Array(concurrency.value).fill('pending')
-  streamText.value = ''
+  requestTexts.value = Array(concurrency.value).fill('')
+  requestMetrics.value = Array(concurrency.value).fill(null)
+  testStartTime.value = Date.now()
+  now.value = Date.now()
+  timerHandle = setInterval(() => { now.value = Date.now() }, 100)
 
   try {
     const res = await window.electronAPI.concurrencyTestStart({
@@ -186,10 +228,14 @@ async function startTest() {
     })
     testing.value = false
     result.value = res
+    clearInterval(timerHandle)
+    timerHandle = undefined
     await loadHistory()
   } catch (e) {
     console.error('[ConcurrencyTest] Test failed:', e)
     testing.value = false
+    clearInterval(timerHandle)
+    timerHandle = undefined
   }
 }
 
@@ -199,6 +245,11 @@ async function loadHistory() {
   } catch {
     history.value = []
   }
+}
+
+function openHistory() {
+  loadHistory()
+  showHistory.value = true
 }
 
 async function deleteHistory(id: string) {
@@ -243,11 +294,14 @@ onMounted(() => {
   loadHistory()
   window.electronAPI.onConcurrencyTestProgress(onProgress)
   window.electronAPI.onConcurrencyTestStream(onStreamText)
+  window.electronAPI.onConcurrencyTestFirstContent(onFirstContent)
 })
 
 onUnmounted(() => {
   window.electronAPI.offConcurrencyTestProgress(onProgress)
   window.electronAPI.offConcurrencyTestStream(onStreamText)
+  window.electronAPI.offConcurrencyTestFirstContent(onFirstContent)
+  if (timerHandle) clearInterval(timerHandle)
 })
 </script>
 
@@ -258,40 +312,255 @@ onUnmounted(() => {
   height: 100%;
 }
 
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+}
+
+.header h1 {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+.icon-btn:hover {
+  color: var(--text-primary);
+  background: var(--border-subtle, rgba(255,255,255,0.06));
+}
+
+/* 测试页 */
 .test-body {
   flex: 1;
   overflow-y: auto;
-  scroll-snap-type: y mandatory;
-  -webkit-overflow-scrolling: touch;
+  padding: 0 10px 10px;
+  display: flex;
+  flex-direction: column;
 }
 
 .test-body::-webkit-scrollbar { width: 3px; }
 .test-body::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
 
-.page {
-  min-height: 100%;
-  scroll-snap-align: start;
-  padding: 0 10px;
-  display: flex;
-  flex-direction: column;
-}
-
-.page-hint {
-  margin-top: auto;
-  padding-top: 8px;
-  font-size: 9px;
-  color: var(--text-quaternary, rgba(120, 120, 140, 0.4));
+.disclaimer {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+  padding: 4px 0 6px;
   text-align: center;
 }
 
-.history-header {
+.settings-card {
+  background: var(--bg-settings-card);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.config-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
-  font-weight: 600;
+  gap: 8px;
+}
+
+.config-label {
+  font-size: 11px;
   color: var(--text-secondary);
-  padding: 4px 0 6px;
+  min-width: 48px;
+}
+
+.config-select {
+  flex: 1;
+  font-size: 11px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.start-btn {
+  font-size: 11px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-default, rgba(255,255,255,0.12));
+  border-radius: 5px;
+  background: var(--bg-settings-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  margin-bottom: 6px;
+}
+.start-btn:hover:not(:disabled) {
+  border-color: var(--text-tertiary);
+}
+.start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 请求行列表 */
+.progress-list {
+  background: var(--bg-settings-card);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.request-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 14px;
+  position: relative;
+}
+
+.row-tooltip {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 10;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: var(--bg-settings-card, rgba(30, 30, 40, 0.95));
+  border: 1px solid var(--border-default, rgba(255,255,255,0.12));
+  border-radius: 4px;
+  padding: 4px 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  max-width: 280px;
+}
+
+.tooltip-error {
+  white-space: normal;
+  word-break: break-all;
+  color: #f87171;
+}
+
+.indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-top: 3px;
+  flex-shrink: 0;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.indicator.pending {
+  background: var(--border-default, rgba(255,255,255,0.12));
+  box-shadow: none;
+}
+.indicator.streaming {
+  background: #EAB308;
+  box-shadow: 0 0 4px rgba(234, 179, 8, 0.4);
+}
+.indicator.success {
+  background: #22C55E;
+  box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
+}
+.indicator.fail {
+  background: #ef4444;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+}
+
+.request-text {
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.stream-cursor {
+  animation: blink 0.8s step-end infinite;
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* 结果 */
+.result-card {
+  background: var(--bg-settings-card);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.main-result strong {
+  font-size: 12px;
+}
+
+.text-green { color: #22C55E; }
+.text-yellow { color: #EAB308; }
+
+.result-details {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+/* 历史记录页 */
+.history-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 10px 10px;
+}
+
+.history-body::-webkit-scrollbar { width: 3px; }
+.history-body::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+
+.history-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.history-count {
+  font-size: 10px;
+  color: var(--text-tertiary);
 }
 
 .clear-all-btn {
@@ -342,155 +611,7 @@ onUnmounted(() => {
   background: var(--border-subtle, rgba(255,255,255,0.06));
 }
 
-.history-page {
-  padding-bottom: 10px;
-}
-
-.disclaimer {
-  font-size: 10px;
-  color: var(--text-tertiary);
-  line-height: 1.4;
-  padding: 4px 0 6px;
-  text-align: center;
-}
-
-.settings-card {
-  background: var(--bg-settings-card);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.config-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.config-label {
-  font-size: 11px;
-  color: var(--text-secondary);
-  min-width: 48px;
-}
-
-.config-select {
-  flex: 1;
-  font-size: 11px;
-  padding: 3px 6px;
-  border: 1px solid var(--border-default);
-  border-radius: 4px;
-  background: var(--bg-input);
-  color: var(--text-primary);
-  outline: none;
-}
-
-.start-btn {
-  font-size: 11px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 5px;
-  background: #3B82F6;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.2s;
-  margin-bottom: 6px;
-}
-.start-btn:hover:not(:disabled) {
-  background: #2563EB;
-}
-.start-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.progress-card {
-  background: var(--bg-settings-card);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 6px;
-}
-
-.progress-dots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  justify-content: center;
-  margin-bottom: 6px;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  transition: background 0.2s;
-}
-.dot.pending { background: var(--border-default, rgba(255,255,255,0.12)); }
-.dot.success { background: #22C55E; }
-.dot.fail { background: #EAB308; }
-
-.stream-preview {
-  font-size: 10px;
-  line-height: 1.5;
-  color: var(--text-secondary);
-  max-height: 80px;
-  overflow-y: auto;
-  word-break: break-all;
-}
-.stream-preview::-webkit-scrollbar { width: 2px; }
-.stream-preview::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
-
-.stream-cursor {
-  animation: blink 0.8s step-end infinite;
-  color: var(--text-tertiary);
-}
-@keyframes blink {
-  50% { opacity: 0; }
-}
-
-.result-card {
-  background: var(--bg-settings-card);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 6px;
-}
-
-.result-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.main-result strong {
-  font-size: 12px;
-}
-
-.text-green { color: #22C55E; }
-.text-yellow { color: #EAB308; }
-
-.result-details {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: var(--text-tertiary);
-}
-
 .history-list {
-  margin-top: 4px;
   background: var(--bg-settings-card);
   border-radius: 8px;
   padding: 8px 12px;

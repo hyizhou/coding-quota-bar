@@ -639,9 +639,13 @@ function setupIpcHandlers(): void {
       if (popupWindow && !popupWindow.isDestroyed()) {
         popupWindow.webContents.send('concurrency-test-progress', info);
       }
-    }, (text) => {
+    }, (info) => {
       if (popupWindow && !popupWindow.isDestroyed()) {
-        popupWindow.webContents.send('concurrency-test-stream', text);
+        popupWindow.webContents.send('concurrency-test-stream', info);
+      }
+    }, (info) => {
+      if (popupWindow && !popupWindow.isDestroyed()) {
+        popupWindow.webContents.send('concurrency-test-first-content', info);
       }
     });
   });

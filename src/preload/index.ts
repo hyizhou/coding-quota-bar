@@ -118,7 +118,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /**
    * 并发测试：监听进度
    */
-  onConcurrencyTestProgress: (callback: (progress: { index: number; total: number; success: boolean }) => void) => {
+  onConcurrencyTestProgress: (callback: (progress: { index: number; total: number; success: boolean; ttftMs: number; totalMs: number; tokenCount: number; tokensPerSec: number; error?: string }) => void) => {
     const handler = (_: any, data: any) => callback(data);
     (callback as any).__ipcHandler = handler;
     ipcRenderer.on('concurrency-test-progress', handler);
@@ -135,7 +135,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /**
    * 并发测试：监听实时文字流
    */
-  onConcurrencyTestStream: (callback: (text: string) => void) => {
+  onConcurrencyTestStream: (callback: (info: { index: number; text: string }) => void) => {
     const handler = (_: any, data: any) => callback(data);
     (callback as any).__ipcStreamHandler = handler;
     ipcRenderer.on('concurrency-test-stream', handler);
@@ -144,9 +144,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /**
    * 并发测试：取消监听文字流
    */
-  offConcurrencyTestStream: (callback: (text: string) => void) => {
+  offConcurrencyTestStream: (callback: (info: { index: number; text: string }) => void) => {
     const handler = (callback as any).__ipcStreamHandler;
     if (handler) ipcRenderer.removeListener('concurrency-test-stream', handler);
+  },
+
+  /**
+   * 并发测试：监听首字到达
+   */
+  onConcurrencyTestFirstContent: (callback: (info: { index: number; total: number }) => void) => {
+    const handler = (_: any, data: any) => callback(data);
+    (callback as any).__ipcFirstContentHandler = handler;
+    ipcRenderer.on('concurrency-test-first-content', handler);
+  },
+
+  /**
+   * 并发测试：取消监听首字到达
+   */
+  offConcurrencyTestFirstContent: (callback: (info: { index: number; total: number }) => void) => {
+    const handler = (callback as any).__ipcFirstContentHandler;
+    if (handler) ipcRenderer.removeListener('concurrency-test-first-content', handler);
   },
 
   /**
