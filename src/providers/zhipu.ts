@@ -1,4 +1,4 @@
-import type { Provider, ProviderConfig, UsageResult } from '../shared/types';
+import type { Provider, ProviderConfig, SubscriptionInfo, UsageResult } from '../shared/types';
 import { HttpClientWithRetry } from '../main/http';
 
 /**
@@ -87,6 +87,28 @@ interface ZhipuPerformanceResponse {
 }
 
 /**
+ * 智谱 subscription/list API 响应类型
+ */
+interface ZhipuSubscriptionItem {
+  productName: string;
+  status: string;
+  valid: string;
+  currentRenewTime: string;
+  nextRenewTime: string;
+  autoRenew: number;
+  actualPrice: number;
+  renewPrice: number;
+  billingCycle: string;
+}
+
+interface ZhipuSubscriptionResponse {
+  code: number;
+  data?: ZhipuSubscriptionItem[];
+  msg?: string;
+  success?: boolean;
+}
+
+/**
  * 格式化日期为 API 要求的格式
  */
 function formatDateTime(date: Date): string {
@@ -167,8 +189,9 @@ export class ZhipuProvider implements Provider {
     let perfResp7d: ZhipuPerformanceResponse | null = null;
     let perfResp15d: ZhipuPerformanceResponse | null = null;
     let perfResp30d: ZhipuPerformanceResponse | null = null;
+    let subResp: ZhipuSubscriptionResponse | null = null;
     try {
-      [resp1d, resp7d, resp30d, toolResp1d, toolResp7d, toolResp30d, perfResp7d, perfResp15d, perfResp30d] = await Promise.all([
+      [resp1d, resp7d, resp30d, toolResp1d, toolResp7d, toolResp30d, perfResp7d, perfResp15d, perfResp30d, subResp] = await Promise.all([
         this.httpClient.getJson<ZhipuModelUsageResponse>(
           `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
           headers
@@ -203,6 +226,10 @@ export class ZhipuProvider implements Provider {
         ),
         this.httpClient.getJson<ZhipuPerformanceResponse>(
           `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+          headers
+        ),
+        this.httpClient.getJson<ZhipuSubscriptionResponse>(
+          `${baseUrl}/api/biz/subscription/list?pageSize=9999&pageNum=1`,
           headers
         )
       ]);
@@ -241,6 +268,12 @@ export class ZhipuProvider implements Provider {
     const tokenLimit = quotaResp.data.limits.find(item => item.type === 'TOKENS_LIMIT');
     const tokenQuota = tokenLimit ? quotas[quotaResp.data.limits.indexOf(tokenLimit)] : undefined;
 
+    // 5. 解析订阅信息
+    const hasWeeklyLimit = quotaResp.data.limits.some(
+      item => item.type === 'TOKENS_LIMIT' && item.unit === 1 && item.number === 7
+    );
+    const subscription = this.parseSubscription(subResp, quotaResp.data.level, hasWeeklyLimit);
+
     return {
       used: tokenQuota?.used ?? 0,
       total: tokenQuota?.total ?? 0,
@@ -248,6 +281,7 @@ export class ZhipuProvider implements Provider {
       level: quotaResp.data.level,
       details: {
         quotas,
+        subscription,
         history1d: this.buildUsageHistory(resp1d),
         history7d: this.buildUsageHistory(resp7d),
         history30d: this.buildUsageHistory(resp30d),
@@ -345,5 +379,24 @@ export class ZhipuProvider implements Provider {
         proMaxSuccessRate: resp.data!.proMaxSuccessRate[i] ?? 0,
       }))
       .filter(r => r.liteDecodeSpeed > 0 || r.proMaxDecodeSpeed > 0);
+  }
+
+  /**
+   * 从订阅 API 响应解析当前有效的订阅信息
+   */
+  private parseSubscription(resp: ZhipuSubscriptionResponse | null, level: string, hasWeeklyLimit: boolean): SubscriptionInfo | undefined {
+    if (!resp?.data?.length) return undefined;
+    const sub = resp.data.find(s => s.status === 'VALID');
+    if (!sub) return undefined;
+    return {
+      plan: hasWeeklyLimit ? `新 ${level.toUpperCase()}` : `老 ${level.toUpperCase()}`,
+      status: sub.status,
+      currentRenewTime: sub.currentRenewTime,
+      nextRenewTime: sub.nextRenewTime,
+      autoRenew: sub.autoRenew === 1,
+      actualPrice: sub.actualPrice,
+      renewPrice: sub.renewPrice,
+      billingCycle: sub.billingCycle,
+    };
   }
 }

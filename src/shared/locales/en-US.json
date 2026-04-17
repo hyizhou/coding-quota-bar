@@ -110,5 +110,18 @@
     "zhipu": "Z AI",
     "minimax": "MiniMax",
     "kimi": "Kimi"
+  },
+  "subscription": {
+    "plan": "Plan",
+    "subDate": "Sub Date",
+    "nextRenew": "Next Renew",
+    "autoRenew": "Auto Renew",
+    "actualPrice": "Paid",
+    "renewPrice": "Renewal",
+    "yes": "Yes",
+    "no": "No",
+    "yearly": "Yearly",
+    "monthly": "Monthly",
+    "yuan": "¥{n}"
   }
 }

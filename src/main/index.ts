@@ -761,6 +761,7 @@ function convertAccountData(
     id: accountId,
     label: getAccountLabel(type, accountId) || undefined,
     level: result.level,
+    subscription: result.details?.subscription as import('../shared/types').SubscriptionInfo | undefined,
     error: result.error,
     quotas,
     history1d: mapHistory('history1d'),

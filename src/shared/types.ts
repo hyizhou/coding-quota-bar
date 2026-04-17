@@ -77,6 +77,20 @@ export interface PerformanceRecord {
 }
 
 /**
+ * 订阅信息
+ */
+export interface SubscriptionInfo {
+  plan: string;             // 套餐标识，如 "新 pro"、"老 lite"
+  status: string;           // 订阅状态，如 "VALID"
+  currentRenewTime: string;  // 当前订阅日期
+  nextRenewTime: string;    // 下次续费日期
+  autoRenew: boolean;       // 是否自动续费
+  actualPrice: number;      // 实付价格（元）
+  renewPrice: number;       // 续费价格（元）
+  billingCycle: string;     // 计费周期，如 "annually"
+}
+
+/**
  * 用量查询结果
  */
 export interface UsageResult {
@@ -86,8 +100,9 @@ export interface UsageResult {
   level?: string;        // 套餐等级，如 "lite"、"pro"、"max"
   error?: string;        // 错误信息（如 key 无效、网络异常等）
   details?: {
-    quotas?: QuotaItem[];          // 多个额度项
-    usageHistory?: UsageRecord[];  // 历史统计
+    quotas?: QuotaItem[];                // 多个额度项
+    usageHistory?: UsageRecord[];        // 历史统计
+    subscription?: SubscriptionInfo;     // 订阅信息
     [key: string]: unknown;
   };
 }

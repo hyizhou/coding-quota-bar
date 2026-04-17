@@ -110,5 +110,18 @@
     "zhipu": "智谱",
     "minimax": "MiniMax",
     "kimi": "Kimi"
+  },
+  "subscription": {
+    "plan": "套餐",
+    "subDate": "订阅日期",
+    "nextRenew": "续费日期",
+    "autoRenew": "自动续费",
+    "actualPrice": "实付价格",
+    "renewPrice": "续费价格",
+    "yes": "是",
+    "no": "否",
+    "yearly": "年付",
+    "monthly": "月付",
+    "yuan": "¥{n}"
   }
 }

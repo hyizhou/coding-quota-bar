@@ -2,6 +2,17 @@
  * Renderer 进程共享类型定义
  */
 
+export interface SubscriptionInfo {
+  plan: string
+  status: string
+  currentRenewTime: string
+  nextRenewTime: string
+  autoRenew: boolean
+  actualPrice: number
+  renewPrice: number
+  billingCycle: string
+}
+
 export interface QuotaItem {
   label: string
   labelParams?: Record<string, string | number>
@@ -46,6 +57,7 @@ export interface AccountUsageData {
   id: string
   label?: string
   level?: string
+  subscription?: SubscriptionInfo
   error?: string
   quotas: QuotaItem[]
   history1d: UsageRecord[]

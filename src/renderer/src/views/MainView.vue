@@ -55,7 +55,17 @@
                 {{ acc.label || $t('main.defaultAccountLabel', { n: idx + 1 }) }}
               </button>
             </div>
-            <span v-if="getActiveAccount(p)?.level" class="provider-level">{{ getActiveAccount(p)!.level }}</span>
+            <span v-if="getActiveAccount(p)?.level" class="provider-level-wrapper">
+              <span class="provider-level">{{ getActiveAccount(p)!.level }}</span>
+              <div v-if="getActiveAccount(p)?.subscription" class="sub-tooltip">
+                <div class="sub-tooltip-row"><span class="sub-label">{{ $t('subscription.plan') }}</span><span class="sub-value">{{ getActiveAccount(p)!.subscription!.plan }}</span></div>
+                <div class="sub-tooltip-row"><span class="sub-label">{{ $t('subscription.subDate') }}</span><span class="sub-value">{{ getActiveAccount(p)!.subscription!.currentRenewTime }}</span></div>
+                <div class="sub-tooltip-row"><span class="sub-label">{{ $t('subscription.nextRenew') }}</span><span class="sub-value">{{ getActiveAccount(p)!.subscription!.nextRenewTime }}</span></div>
+                <div class="sub-tooltip-row"><span class="sub-label">{{ $t('subscription.autoRenew') }}</span><span class="sub-value">{{ getActiveAccount(p)!.subscription!.autoRenew ? $t('subscription.yes') : $t('subscription.no') }}</span></div>
+                <div class="sub-tooltip-row"><span class="sub-label">{{ $t('subscription.actualPrice') }}</span><span class="sub-value">{{ getActiveAccount(p)!.subscription!.actualPrice }}</span></div>
+                <div class="sub-tooltip-row"><span class="sub-label">{{ $t('subscription.renewPrice') }}</span><span class="sub-value">{{ getActiveAccount(p)!.subscription!.renewPrice }}</span></div>
+              </div>
+            </span>
           </div>
 
           <template v-if="getActiveAccount(p)">
@@ -313,6 +323,12 @@ onMounted(() => {
   border-color: var(--border-default);
 }
 
+.provider-level-wrapper {
+  position: relative;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .provider-level {
   font-size: 10px;
   font-weight: 600;
@@ -323,9 +339,49 @@ onMounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
-  margin-left: auto;
-  flex-shrink: 0;
   line-height: 1;
+  cursor: default;
+}
+
+.provider-level-wrapper:hover .sub-tooltip {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.sub-tooltip {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  transform: scale(0.9);
+  transform-origin: top right;
+  background: var(--bg-app);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-app);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 10px;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  white-space: nowrap;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.sub-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  line-height: 1.6;
+}
+
+.sub-label {
+  color: var(--text-secondary);
+}
+
+.sub-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .provider-section .quota-row-single .quota-card {
