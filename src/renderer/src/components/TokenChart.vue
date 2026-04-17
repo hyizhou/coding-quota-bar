@@ -3,15 +3,9 @@
     <div class="chart-header">
       <div class="chart-left">
         <span class="chart-title">{{ title }}</span>
-        <span class="chart-total-wrapper">
+        <FloatingTooltip position="top" align="center" :rows="totalRows">
           <span class="chart-total">{{ formatCount(totalUsed) }}</span>
-          <div class="chart-total-tooltip">
-            <div v-for="[model, value] in modelTotals" :key="model" class="tooltip-row">
-              <span class="tooltip-model">{{ model }}</span>
-              <span class="tooltip-value">{{ formatCount(value) }}</span>
-            </div>
-          </div>
-        </span>
+        </FloatingTooltip>
       </div>
     </div>
     <div class="chart-wrapper">
@@ -31,6 +25,7 @@ import {
   Tooltip
 } from 'chart.js'
 import type { ModelTokenRecord } from '../types'
+import FloatingTooltip from './FloatingTooltip.vue'
 import { useTheme } from '../composables/useTheme'
 
 /** 鼠标悬停时绘制垂直辅助线 */
@@ -260,6 +255,10 @@ const modelTotals = computed(() => {
   return map
 })
 
+const totalRows = computed(() =>
+  Array.from(modelTotals.value, ([model, value]) => ({ label: model, value: formatCount(value) }))
+)
+
 const barData = computed(() => ({
   labels: stacked.value.labels,
   datasets: stacked.value.models.map((model, idx) => ({
@@ -374,48 +373,5 @@ const chartOptions = computed(() => ({
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   cursor: default;
-}
-
-.chart-total-wrapper {
-  position: relative;
-}
-
-.chart-total-tooltip {
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%) scale(0.9);
-  transform-origin: bottom center;
-  background: rgba(0, 0, 0, 0.85);
-  color: #fff;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 10px;
-  white-space: nowrap;
-  z-index: 10;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.chart-total-wrapper:hover .chart-total-tooltip {
-  opacity: 1;
-  transform: translateX(-50%) scale(1);
-}
-
-.tooltip-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  line-height: 1.6;
-}
-
-.tooltip-model {
-  color: #bbb;
-}
-
-.tooltip-value {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 </style>

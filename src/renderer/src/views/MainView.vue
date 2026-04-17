@@ -55,17 +55,9 @@
                 {{ acc.label || $t('main.defaultAccountLabel', { n: idx + 1 }) }}
               </button>
             </div>
-            <span v-if="getActiveAccount(p)?.level" class="provider-level-wrapper">
+            <FloatingTooltip v-if="getActiveAccount(p)?.level" position="bottom" align="right" :rows="getSubRows(getActiveAccount(p)!.subscription)">
               <span class="provider-level">{{ getActiveAccount(p)!.level }}</span>
-              <div v-if="getActiveAccount(p)?.subscription" class="sub-tooltip">
-                <div class="sub-tooltip-row"><span class="sub-label">{{ $t('subscription.plan') }}</span><span class="sub-value">{{ getActiveAccount(p)!.subscription!.plan }}</span></div>
-                <div class="sub-tooltip-row"><span class="sub-label">{{ $t('subscription.subDate') }}</span><span class="sub-value">{{ getActiveAccount(p)!.subscription!.currentRenewTime }}</span></div>
-                <div class="sub-tooltip-row"><span class="sub-label">{{ $t('subscription.nextRenew') }}</span><span class="sub-value">{{ getActiveAccount(p)!.subscription!.nextRenewTime }}</span></div>
-                <div class="sub-tooltip-row"><span class="sub-label">{{ $t('subscription.autoRenew') }}</span><span class="sub-value">{{ getActiveAccount(p)!.subscription!.autoRenew ? $t('subscription.yes') : $t('subscription.no') }}</span></div>
-                <div class="sub-tooltip-row"><span class="sub-label">{{ $t('subscription.actualPrice') }}</span><span class="sub-value">{{ getActiveAccount(p)!.subscription!.actualPrice }}</span></div>
-                <div class="sub-tooltip-row"><span class="sub-label">{{ $t('subscription.renewPrice') }}</span><span class="sub-value">{{ getActiveAccount(p)!.subscription!.renewPrice }}</span></div>
-              </div>
-            </span>
+            </FloatingTooltip>
           </div>
 
           <template v-if="getActiveAccount(p)">
@@ -113,6 +105,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import QuotaCard from '../components/QuotaCard.vue'
+import FloatingTooltip from '../components/FloatingTooltip.vue'
 import UsageStats from '../components/UsageStats.vue'
 import PerformanceChart from '../components/PerformanceChart.vue'
 import type { ProviderUsageData, AccountUsageData, QuotaItem, UsageState } from '../types'
@@ -232,6 +225,18 @@ function openProviderWebsite(url?: string) {
   if (url) window.electronAPI.openExternal(url)
 }
 
+function getSubRows(sub: AccountUsageData['subscription']) {
+  if (!sub) return []
+  return [
+    { label: t('subscription.plan'), value: sub.plan },
+    { label: t('subscription.subDate'), value: sub.currentRenewTime },
+    { label: t('subscription.nextRenew'), value: sub.nextRenewTime },
+    { label: t('subscription.autoRenew'), value: sub.autoRenew ? t('subscription.yes') : t('subscription.no') },
+    { label: t('subscription.actualPrice'), value: String(sub.actualPrice) },
+    { label: t('subscription.renewPrice'), value: String(sub.renewPrice) },
+  ]
+}
+
 function onTabsWheel(e: WheelEvent) {
   const el = e.currentTarget as HTMLElement
   el.scrollLeft += e.deltaY
@@ -323,12 +328,6 @@ onMounted(() => {
   border-color: var(--border-default);
 }
 
-.provider-level-wrapper {
-  position: relative;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
 .provider-level {
   font-size: 10px;
   font-weight: 600;
@@ -343,45 +342,9 @@ onMounted(() => {
   cursor: default;
 }
 
-.provider-level-wrapper:hover .sub-tooltip {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.sub-tooltip {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  transform: scale(0.9);
-  transform-origin: top right;
-  background: var(--bg-app);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--shadow-app);
-  color: var(--text-primary);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 10px;
-  z-index: 100;
-  pointer-events: none;
-  opacity: 0;
-  white-space: nowrap;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.sub-tooltip-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  line-height: 1.6;
-}
-
-.sub-label {
-  color: var(--text-secondary);
-}
-
-.sub-value {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+.provider-name-row > .ft-wrapper {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .provider-section .quota-row-single .quota-card {
