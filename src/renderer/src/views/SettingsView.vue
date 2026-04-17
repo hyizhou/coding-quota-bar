@@ -97,9 +97,10 @@
         </div>
         <div class="toggle-group">
           <label class="toggle-row">
-            <input type="checkbox" v-model="autoStart" />
+            <input type="checkbox" v-model="autoStart" :disabled="!isPackaged" />
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.autoStart') }}</span>
+            <span v-if="!isPackaged" class="dev-hint">{{ $t('settings.devModeHint') }}</span>
           </label>
           <label class="toggle-row" :title="$t('settings.memorySavingModeHint')">
             <input type="checkbox" v-model="memorySavingMode" />
@@ -170,6 +171,7 @@ interface ProviderInfo {
 const providerList = ref<ProviderInfo[]>([])
 const refreshInterval = ref('300')
 const autoStart = ref(false)
+const isPackaged = ref(true)
 const language = ref('zh-CN')
 const popupTrigger = ref<'hover' | 'click'>('hover')
 const memorySavingMode = ref(false)
@@ -243,6 +245,7 @@ onMounted(async () => {
   })
   refreshInterval.value = String(config.refreshInterval)
   autoStart.value = config.autoStart
+  isPackaged.value = (config as any).isPackaged ?? true
   language.value = config.language || locale.value
   popupTrigger.value = config.popupTrigger ?? 'hover'
   memorySavingMode.value = config.memorySavingMode ?? false
@@ -565,5 +568,13 @@ async function handleStartDownload() {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.dev-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  margin-left: 6px;
+  white-space: nowrap;
 }
 </style>

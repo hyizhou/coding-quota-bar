@@ -48,6 +48,7 @@
     "interval10m": "10 minutes",
     "interval30m": "30 minutes",
     "autoStart": "Launch at startup",
+    "devModeHint": "(Dev mode, disabled)",
     "saveBtn": "Save Settings",
     "saving": "Saving...",
     "saved": "Saved",

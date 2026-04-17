@@ -48,6 +48,7 @@
     "interval10m": "10 分钟",
     "interval30m": "30 分钟",
     "autoStart": "开机自启动",
+    "devModeHint": "（开发模式，此功能无效）",
     "saveBtn": "保存设置",
     "saving": "保存中...",
     "saved": "已保存",

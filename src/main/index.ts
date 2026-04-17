@@ -517,6 +517,11 @@ function setupConfigListeners(): void {
  * 设置开机自启
  */
 function updateAutoStart(enabled: boolean): void {
+  // 开发模式下跳过自启注册，避免将 electron.exe 路径写入系统启动项
+  if (!app.isPackaged) {
+    console.log('[App] Auto-start skipped: running in development mode');
+    return;
+  }
   app.setLoginItemSettings({
     openAtLogin: enabled,
     openAsHidden: true
@@ -561,7 +566,7 @@ function setupIpcHandlers(): void {
 
   // 获取配置
   ipcMain.handle('get-config', () => {
-    return configManager?.getConfig();
+    return { ...configManager?.getConfig(), isPackaged: app.isPackaged };
   });
 
   // 获取可用的 provider 列表（编译时配置）
