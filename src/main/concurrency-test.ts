@@ -105,6 +105,9 @@ const API_BASE_ANTHROPIC = 'https://open.bigmodel.cn/api/anthropic';
 
 const MAX_HISTORY = 20;
 
+/** 模拟 Claude Code 会话级固定 Session ID */
+const sessionId = generateId() + '-' + generateId();
+
 /**
  * 并发测试引擎
  */
@@ -386,6 +389,10 @@ function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (te
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
+        'x-app': 'cli',
+        'User-Agent': 'claude-cli/2.0.21 (external, cli)',
+        'X-Claude-Code-Session-Id': sessionId,
+        'x-client-request-id': generateId(),
         'anthropic-version': '2023-06-01',
         'Accept': 'text/event-stream',
       },
