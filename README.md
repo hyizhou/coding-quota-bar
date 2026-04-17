@@ -34,7 +34,7 @@ Windows 系统托盘应用，实时监控 AI 平台 Coding Plan 用量配额。
 
 ## 安装
 
-在win11上测试通过，其他系统请自行测试。
+访问[Github Releases](https://github.com/hyizhou/coding-quota-bar/releases)下载并安装
 
 ## License
 
