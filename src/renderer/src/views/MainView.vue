@@ -52,34 +52,47 @@
         </div>
       </template>
 
-      <template v-for="p in providers" :key="p.key">
+      <template v-else>
+        <div v-if="providers.length > 1" class="provider-tabs" @wheel.passive="onTabsWheel">
+          <button
+            v-for="p in providers"
+            :key="p.key"
+            class="provider-tab"
+            :class="{ active: activeProviderKey === p.key }"
+            @click="setActiveProvider(p.key)"
+          >
+            {{ p.name }}
+          </button>
+        </div>
+
+        <template v-if="activeProvider">
         <div class="provider-section">
           <div class="provider-name-row">
-            <span class="provider-name" :class="{ clickable: !!p.websiteUrl }" @click="openProviderWebsite(p.websiteUrl)">{{ p.name }}</span>
+            <span class="provider-name" :class="{ clickable: !!activeProvider.websiteUrl }" @click="openProviderWebsite(activeProvider.websiteUrl)">{{ activeProvider.name }}</span>
             <!-- 账户切换按钮：仅当 2 个及以上账户时显示 -->
-            <div v-if="p.accounts.length > 1" class="account-tabs" @wheel.passive="onTabsWheel">
+            <div v-if="activeProvider.accounts.length > 1" class="account-tabs" @wheel.passive="onTabsWheel">
               <button
-                v-for="(acc, idx) in p.accounts"
+                v-for="(acc, idx) in activeProvider.accounts"
                 :key="acc.id"
                 class="account-tab"
-                :class="{ active: getActiveAccountId(p) === acc.id }"
-                @click="setActiveAccount(p, acc.id)"
+                :class="{ active: getActiveAccountId(activeProvider) === acc.id }"
+                @click="setActiveAccount(activeProvider, acc.id)"
               >
                 {{ acc.label || $t('main.defaultAccountLabel', { n: idx + 1 }) }}
               </button>
             </div>
-            <FloatingTooltip v-if="getActiveAccount(p)?.level" position="bottom" align="right" :rows="getSubRows(getActiveAccount(p)!.subscription)">
-              <span class="provider-level">{{ getActiveAccount(p)!.level }}</span>
+            <FloatingTooltip v-if="getActiveAccount(activeProvider)?.level" position="bottom" align="right" :rows="getSubRows(getActiveAccount(activeProvider)!.subscription)">
+              <span class="provider-level">{{ getActiveAccount(activeProvider)!.level }}</span>
             </FloatingTooltip>
           </div>
 
-          <template v-if="getActiveAccount(p)">
-            <div v-if="getActiveAccount(p)!.error" class="error-card">
+          <template v-if="getActiveAccount(activeProvider)">
+            <div v-if="getActiveAccount(activeProvider)!.error" class="error-card">
               <span class="error-icon">!</span>
-              <span class="error-text">{{ formatError(getActiveAccount(p)!.error!) }}</span>
+              <span class="error-text">{{ formatError(getActiveAccount(activeProvider)!.error!) }}</span>
             </div>
             <template v-else>
-              <template v-for="(row, ri) in getQuotaRows(getActiveAccount(p)!.quotas)" :key="ri">
+              <template v-for="(row, ri) in getQuotaRows(getActiveAccount(activeProvider)!.quotas)" :key="ri">
                 <div v-if="row.length === 1" class="quota-row-single">
                   <QuotaCard v-bind="row[0]" />
                 </div>
@@ -88,23 +101,24 @@
                 </div>
               </template>
               <UsageStats
-                v-if="hasHistoryData(getActiveAccount(p)!)"
-                :model-records-1d="getActiveAccount(p)!.modelHistory1d"
-                :model-records-7d="getActiveAccount(p)!.modelHistory7d"
-                :model-records-30d="getActiveAccount(p)!.modelHistory30d"
-                :mcp-records-1d="getActiveAccount(p)!.mcpHistory1d"
-                :mcp-records-7d="getActiveAccount(p)!.mcpHistory7d"
-                :mcp-records-30d="getActiveAccount(p)!.mcpHistory30d"
+                v-if="hasHistoryData(getActiveAccount(activeProvider)!)"
+                :model-records-1d="getActiveAccount(activeProvider)!.modelHistory1d"
+                :model-records-7d="getActiveAccount(activeProvider)!.modelHistory7d"
+                :model-records-30d="getActiveAccount(activeProvider)!.modelHistory30d"
+                :mcp-records-1d="getActiveAccount(activeProvider)!.mcpHistory1d"
+                :mcp-records-7d="getActiveAccount(activeProvider)!.mcpHistory7d"
+                :mcp-records-30d="getActiveAccount(activeProvider)!.mcpHistory30d"
               />
               <PerformanceChart
-                v-if="hasPerformanceData(getActiveAccount(p)!)"
-                :records-7d="getActiveAccount(p)!.performanceHistory7d"
-                :records-15d="getActiveAccount(p)!.performanceHistory15d"
-                :records-30d="getActiveAccount(p)!.performanceHistory30d"
+                v-if="hasPerformanceData(getActiveAccount(activeProvider)!)"
+                :records-7d="getActiveAccount(activeProvider)!.performanceHistory7d"
+                :records-15d="getActiveAccount(activeProvider)!.performanceHistory15d"
+                :records-30d="getActiveAccount(activeProvider)!.performanceHistory30d"
               />
             </template>
           </template>
         </div>
+      </template>
       </template>
     </div>
 
@@ -136,20 +150,41 @@ const initialLoading = ref(true)
 const now = ref(Date.now())
 const isPinned = ref(false)
 
-// 每个选中的账户 provider key -> active account ID
-const STORAGE_KEY = 'active-accounts'
+// Provider Tab 状态
+const STORAGE_KEY_ACCOUNTS = 'active-accounts'
+const STORAGE_KEY_PROVIDER = 'active-provider'
 const activeAccounts = ref<Record<string, string>>({})
+const activeProviderKey = ref('')
 
 function saveActiveAccounts() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(activeAccounts.value)) } catch {}
+  try { localStorage.setItem(STORAGE_KEY_ACCOUNTS, JSON.stringify(activeAccounts.value)) } catch {}
 }
 
 function restoreActiveAccounts() {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY)
+    const saved = localStorage.getItem(STORAGE_KEY_ACCOUNTS)
     if (saved) activeAccounts.value = JSON.parse(saved)
   } catch {}
 }
+
+function restoreActiveProvider() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_PROVIDER)
+    if (saved) activeProviderKey.value = saved
+  } catch {}
+}
+
+function setActiveProvider(key: string) {
+  activeProviderKey.value = key
+  try { localStorage.setItem(STORAGE_KEY_PROVIDER, key) } catch {}
+}
+
+const activeProvider = computed(() => {
+  if (providers.value.length === 0) return undefined
+  if (providers.value.length === 1) return providers.value[0]
+  const key = activeProviderKey.value || providers.value[0]?.key
+  return providers.value.find(p => p.key === key) || providers.value[0]
+})
 
 function getActiveAccountId(p: ProviderUsageData): string {
   return activeAccounts.value[p.key] || (p.accounts[0]?.id ?? '')
@@ -191,6 +226,7 @@ function applyState(state: UsageState) {
   lastUpdate.value = state.lastUpdate
   initialLoading.value = false
   restoreActiveAccounts()
+  restoreActiveProvider()
 }
 
 async function fetchData() {
@@ -210,21 +246,27 @@ async function handleRefresh() {
 }
 
 /**
- * 将 quotas 分组为行：token 限制类型的项合并到一行，其他各占一行
+ * 将 quotas 分组为行：相同 limitType 的合并到一行，undefined 各占一行
  */
 function getQuotaRows(quotas: QuotaItem[]): QuotaItem[][] {
-  const tokenLimits = quotas.filter(q => q.limitType === 'tokens')
-  const others = quotas.filter(q => q.limitType !== 'tokens')
+  const groupMap = new Map<string, QuotaItem[]>()
   const rows: QuotaItem[][] = []
+  const seen = new Set<string>()
 
-  // 非 token 限制项（如 MCP）各占一行，保持原有顺序
-  for (const q of others) {
-    rows.push([q])
+  for (const q of quotas) {
+    if (!q.limitType) {
+      rows.push([q])
+    } else {
+      if (!groupMap.has(q.limitType)) groupMap.set(q.limitType, [])
+      groupMap.get(q.limitType)!.push(q)
+    }
   }
 
-  // token 限制项：多个并排一行，单个也占一行
-  if (tokenLimits.length > 0) {
-    rows.push(tokenLimits)
+  for (const q of quotas) {
+    if (q.limitType && !seen.has(q.limitType)) {
+      seen.add(q.limitType)
+      rows.push(groupMap.get(q.limitType)!)
+    }
   }
 
   return rows
@@ -295,6 +337,37 @@ onMounted(() => {
 
 .provider-section {
   margin-bottom: 10px;
+}
+
+.provider-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.provider-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.provider-tab {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.provider-tab:hover {
+  border-color: var(--border-default);
+}
+.provider-tab.active {
+  color: var(--text-heading);
+  font-weight: 600;
+  border-color: var(--border-default);
 }
 
 .provider-name-row {
