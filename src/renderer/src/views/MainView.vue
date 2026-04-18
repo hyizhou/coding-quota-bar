@@ -96,8 +96,11 @@
                 <div v-if="row.length === 1" class="quota-row-single">
                   <QuotaCard v-bind="row[0]" />
                 </div>
-                <div v-else class="quota-row-pair">
+                <div v-else-if="row[0].limitType === 'tokens'" class="quota-row-pair">
                   <QuotaCard v-for="q in row" :key="q.label" v-bind="q" />
+                </div>
+                <div v-else class="quota-row-single">
+                  <ModelQuotaCard :title="row[0].limitType!" :quotas="row" />
                 </div>
               </template>
               <UsageStats
@@ -132,6 +135,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import QuotaCard from '../components/QuotaCard.vue'
+import ModelQuotaCard from '../components/ModelQuotaCard.vue'
 import FloatingTooltip from '../components/FloatingTooltip.vue'
 import UsageStats from '../components/UsageStats.vue'
 import PerformanceChart from '../components/PerformanceChart.vue'
