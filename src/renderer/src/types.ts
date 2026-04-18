@@ -145,6 +145,8 @@ export interface ElectronAPI {
   offTriggerCheckUpdate: (callback: () => void) => void
   openExternal: (url: string) => Promise<void>
   showPopup: () => void
+  setWindowPinned: (pinned: boolean) => void
+  onWindowPinnedState: (callback: (pinned: boolean) => void) => void
   getAppVersion: () => Promise<string>
 }
 

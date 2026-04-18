@@ -88,6 +88,7 @@ const enum PopupMode {
 }
 
 let popupMode: PopupMode = PopupMode.Hidden;
+let isLocked = false; // 窗口锁定：阻止 blur 隐藏
 
 /**
  * 检查是否启用了内存节省模式
@@ -230,6 +231,7 @@ function createPopupWindow(): void {
  */
 function attachBlurHandler(): void {
   detachBlurHandler();
+  if (isLocked) return;
   blurHandler = () => {
     if (popupMode === PopupMode.Pinned) {
       hidePopupWindow();
@@ -266,6 +268,7 @@ function hidePopupWindow(): void {
 
   isPopupVisible = false;
   popupMode = PopupMode.Hidden;
+  isLocked = false;
 }
 
 /**
@@ -550,6 +553,18 @@ function setupIpcHandlers(): void {
   // 渲染进程准备好后显示弹窗
   ipcMain.on('show-popup', () => {
     showPopupWindow(PopupMode.Pinned);
+  });
+
+  // 窗口锁定状态切换
+  ipcMain.on('set-window-pinned', (_, pinned: boolean) => {
+    isLocked = pinned;
+    if (pinned && popupMode === PopupMode.Hover) {
+      showPopupWindow(PopupMode.Pinned);
+    }
+    if (popupMode === PopupMode.Pinned) {
+      pinned ? detachBlurHandler() : attachBlurHandler();
+    }
+    popupWindow?.webContents.send('window-pinned-state', pinned);
   });
 
   // 获取当前用量数据

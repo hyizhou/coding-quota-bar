@@ -15,6 +15,8 @@
     "tokenStats": "Token Usage",
     "mcpStats": "MCP Stats",
     "toggleTheme": "Toggle Theme",
+    "pinWindow": "Pin window (stay open on click outside)",
+    "unpinWindow": "Unpin (click tray icon to close)",
     "tabToday": "Today",
     "tab24h": "24h",
     "tab1d": "1D",

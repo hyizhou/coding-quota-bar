@@ -3,6 +3,19 @@
     <header class="header">
       <h1>{{ $t('main.title') }}</h1>
       <div class="header-actions">
+        <button
+          class="icon-btn pin-btn"
+          :class="{ active: isPinned }"
+          :title="isPinned ? $t('main.unpinWindow') : $t('main.pinWindow')"
+          @click="togglePin"
+        >
+          <svg v-if="!isPinned" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z"/>
+          </svg>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z"/>
+          </svg>
+        </button>
         <button class="icon-btn" :title="$t('main.toggleTheme')" @click="toggleTheme">
           <svg v-if="isDark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
@@ -121,6 +134,7 @@ const lastUpdate = ref('')
 const loading = ref(false)
 const initialLoading = ref(true)
 const now = ref(Date.now())
+const isPinned = ref(false)
 
 // 每个选中的账户 provider key -> active account ID
 const STORAGE_KEY = 'active-accounts'
@@ -225,6 +239,11 @@ function openProviderWebsite(url?: string) {
   if (url) window.electronAPI.openExternal(url)
 }
 
+function togglePin() {
+  isPinned.value = !isPinned.value
+  window.electronAPI.setWindowPinned(isPinned.value)
+}
+
 function getSubRows(sub: AccountUsageData['subscription']) {
   if (!sub) return []
   return [
@@ -249,6 +268,10 @@ onMounted(() => {
   // 监听主进程推送的数据更新
   window.electronAPI.onUsageDataUpdated((data) => {
     if (data) applyState(data)
+  })
+  // 监听窗口锁定状态
+  window.electronAPI.onWindowPinnedState((pinned) => {
+    isPinned.value = pinned
   })
 })
 </script>
@@ -448,5 +471,20 @@ onMounted(() => {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* Pin button: hidden by default, visible on window hover */
+.pin-btn {
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.header:hover .pin-btn {
+  opacity: 1;
+}
+
+.pin-btn.active {
+  opacity: 1;
+  color: var(--text-primary);
 }
 </style>
