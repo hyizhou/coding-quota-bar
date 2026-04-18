@@ -224,6 +224,10 @@ function createPopupWindow(): void {
   popupWindow.on('closed', () => {
     popupWindow = null;
   });
+
+  if (process.env.CQB_DEVTOOLS === '1') {
+    popupWindow.webContents.openDevTools({ mode: 'detach' });
+  }
 }
 
 /**
@@ -289,7 +293,8 @@ function showPopupWindow(mode: PopupMode.Hover | PopupMode.Pinned): void {
 
     if (mode === PopupMode.Pinned) {
       popupWindow.focus();
-      attachBlurHandler();
+      // DevTools 打开会抢走焦点导致 blur，延迟绑定避免窗口立即隐藏
+      setTimeout(() => attachBlurHandler(), process.env.CQB_DEVTOOLS === '1' ? 500 : 0);
     } else {
       detachBlurHandler();
     }
