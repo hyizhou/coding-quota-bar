@@ -118,6 +118,7 @@ interface AccountDisplayData {
   id: string;
   label?: string;
   level?: string;
+  subscription?: import('../shared/types').SubscriptionInfo;
   error?: string;
   quotas: QuotaDisplayItem[];
   history1d: SharedUsageRecord[];
@@ -293,8 +294,15 @@ function showPopupWindow(mode: PopupMode.Hover | PopupMode.Pinned): void {
 
     if (mode === PopupMode.Pinned) {
       popupWindow.focus();
-      // DevTools 打开会抢走焦点导致 blur，延迟绑定避免窗口立即隐藏
-      setTimeout(() => attachBlurHandler(), process.env.CQB_DEVTOOLS === '1' ? 500 : 0);
+      // DevTools 打开会抢走焦点，延迟绑定 blur 并重新聚焦
+      if (process.env.CQB_DEVTOOLS === '1') {
+        setTimeout(() => {
+          attachBlurHandler();
+          popupWindow?.focus();
+        }, 500);
+      } else {
+        attachBlurHandler();
+      }
     } else {
       detachBlurHandler();
     }
