@@ -97,8 +97,8 @@
     "tokensLimit": "{n}小时额度",
     "tokensLimitDaily": "周额度",
     "mcpUsage": "MCP 用量",
-    "minimaxDaily": "{model} 日额度",
-    "minimaxWeekly": "{model} 周额度"
+    "minimaxDaily": "日额度",
+    "minimaxWeekly": "周额度"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",

@@ -20,6 +20,7 @@ export interface QuotaItem {
   total: number
   usageRate: number    // 使用率 0-100
   resetAt: string      // 重置时间
+  startAt?: string     // 周期开始时间
   color: 'green' | 'yellow' | 'red'
   limitType?: string   // 限制类型标识，如 "tokens"、"mcp"
 }

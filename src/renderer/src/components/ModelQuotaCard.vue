@@ -3,14 +3,14 @@
     <div class="model-header">{{ title }}</div>
     <div v-for="(q, i) in quotas" :key="i" class="quota-row">
       <div class="quota-top">
-        <span class="quota-label">{{ $t(q.label, q.labelParams) }}</span>
+        <span class="quota-range">{{ formatRange(q.startAt, q.resetAt) }}</span>
         <span class="quota-percent" :class="q.color">{{ Math.round(q.usageRate) }}%</span>
       </div>
       <div class="progress-bar">
         <div class="progress-fill" :class="q.color" :style="{ width: q.usageRate + '%' }"></div>
       </div>
       <div class="quota-bottom">
-        <span class="reset-text">{{ formatReset(q.resetAt) }}</span>
+        <span class="quota-count">{{ q.used }}/{{ q.total }}</span>
       </div>
     </div>
   </div>
@@ -27,17 +27,22 @@ defineProps<{
 
 const { t, locale } = useI18n()
 
-function formatReset(iso: string): string {
+function formatTime(iso: string): string {
   if (!iso) return ''
   try {
     const d = new Date(iso)
     if (isNaN(d.getTime())) return ''
-    const diff = Math.ceil((d.getTime() - Date.now()) / 60000)
-    if (diff < 1440) {
-      return d.toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit', hour12: false })
-    }
-    return d.toLocaleDateString(locale.value, { month: 'short', day: 'numeric' })
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
   } catch { return '' }
+}
+
+function formatRange(startIso: string | undefined, endIso: string): string {
+  const end = formatTime(endIso)
+  if (!startIso) return end
+  const start = formatTime(startIso)
+  if (!start) return end
+  return `${start} - ${end}`
 }
 </script>
 
@@ -77,9 +82,10 @@ function formatReset(iso: string): string {
   margin-bottom: 3px;
 }
 
-.quota-label {
-  font-size: 11px;
+.quota-range {
+  font-size: 10px;
   color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 .quota-percent {
@@ -110,7 +116,14 @@ function formatReset(iso: string): string {
 
 .quota-bottom {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.quota-count {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
 }
 
 .reset-text {

@@ -107,6 +107,7 @@ interface QuotaDisplayItem {
   total: number;
   usageRate: number;
   resetAt: string;
+  startAt?: string;
   color: 'green' | 'yellow' | 'red';
   limitType?: string;
 }
@@ -761,6 +762,7 @@ function convertAccountData(
     total: q.total,
     usageRate: q.usageRate,
     resetAt: q.resetAt,
+    startAt: (q as any).startAt,
     color: getColorByPercent(100 - q.usageRate, thresholds) as 'green' | 'yellow' | 'red',
     limitType: q.limitType
   }));

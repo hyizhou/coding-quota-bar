@@ -97,8 +97,8 @@
     "tokensLimit": "{n}-Hour Quota",
     "tokensLimitDaily": "Weekly Quota",
     "mcpUsage": "MCP Usage",
-    "minimaxDaily": "{model} Daily Quota",
-    "minimaxWeekly": "{model} Weekly Quota"
+    "minimaxDaily": "Daily Quota",
+    "minimaxWeekly": "Weekly Quota"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",

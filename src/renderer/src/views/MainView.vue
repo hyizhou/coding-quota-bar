@@ -93,14 +93,14 @@
             </div>
             <template v-else>
               <template v-for="(row, ri) in getQuotaRows(getActiveAccount(activeProvider)!.quotas)" :key="ri">
-                <div v-if="row.length === 1" class="quota-row-single">
+                <div v-if="row[0].limitType !== 'tokens' && row[0].limitType !== 'mcp' && row[0].limitType" class="quota-row-single">
+                  <ModelQuotaCard :title="row[0].limitType" :quotas="row" />
+                </div>
+                <div v-else-if="row.length === 1" class="quota-row-single">
                   <QuotaCard v-bind="row[0]" />
                 </div>
-                <div v-else-if="row[0].limitType === 'tokens'" class="quota-row-pair">
+                <div v-else class="quota-row-pair">
                   <QuotaCard v-for="q in row" :key="q.label" v-bind="q" />
-                </div>
-                <div v-else class="quota-row-single">
-                  <ModelQuotaCard :title="row[0].limitType!" :quotas="row" />
                 </div>
               </template>
               <UsageStats
@@ -447,7 +447,8 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.provider-section .quota-row-single .quota-card {
+.provider-section .quota-row-single .quota-card,
+.provider-section .quota-row-single .model-quota-card {
   margin-bottom: 6px;
 }
 

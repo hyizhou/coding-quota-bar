@@ -35,6 +35,7 @@ export interface QuotaItem {
   total: number;         // 总量
   usageRate: number;     // 使用率 0-100
   resetAt: string;       // 重置时间 ISO 8601
+  startAt?: string;      // 周期开始时间 ISO 8601
   limitType?: string;    // 限制类型标识，如 "tokens"、"mcp"
 }
 

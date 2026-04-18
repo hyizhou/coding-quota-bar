@@ -70,11 +70,11 @@ export class MiniMaxProvider implements Provider {
       const dailyTotal = m.current_interval_total_count;
       quotas.push({
         label: 'quota.minimaxDaily',
-        labelParams: { model: name },
         used: dailyUsed,
         total: dailyTotal,
         usageRate: dailyTotal > 0 ? Math.round((dailyUsed / dailyTotal) * 100) : 0,
         resetAt: toISODate(m.end_time),
+        startAt: toISODate(m.start_time),
         limitType: name,
       });
 
@@ -84,11 +84,11 @@ export class MiniMaxProvider implements Provider {
         const weeklyTotal = m.current_weekly_total_count;
         quotas.push({
           label: 'quota.minimaxWeekly',
-          labelParams: { model: name },
           used: weeklyUsed,
           total: weeklyTotal,
           usageRate: weeklyTotal > 0 ? Math.round((weeklyUsed / weeklyTotal) * 100) : 0,
           resetAt: toISODate(m.weekly_end_time),
+          startAt: toISODate(m.weekly_start_time),
           limitType: name,
         });
       }
