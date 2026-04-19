@@ -660,6 +660,17 @@ function setupIpcHandlers(): void {
 
   // 重启并安装更新
   ipcMain.handle('quit-and-install', () => {
+    // 先同步销毁资源，避免 NSIS 检测到旧进程仍在运行
+    if (popupWindow && !popupWindow.isDestroyed()) {
+      popupWindow.destroy();
+      popupWindow = null;
+    }
+    trayManager?.destroy();
+    trayManager = null;
+    scheduler?.destroy();
+    scheduler = null;
+    configManager?.destroy();
+    configManager = null;
     autoUpdater.quitAndInstall();
   });
 
