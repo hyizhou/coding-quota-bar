@@ -36,6 +36,12 @@ Windows 系统托盘应用，实时监控 AI 平台 Coding Plan 用量配额。
 
 访问[Github Releases](https://github.com/hyizhou/coding-quota-bar/releases)下载并安装
 
+## 反馈与交流
+
+遇到问题或有建议？欢迎加入[飞书反馈群](https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=f15m4456-a99f-4dc1-9497-b40ff2196142)交流：
+
+![飞书反馈群](img/feishu.png)
+
 ## License
 
 MIT

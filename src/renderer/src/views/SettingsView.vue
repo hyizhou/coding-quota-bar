@@ -127,6 +127,7 @@
           <button class="icon-btn github-btn" title="GitHub" @click="openGitHub">
             <img src="../assets/github.svg" alt="GitHub" />
           </button>
+          <button class="feedback-link" @click="openFeedback">{{ $t('settings.feedbackGroup') }}</button>
           <span class="version-text">v{{ appVersion }}</span>
         </div>
         <button
@@ -151,6 +152,7 @@
     <footer class="footer">
       <span class="save-status" :class="{ error: saveError }">{{ saveStatus }}</span>
     </footer>
+
   </div>
 </template>
 
@@ -385,6 +387,10 @@ function openGitHub() {
   window.electronAPI.openExternal('https://github.com/hyizhou/coding-quota-bar')
 }
 
+function openFeedback() {
+  window.electronAPI.showFeedback()
+}
+
 function handleUpdateClick() {
   if (updateReady.value) {
     window.electronAPI.quitAndInstall()
@@ -615,5 +621,19 @@ async function handleStartDownload() {
   opacity: 0.7;
   margin-left: 6px;
   white-space: nowrap;
+}
+
+.feedback-link {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.feedback-link:hover {
+  color: var(--text-secondary);
 }
 </style>

@@ -85,7 +85,9 @@
     "updateAvailable": "New version available: v{version}",
     "updateFailed": "Update check failed",
     "downloading": "Downloading {percent}%",
-    "restartToUpdate": "Restart to Update"
+    "restartToUpdate": "Restart to Update",
+    "feedbackGroup": "Feedback Group",
+    "feedbackGroupTitle": "Join Feishu Feedback Group"
   },
   "provider": {
     "expired": "Expired",
