@@ -127,6 +127,8 @@ export interface UpdateInfo {
 /**
  * 应用配置
  */
+export type TrayDisplayRule = 'lowest' | 'highest' | string; // string = compound key "providerType:accountId"
+
 export interface AppConfig {
   refreshInterval: number;
   providers: Record<string, ProviderTypeConfig>;
@@ -141,6 +143,7 @@ export interface AppConfig {
   memorySavingMode?: boolean;
   language?: string;
   theme?: 'light' | 'dark' | 'auto';
+  trayDisplayRule?: TrayDisplayRule;
   updateInfo?: UpdateInfo | null;
 }
 

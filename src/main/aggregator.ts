@@ -132,6 +132,14 @@ export class UsageAggregator {
   }
 
   /**
+   * 计算单个 result 的剩余百分比
+   */
+  static calcPercent(result: UsageResult): number {
+    // total 为 0 表示额度刚重置或无法计算，视为 100%（充足）
+    return result.total > 0 ? ((result.total - result.used) / result.total) * 100 : 100;
+  }
+
+  /**
    * 计算所有 Provider 中最低的剩余百分比
    */
   private calculateLowestPercent(): number {
@@ -140,14 +148,11 @@ export class UsageAggregator {
     }
 
     let minPercent = 100;
-
     for (const result of this.results.values()) {
-      // total 为 0 表示额度刚重置或无法计算，视为 100%（充足）
-      const percent = result.total > 0 ? ((result.total - result.used) / result.total) * 100 : 100;
-      minPercent = Math.min(minPercent, percent);
+      minPercent = Math.min(minPercent, UsageAggregator.calcPercent(result));
     }
 
-    return Math.round(minPercent * 10) / 10; // 保留一位小数
+    return Math.round(minPercent * 10) / 10;
   }
 
   /**

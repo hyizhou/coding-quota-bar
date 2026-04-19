@@ -81,6 +81,18 @@
           </select>
         </div>
         <div class="form-group">
+          <label class="form-label">{{ $t('settings.trayDisplayRule') }}</label>
+          <select v-model="trayDisplayRule" class="form-select">
+            <option value="lowest">{{ $t('settings.trayDisplayLowest') }}</option>
+            <option value="highest">{{ $t('settings.trayDisplayHighest') }}</option>
+            <option
+              v-for="opt in accountOptions"
+              :key="opt.value"
+              :value="opt.value"
+            >{{ opt.label }}</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label class="form-label">{{ $t('settings.language') }}</label>
           <select v-model="language" class="form-select">
             <option value="zh-CN">中文</option>
@@ -143,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AppConfig, ProviderTypeConfig, AccountConfig } from '../types'
 import { useTheme } from '../composables/useTheme'
@@ -175,11 +187,27 @@ const isPackaged = ref(true)
 const language = ref('zh-CN')
 const popupTrigger = ref<'hover' | 'click'>('hover')
 const memorySavingMode = ref(false)
+const trayDisplayRule = ref<string>('lowest')
 const saving = ref(false)
 const settingsBodyRef = ref<HTMLElement | null>(null)
 const saveStatus = ref('')
 const saveError = ref(false)
 const currentConfig = ref<AppConfig | null>(null)
+
+const accountOptions = computed(() => {
+  const options: { value: string; label: string }[] = []
+  for (const info of providerList.value) {
+    const providerName = t(`providers.${info.key}`)
+    for (const account of info.accounts) {
+      const label = account.label || t('main.defaultAccountLabel', { n: info.accounts.indexOf(account) + 1 })
+      options.push({
+        value: `${info.key}:${account.id}`,
+        label: `${providerName} - ${label}`,
+      })
+    }
+  }
+  return options
+})
 const appVersion = ref('')
 const checkingUpdate = ref(false)
 const updateStatus = ref('')
@@ -249,11 +277,21 @@ onMounted(async () => {
   language.value = config.language || locale.value
   popupTrigger.value = config.popupTrigger ?? 'hover'
   memorySavingMode.value = config.memorySavingMode ?? false
+  trayDisplayRule.value = config.trayDisplayRule ?? 'lowest'
 
   // 配置加载完后开始监听变化，自动保存
-  watch([providerList, refreshInterval, autoStart, language, popupTrigger, memorySavingMode], () => {
+  watch([providerList, refreshInterval, autoStart, language, popupTrigger, memorySavingMode, trayDisplayRule], () => {
     scheduleSave()
   }, { deep: true })
+
+  // 选中的账户被删除时，回退到最低额度
+  watch(accountOptions, (opts) => {
+    if (trayDisplayRule.value !== 'lowest' && trayDisplayRule.value !== 'highest') {
+      if (!opts.some(o => o.value === trayDisplayRule.value)) {
+        trayDisplayRule.value = 'lowest'
+      }
+    }
+  })
 
   // 主题切换由 useTheme 自行持久化，不经过 scheduleSave
   watch(themePreference, (val) => {
@@ -328,7 +366,8 @@ async function saveConfig() {
       autoStart: autoStart.value,
       popupTrigger: popupTrigger.value,
       memorySavingMode: memorySavingMode.value,
-      language: language.value
+      language: language.value,
+      trayDisplayRule: trayDisplayRule.value,
     })
     locale.value = language.value
     saveStatus.value = t('settings.saved')

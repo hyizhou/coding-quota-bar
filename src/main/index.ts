@@ -436,6 +436,7 @@ async function initialize(): Promise<void> {
   // 4. 创建调度器
   scheduler = createScheduler(config);
   scheduler.setTrayManager(trayManager);
+  scheduler.setDisplayRule(config.trayDisplayRule ?? 'lowest');
 
   // 5. 加载 Provider
   const providers = ProviderLoader.loadProviders(config.providers);
@@ -489,6 +490,11 @@ function setupConfigListeners(): void {
       JSON.stringify(newConfig.providers) !== JSON.stringify(oldConfig?.providers) ||
       newConfig.refreshInterval !== oldConfig?.refreshInterval ||
       JSON.stringify(newConfig.display.colorThresholds) !== JSON.stringify(oldConfig?.display?.colorThresholds);
+
+    // 更新图标显示规则（不需要重新请求数据，直接用已有数据重新计算）
+    if (newConfig.trayDisplayRule !== oldConfig?.trayDisplayRule) {
+      scheduler!.setDisplayRule(newConfig.trayDisplayRule ?? 'lowest');
+    }
 
     if (needsRefresh) {
       // 更新刷新间隔（间隔变化时会重启定时器并自动刷新）
@@ -742,7 +748,7 @@ function buildUsageData(): UsageDataForRenderer | null {
   return {
     providers,
     lastUpdate: aggregated.lastUpdate.toISOString(),
-    overallPercent: aggregated.lowestPercent
+    overallPercent: scheduler.getDisplayPercent(aggregated.results)
   };
 }
 
