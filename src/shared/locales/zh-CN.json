@@ -87,7 +87,9 @@
     "downloading": "下载中 {percent}%",
     "restartToUpdate": "重启以更新",
     "feedbackGroup": "反馈群聊",
-    "feedbackGroupTitle": "加入飞书反馈群"
+    "feedbackGroupTitle": "加入飞书反馈群",
+    "feedbackScanTip": "扫描二维码加入飞书反馈群",
+    "feedbackClickLink": "点击链接加入"
   },
   "provider": {
     "expired": "已过期",

@@ -38,7 +38,7 @@ Windows 系统托盘应用，实时监控 AI 平台 Coding Plan 用量配额。
 
 ## 反馈与交流
 
-遇到问题或有建议？欢迎加入[飞书反馈群](https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=f15m4456-a99f-4dc1-9497-b40ff2196142)交流：
+遇到问题或有建议？欢迎加入[飞书反馈群](https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=9f3hcab1-6867-43e9-938e-3f49bb3ccdc3)交流：
 
 ![飞书反馈群](img/feishu.png)
 

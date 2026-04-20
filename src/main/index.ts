@@ -205,69 +205,27 @@ function showFeedbackWindow(): void {
     return;
   }
 
-  // 读取二维码图片转为 base64
-  const imgPath = path.join(__dirname, '..', '..', 'img', 'feishu.png');
-  console.log('[Feedback] imgPath:', imgPath, 'exists:', fs.existsSync(imgPath));
-  let imgDataUrl = '';
-  if (fs.existsSync(imgPath)) {
-    const buf = fs.readFileSync(imgPath);
-    imgDataUrl = `data:image/png;base64,${buf.toString('base64')}`;
-  }
-
-  const linkUrl = 'https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=f15m4456-a99f-4dc1-9497-b40ff2196142';
-  const lang = configManager?.getConfig()?.language || 'zh-CN';
-
-  const titleText = lang === 'zh-CN' ? '反馈群聊' : 'Feedback Group';
-  const scanText = lang === 'zh-CN' ? '扫描二维码加入飞书反馈群' : 'Scan QR code to join Feishu feedback group';
-  const linkText = lang === 'zh-CN' ? '点击链接加入' : 'Click link to join';
-
-  const FEEDBACK_WINDOW_ID = 'feedback-window';
-
   const win = new BrowserWindow({
     width: 320,
     height: 400,
     resizable: false,
     minimizable: false,
     maximizable: false,
-    title: titleText,
     autoHideMenuBar: true,
     webPreferences: {
+      preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false
     }
   });
-  (win as any)._feedbackId = FEEDBACK_WINDOW_ID;
+  (win as any)._feedbackId = 'feedback-window';
   win.setMenuBarVisibility(false);
 
-  win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>${titleText}</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  height:100vh;background:#f5f5f5;color:#333}
-h2{font-size:16px;margin-bottom:16px;font-weight:600}
-img{width:200px;height:200px;border-radius:8px;border:1px solid #e0e0e0}
-a{margin-top:16px;font-size:13px;color:#3370ff;text-decoration:none}
-a:hover{text-decoration:underline}
-</style></head><body>
-<h2>${titleText}</h2>
-${imgDataUrl ? `<img src="${imgDataUrl}" alt="QR" />` : ''}
-<p style="margin-top:12px;font-size:12px;color:#666">${scanText}</p>
-<a href="${linkUrl}">${linkText}</a>
-</body></html>`)}`);
-
-  // 拦截窗口内链接点击，用系统浏览器打开
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: 'deny' };
-  });
-  win.webContents.on('will-navigate', (event, url) => {
-    if (url.startsWith('http')) {
-      event.preventDefault();
-      shell.openExternal(url);
-    }
-  });
+  if (process.env.ELECTRON_RENDERER_URL) {
+    win.loadURL(`${process.env.ELECTRON_RENDERER_URL}/feedback.html`);
+  } else {
+    win.loadFile(path.join(__dirname, '../renderer/feedback.html'));
+  }
 }
 
 function createPopupWindow(): void {

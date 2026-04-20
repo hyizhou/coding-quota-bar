@@ -87,7 +87,9 @@
     "downloading": "Downloading {percent}%",
     "restartToUpdate": "Restart to Update",
     "feedbackGroup": "Feedback Group",
-    "feedbackGroupTitle": "Join Feishu Feedback Group"
+    "feedbackGroupTitle": "Join Feishu Feedback Group",
+    "feedbackScanTip": "Scan QR code to join Feishu feedback group",
+    "feedbackClickLink": "Click link to join"
   },
   "provider": {
     "expired": "Expired",
