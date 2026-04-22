@@ -92,32 +92,8 @@
               <span class="error-text">{{ formatError(getActiveAccount(activeProvider)!.error!) }}</span>
             </div>
             <template v-else>
-              <template v-for="(row, ri) in getQuotaRows(getActiveAccount(activeProvider)!.quotas)" :key="ri">
-                <div v-if="row[0].limitType !== 'tokens' && row[0].limitType !== 'mcp' && row[0].limitType" class="quota-row-single">
-                  <ModelQuotaCard :title="row[0].limitType" :quotas="row" />
-                </div>
-                <div v-else-if="row.length === 1" class="quota-row-single">
-                  <QuotaCard v-bind="row[0]" />
-                </div>
-                <div v-else class="quota-row-pair">
-                  <QuotaCard v-for="q in row" :key="q.label" v-bind="q" />
-                </div>
-              </template>
-              <UsageStats
-                v-if="hasHistoryData(getActiveAccount(activeProvider)!)"
-                :model-records-1d="getActiveAccount(activeProvider)!.modelHistory1d"
-                :model-records-7d="getActiveAccount(activeProvider)!.modelHistory7d"
-                :model-records-30d="getActiveAccount(activeProvider)!.modelHistory30d"
-                :mcp-records-1d="getActiveAccount(activeProvider)!.mcpHistory1d"
-                :mcp-records-7d="getActiveAccount(activeProvider)!.mcpHistory7d"
-                :mcp-records-30d="getActiveAccount(activeProvider)!.mcpHistory30d"
-              />
-              <PerformanceChart
-                v-if="hasPerformanceData(getActiveAccount(activeProvider)!)"
-                :records-7d="getActiveAccount(activeProvider)!.performanceHistory7d"
-                :records-15d="getActiveAccount(activeProvider)!.performanceHistory15d"
-                :records-30d="getActiveAccount(activeProvider)!.performanceHistory30d"
-              />
+              <ZhipuSection v-if="activeProvider.key === 'zhipu'" :account="getActiveAccount(activeProvider)!" />
+              <MiniMaxSection v-else-if="activeProvider.key === 'minimax'" :account="getActiveAccount(activeProvider)!" />
             </template>
           </template>
         </div>
@@ -134,12 +110,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import QuotaCard from '../components/QuotaCard.vue'
-import ModelQuotaCard from '../components/ModelQuotaCard.vue'
 import FloatingTooltip from '../components/FloatingTooltip.vue'
-import UsageStats from '../components/UsageStats.vue'
-import PerformanceChart from '../components/PerformanceChart.vue'
-import type { ProviderUsageData, AccountUsageData, QuotaItem, UsageState } from '../types'
+import ZhipuSection from '../components/ZhipuSection.vue'
+import MiniMaxSection from '../components/MiniMaxSection.vue'
+import type { ProviderUsageData, AccountUsageData, UsageState } from '../types'
 import { useTheme } from '../composables/useTheme'
 
 defineEmits<{ 'open-settings': [] }>()
@@ -216,15 +190,6 @@ const lastUpdateText = computed(() => {
   } catch { return lastUpdate.value }
 })
 
-function hasHistoryData(acc: AccountUsageData): boolean {
-  return acc.modelHistory1d.length > 0 || acc.modelHistory7d.length > 0 || acc.modelHistory30d.length > 0 ||
-    acc.mcpHistory1d.length > 0 || acc.mcpHistory7d.length > 0 || acc.mcpHistory30d.length > 0
-}
-
-function hasPerformanceData(acc: AccountUsageData): boolean {
-  return acc.performanceHistory7d.length > 0 || acc.performanceHistory15d.length > 0 || acc.performanceHistory30d.length > 0
-}
-
 function applyState(state: UsageState) {
   providers.value = state.providers
   lastUpdate.value = state.lastUpdate
@@ -247,33 +212,6 @@ async function handleRefresh() {
     if (state) applyState(state)
   } catch (e) { console.error('[MainView] refresh failed:', e) }
   finally { loading.value = false }
-}
-
-/**
- * 将 quotas 分组为行：相同 limitType 的合并到一行，undefined 各占一行
- */
-function getQuotaRows(quotas: QuotaItem[]): QuotaItem[][] {
-  const groupMap = new Map<string, QuotaItem[]>()
-  const rows: QuotaItem[][] = []
-  const seen = new Set<string>()
-
-  for (const q of quotas) {
-    if (!q.limitType) {
-      rows.push([q])
-    } else {
-      if (!groupMap.has(q.limitType)) groupMap.set(q.limitType, [])
-      groupMap.get(q.limitType)!.push(q)
-    }
-  }
-
-  for (const q of quotas) {
-    if (q.limitType && !seen.has(q.limitType)) {
-      seen.add(q.limitType)
-      rows.push(groupMap.get(q.limitType)!)
-    }
-  }
-
-  return rows
 }
 
 function formatError(msg: string): string {
@@ -445,35 +383,6 @@ onMounted(() => {
 .provider-name-row > .ft-wrapper {
   margin-left: auto;
   flex-shrink: 0;
-}
-
-.provider-section .quota-row-single .quota-card,
-.provider-section .quota-row-single .model-quota-card {
-  margin-bottom: 6px;
-}
-
-.quota-row-pair {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.quota-row-pair .quota-card {
-  flex: 1;
-  min-width: 0;
-  padding: 6px 8px;
-}
-
-.quota-row-pair .quota-label {
-  font-size: 11px;
-}
-
-.quota-row-pair .quota-percent {
-  font-size: 14px;
-}
-
-.quota-row-pair .reset-text {
-  font-size: 9px;
 }
 
 .empty-state {
