@@ -53,20 +53,19 @@
       </template>
 
       <template v-else>
-        <div v-if="providers.length > 1" class="provider-tabs" @wheel.passive="onTabsWheel">
-          <button
-            v-for="p in providers"
-            :key="p.key"
-            class="provider-tab"
-            :class="{ active: activeProviderKey === p.key }"
-            @click="setActiveProvider(p.key)"
-          >
-            {{ p.name }}
-          </button>
-        </div>
-
         <template v-if="activeProvider">
         <div class="provider-section">
+          <div v-if="providers.length > 1" class="provider-tabs" @wheel.passive="onTabsWheel">
+            <button
+              v-for="p in providers"
+              :key="p.key"
+              class="provider-tab"
+              :class="{ active: activeProviderKey === p.key }"
+              @click="setActiveProvider(p.key)"
+            >
+              {{ p.name }}
+            </button>
+          </div>
           <div class="provider-name-row">
             <span class="provider-name" :class="{ clickable: !!activeProvider.websiteUrl }" @click="openProviderWebsite(activeProvider.websiteUrl)">{{ activeProvider.name }}</span>
             <!-- 账户切换按钮：仅当 2 个及以上账户时显示 -->
@@ -282,34 +281,47 @@ onMounted(() => {
 }
 
 .provider-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  display: inline-flex;
+  gap: 2px;
+  background: var(--bg-tab-bar);
+  border-radius: 8px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  margin-bottom: 0;
+  padding: 0 2px;
+  transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s ease,
+              margin 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.provider-tabs::-webkit-scrollbar {
-  display: none;
+
+.provider-section:hover .provider-tabs {
+  max-height: 40px;
+  opacity: 1;
+  margin-bottom: 8px;
+  padding: 2px;
 }
 
 .provider-tab {
   font-size: 12px;
   padding: 3px 10px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border: none;
+  border-radius: 6px;
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
-  transition: all 0.15s;
   white-space: nowrap;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .provider-tab:hover {
-  border-color: var(--border-default);
+  color: var(--text-secondary);
 }
 .provider-tab.active {
   color: var(--text-heading);
   font-weight: 600;
-  border-color: var(--border-default);
+  background: var(--bg-tab-active);
+  box-shadow: var(--shadow-tab-active);
 }
 
 .provider-name-row {
