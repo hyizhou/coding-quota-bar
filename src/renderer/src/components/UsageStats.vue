@@ -27,6 +27,7 @@
       :model-records-7d="modelRecords7d"
       :model-records-30d="modelRecords30d"
       :active-tab="activeTab"
+      :model-rates="modelRates"
     />
     <McpChart
       v-else
@@ -55,6 +56,7 @@ const props = defineProps<{
   mcpRecords1d: McpUsageRecord[]
   mcpRecords7d: McpUsageRecord[]
   mcpRecords30d: McpUsageRecord[]
+  modelRates?: Record<string, number>
 }>()
 
 type ChartType = 'token' | 'mcp'

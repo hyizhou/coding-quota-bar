@@ -59,6 +59,7 @@ const props = defineProps<{
   modelRecords7d: ModelTokenRecord[]
   modelRecords30d: ModelTokenRecord[]
   activeTab: 'today' | '24h' | '7d' | '30d'
+  modelRates?: Record<string, number>
 }>()
 
 function formatCount(n: number): string {
@@ -255,9 +256,27 @@ const modelTotals = computed(() => {
   return map
 })
 
-const totalRows = computed(() =>
-  Array.from(modelTotals.value, ([model, value]) => ({ label: model, value: formatCount(value) }))
-)
+function formatCost(tokens: number, rate: number): string {
+  const cost = tokens / 1_000_000 * rate
+  return `≈¥${cost.toFixed(2)}`
+}
+
+const totalRows = computed(() => {
+  const rows = Array.from(modelTotals.value, ([model, value]) => {
+    const rate = props.modelRates?.[model]
+    const suffix = rate != null && rate > 0 ? `  ${formatCost(value, rate)}` : ''
+    return { label: model, value: formatCount(value) + suffix }
+  })
+  if (props.modelRates) {
+    let total = 0
+    for (const [model, tokens] of modelTotals.value) {
+      const rate = props.modelRates[model]
+      if (rate) total += tokens / 1_000_000 * rate
+    }
+    if (total > 0) rows.push({ label: '合计', value: `≈¥${total.toFixed(2)}` })
+  }
+  return rows
+})
 
 const barData = computed(() => ({
   labels: stacked.value.labels,

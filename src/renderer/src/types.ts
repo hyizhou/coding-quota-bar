@@ -70,6 +70,7 @@ export interface AccountUsageData {
   estimatedCost1d: number
   estimatedCost7d: number
   estimatedCost30d: number
+  modelRates?: Record<string, number>
   mcpHistory1d: McpUsageRecord[]
   mcpHistory7d: McpUsageRecord[]
   mcpHistory30d: McpUsageRecord[]

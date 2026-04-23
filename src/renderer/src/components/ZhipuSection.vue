@@ -7,9 +7,6 @@
       <QuotaCard v-for="q in row" :key="q.label" v-bind="q" />
     </div>
   </template>
-  <div v-if="showCost && account.estimatedCost30d > 0" class="cost-hint">
-    {{ $t('main.estimatedCost', { amount: account.estimatedCost30d.toFixed(2) }) }}
-  </div>
   <UsageStats
     v-if="hasHistoryData(account)"
     :model-records-1d="account.modelHistory1d"
@@ -18,6 +15,7 @@
     :mcp-records-1d="account.mcpHistory1d"
     :mcp-records-7d="account.mcpHistory7d"
     :mcp-records-30d="account.mcpHistory30d"
+    :model-rates="showCost ? account.modelRates : undefined"
   />
   <PerformanceChart
     v-if="hasPerformanceData(account)"
@@ -79,14 +77,6 @@ function getQuotaRows(quotas: QuotaItem[]): QuotaItem[][] {
 </script>
 
 <style scoped>
-.cost-hint {
-  font-size: 10px;
-  color: var(--text-tertiary);
-  text-align: right;
-  margin-bottom: 6px;
-  padding-right: 2px;
-}
-
 .quota-row-single {
   margin-bottom: 6px;
 }

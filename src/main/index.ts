@@ -131,6 +131,7 @@ interface AccountDisplayData {
   estimatedCost1d: number;
   estimatedCost7d: number;
   estimatedCost30d: number;
+  modelRates?: Record<string, number>;
   mcpHistory1d: SharedMcpUsageRecord[];
   mcpHistory7d: SharedMcpUsageRecord[];
   mcpHistory30d: SharedMcpUsageRecord[];
@@ -868,6 +869,7 @@ function convertAccountData(
     estimatedCost1d: (result.details?.estimatedCost1d as number) ?? 0,
     estimatedCost7d: (result.details?.estimatedCost7d as number) ?? 0,
     estimatedCost30d: (result.details?.estimatedCost30d as number) ?? 0,
+    modelRates: (result.details?.modelRates as Record<string, number>) ?? undefined,
     mcpHistory1d: mapMcpHistory('mcpHistory1d'),
     mcpHistory7d: mapMcpHistory('mcpHistory7d'),
     mcpHistory30d: mapMcpHistory('mcpHistory30d'),

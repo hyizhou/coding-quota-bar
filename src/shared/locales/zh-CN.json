@@ -32,6 +32,7 @@
     "defaultAccountLabel": "账号{n}",
     "performanceStats": "系统健康度",
     "estimatedCost": "≈¥{amount} API 等价",
+    "costTotal": "合计",
     "perfSpeed": "速度",
     "perfRate": "成功率",
     "perfLite": "Lite",

@@ -178,6 +178,23 @@ function calcEstimatedCost(resp: ZhipuModelUsageResponse | null): number {
 }
 
 /**
+ * 计算每模型的等效单价（元/百万token），按 96/3/1 比例加权
+ */
+function calcModelRates(): Record<string, number> {
+  const rates: Record<string, number> = {};
+  for (const [name, p] of Object.entries(MODEL_PRICING)) {
+    rates[name] = Math.round((
+      TOKEN_RATIO.cache * p.cache +
+      TOKEN_RATIO.input * p.input +
+      TOKEN_RATIO.output * p.output
+    ) * 100) / 100;
+  }
+  return rates;
+}
+
+const MODEL_RATES = calcModelRates();
+
+/**
  * 智谱 Coding Plan Provider
  */
 export class ZhipuProvider implements Provider {
@@ -308,7 +325,7 @@ export class ZhipuProvider implements Provider {
     const hasWeeklyLimit = quotaResp.data.limits.some(
       item => item.type === 'TOKENS_LIMIT' && item.unit === 1 && item.number === 7
     );
-    const subscription = this.parseSubscription(subResp, quotaResp.data.level, hasWeeklyLimit);
+    const subscription = this.parseSubscription(subResp, quotaResp.data.level ?? '', hasWeeklyLimit);
 
     return {
       used: tokenQuota?.used ?? 0,
@@ -327,6 +344,7 @@ export class ZhipuProvider implements Provider {
         estimatedCost1d: calcEstimatedCost(resp1d),
         estimatedCost7d: calcEstimatedCost(resp7d),
         estimatedCost30d: calcEstimatedCost(resp30d),
+        modelRates: MODEL_RATES,
         mcpHistory1d: this.buildToolHistory(toolResp1d),
         mcpHistory7d: this.buildToolHistory(toolResp7d),
         mcpHistory30d: this.buildToolHistory(toolResp30d),

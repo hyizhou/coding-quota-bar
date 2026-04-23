@@ -32,6 +32,7 @@
     "defaultAccountLabel": "Account {n}",
     "performanceStats": "System Health",
     "estimatedCost": "≈¥{amount} API equiv.",
+    "costTotal": "Total",
     "perfSpeed": "Speed",
     "perfRate": "Rate",
     "perfLite": "Lite",
