@@ -7,6 +7,11 @@
           <span class="chart-total">{{ formatCount(totalUsed) }}</span>
         </FloatingTooltip>
       </div>
+      <div v-if="totalCost > 0" class="chart-right">
+        <FloatingTooltip position="top" align="right" :rows="costRows">
+          <span class="chart-cost">¥ {{ totalCost.toFixed(2) }}</span>
+        </FloatingTooltip>
+      </div>
     </div>
     <div class="chart-wrapper">
       <Bar :data="barData" :options="chartOptions" />
@@ -256,26 +261,26 @@ const modelTotals = computed(() => {
   return map
 })
 
-function formatCost(tokens: number, rate: number): string {
-  const cost = tokens / 1_000_000 * rate
-  return `≈¥${cost.toFixed(2)}`
-}
+const totalRows = computed(() =>
+  Array.from(modelTotals.value, ([model, value]) => ({ label: model, value: formatCount(value) }))
+)
 
-const totalRows = computed(() => {
-  const rows = Array.from(modelTotals.value, ([model, value]) => {
-    const rate = props.modelRates?.[model]
-    const suffix = rate != null && rate > 0 ? `  ${formatCost(value, rate)}` : ''
-    return { label: model, value: formatCount(value) + suffix }
-  })
-  if (props.modelRates) {
-    let total = 0
-    for (const [model, tokens] of modelTotals.value) {
-      const rate = props.modelRates[model]
-      if (rate) total += tokens / 1_000_000 * rate
-    }
-    if (total > 0) rows.push({ label: '合计', value: `≈¥${total.toFixed(2)}` })
+const totalCost = computed(() => {
+  if (!props.modelRates) return 0
+  let total = 0
+  for (const [model, tokens] of modelTotals.value) {
+    const rate = props.modelRates[model]
+    if (rate) total += tokens / 1_000_000 * rate
   }
-  return rows
+  return total
+})
+
+const costRows = computed(() => {
+  if (!props.modelRates || totalCost.value <= 0) return []
+  return Array.from(modelTotals.value, ([model, tokens]) => {
+    const rate = props.modelRates![model]
+    return { label: model, value: rate ? `¥ ${(tokens / 1_000_000 * rate).toFixed(2)}` : '' }
+  })
 })
 
 const barData = computed(() => ({
@@ -387,6 +392,14 @@ const chartOptions = computed(() => ({
 }
 
 .chart-total {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+
+.chart-cost {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-primary);
