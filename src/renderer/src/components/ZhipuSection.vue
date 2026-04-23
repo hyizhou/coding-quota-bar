@@ -7,6 +7,9 @@
       <QuotaCard v-for="q in row" :key="q.label" v-bind="q" />
     </div>
   </template>
+  <div v-if="showCost && account.estimatedCost30d > 0" class="cost-hint">
+    {{ $t('main.estimatedCost', { amount: account.estimatedCost30d.toFixed(2) }) }}
+  </div>
   <UsageStats
     v-if="hasHistoryData(account)"
     :model-records-1d="account.modelHistory1d"
@@ -25,6 +28,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import QuotaCard from './QuotaCard.vue'
 import UsageStats from './UsageStats.vue'
 import PerformanceChart from './PerformanceChart.vue'
@@ -33,6 +37,12 @@ import type { AccountUsageData, QuotaItem } from '../types'
 defineProps<{
   account: AccountUsageData
 }>()
+
+const showCost = ref(false)
+onMounted(async () => {
+  const config = await window.electronAPI.getConfig()
+  showCost.value = config?.showEstimatedCost ?? false
+})
 
 function hasHistoryData(acc: AccountUsageData): boolean {
   return acc.modelHistory1d.length > 0 || acc.modelHistory7d.length > 0 || acc.modelHistory30d.length > 0 ||
@@ -69,6 +79,14 @@ function getQuotaRows(quotas: QuotaItem[]): QuotaItem[][] {
 </script>
 
 <style scoped>
+.cost-hint {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-align: right;
+  margin-bottom: 6px;
+  padding-right: 2px;
+}
+
 .quota-row-single {
   margin-bottom: 6px;
 }

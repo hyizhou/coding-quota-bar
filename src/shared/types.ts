@@ -141,6 +141,7 @@ export interface AppConfig {
   autoStart: boolean;
   popupTrigger?: 'hover' | 'click';
   memorySavingMode?: boolean;
+  showEstimatedCost?: boolean;
   language?: string;
   theme?: 'light' | 'dark' | 'auto';
   trayDisplayRule?: TrayDisplayRule;

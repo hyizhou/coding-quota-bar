@@ -128,6 +128,9 @@ interface AccountDisplayData {
   totalTokens1d: number;
   totalTokens7d: number;
   totalTokens30d: number;
+  estimatedCost1d: number;
+  estimatedCost7d: number;
+  estimatedCost30d: number;
   mcpHistory1d: SharedMcpUsageRecord[];
   mcpHistory7d: SharedMcpUsageRecord[];
   mcpHistory30d: SharedMcpUsageRecord[];
@@ -862,6 +865,9 @@ function convertAccountData(
     totalTokens1d: (result.details?.totalTokens1d as number) ?? 0,
     totalTokens7d: (result.details?.totalTokens7d as number) ?? 0,
     totalTokens30d: (result.details?.totalTokens30d as number) ?? 0,
+    estimatedCost1d: (result.details?.estimatedCost1d as number) ?? 0,
+    estimatedCost7d: (result.details?.estimatedCost7d as number) ?? 0,
+    estimatedCost30d: (result.details?.estimatedCost30d as number) ?? 0,
     mcpHistory1d: mapMcpHistory('mcpHistory1d'),
     mcpHistory7d: mapMcpHistory('mcpHistory7d'),
     mcpHistory30d: mapMcpHistory('mcpHistory30d'),

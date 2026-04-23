@@ -67,6 +67,9 @@ export interface AccountUsageData {
   totalTokens1d: number
   totalTokens7d: number
   totalTokens30d: number
+  estimatedCost1d: number
+  estimatedCost7d: number
+  estimatedCost30d: number
   mcpHistory1d: McpUsageRecord[]
   mcpHistory7d: McpUsageRecord[]
   mcpHistory30d: McpUsageRecord[]
@@ -122,6 +125,7 @@ export interface AppConfig {
   autoStart: boolean
   popupTrigger?: 'hover' | 'click'
   memorySavingMode?: boolean
+  showEstimatedCost?: boolean
   language?: string
   theme?: 'light' | 'dark' | 'auto'
   updateInfo?: UpdateInfo | null

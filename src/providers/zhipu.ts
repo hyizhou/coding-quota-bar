@@ -1,5 +1,6 @@
 import type { Provider, ProviderConfig, SubscriptionInfo, UsageResult } from '../shared/types';
 import { HttpClientWithRetry } from '../main/http';
+import pricingConfig from './zai-pricing.json';
 
 /**
  * 智谱 quota/limit API 响应类型
@@ -139,6 +140,41 @@ function getLimitLabel(item: ZhipuLimitItem): { label: string; labelParams?: Rec
     return { label: 'quota.mcpUsage' };
   }
   return { label: item.type };
+}
+
+/**
+ * 定价数据从 zhipu-pricing.json 加载，价格变更时只需更新该文件
+ */
+interface ModelPricing {
+  cache: number;
+  input: number;
+  output: number;
+  tier?: string;
+  note?: string;
+}
+
+const { models: MODEL_PRICING, tokenRatio: TOKEN_RATIO } = pricingConfig as {
+  models: Record<string, ModelPricing>;
+  tokenRatio: { cache: number; input: number; output: number };
+};
+
+/**
+ * 根据 modelDataList 估算 API 调用费用
+ */
+function calcEstimatedCost(resp: ZhipuModelUsageResponse | null): number {
+  if (!resp?.data?.modelDataList) return 0;
+  let total = 0;
+  for (const model of resp.data.modelDataList) {
+    const pricing = MODEL_PRICING[model.modelName];
+    if (!pricing) continue;
+    const mTokens = model.totalTokens / 1_000_000;
+    total += mTokens * (
+      TOKEN_RATIO.cache * pricing.cache +
+      TOKEN_RATIO.input * pricing.input +
+      TOKEN_RATIO.output * pricing.output
+    );
+  }
+  return Math.round(total * 100) / 100;
 }
 
 /**
@@ -288,6 +324,9 @@ export class ZhipuProvider implements Provider {
         totalTokens1d: resp1d?.data?.totalUsage?.totalTokensUsage ?? 0,
         totalTokens7d: resp7d?.data?.totalUsage?.totalTokensUsage ?? 0,
         totalTokens30d: resp30d?.data?.totalUsage?.totalTokensUsage ?? 0,
+        estimatedCost1d: calcEstimatedCost(resp1d),
+        estimatedCost7d: calcEstimatedCost(resp7d),
+        estimatedCost30d: calcEstimatedCost(resp30d),
         mcpHistory1d: this.buildToolHistory(toolResp1d),
         mcpHistory7d: this.buildToolHistory(toolResp7d),
         mcpHistory30d: this.buildToolHistory(toolResp30d),

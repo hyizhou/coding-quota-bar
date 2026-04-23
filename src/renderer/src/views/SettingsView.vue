@@ -119,6 +119,11 @@
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.memorySavingMode') }}</span>
           </label>
+          <label class="toggle-row" :title="$t('settings.showEstimatedCostHint')">
+            <input type="checkbox" v-model="showEstimatedCost" />
+            <span class="toggle-switch"></span>
+            <span class="toggle-label">{{ $t('settings.showEstimatedCost') }}</span>
+          </label>
         </div>
       </div>
 
@@ -189,6 +194,7 @@ const isPackaged = ref(true)
 const language = ref('zh-CN')
 const popupTrigger = ref<'hover' | 'click'>('hover')
 const memorySavingMode = ref(false)
+const showEstimatedCost = ref(false)
 const trayDisplayRule = ref<string>('lowest')
 const saving = ref(false)
 const settingsBodyRef = ref<HTMLElement | null>(null)
@@ -279,10 +285,11 @@ onMounted(async () => {
   language.value = config.language || locale.value
   popupTrigger.value = config.popupTrigger ?? 'hover'
   memorySavingMode.value = config.memorySavingMode ?? false
+  showEstimatedCost.value = config.showEstimatedCost ?? false
   trayDisplayRule.value = config.trayDisplayRule ?? 'lowest'
 
   // 配置加载完后开始监听变化，自动保存
-  watch([providerList, refreshInterval, autoStart, language, popupTrigger, memorySavingMode, trayDisplayRule], () => {
+  watch([providerList, refreshInterval, autoStart, language, popupTrigger, memorySavingMode, showEstimatedCost, trayDisplayRule], () => {
     scheduleSave()
   }, { deep: true })
 
@@ -368,6 +375,7 @@ async function saveConfig() {
       autoStart: autoStart.value,
       popupTrigger: popupTrigger.value,
       memorySavingMode: memorySavingMode.value,
+      showEstimatedCost: showEstimatedCost.value,
       language: language.value,
       trayDisplayRule: trayDisplayRule.value,
     })
