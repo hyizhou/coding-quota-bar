@@ -36,6 +36,17 @@
         </button>
       </div>
     </header>
+    <div v-if="providers.length > 1" class="provider-tabs" @wheel.passive="onTabsWheel">
+      <button
+        v-for="p in providers"
+        :key="p.key"
+        class="provider-tab"
+        :class="{ active: activeProviderKey === p.key }"
+        @click="setActiveProvider(p.key)"
+      >
+        {{ p.name }}
+      </button>
+    </div>
 
     <div class="main-body">
       <template v-if="initialLoading">
@@ -55,17 +66,6 @@
       <template v-else>
         <template v-if="activeProvider">
         <div class="provider-section">
-          <div v-if="providers.length > 1" class="provider-tabs" @wheel.passive="onTabsWheel">
-            <button
-              v-for="p in providers"
-              :key="p.key"
-              class="provider-tab"
-              :class="{ active: activeProviderKey === p.key }"
-              @click="setActiveProvider(p.key)"
-            >
-              {{ p.name }}
-            </button>
-          </div>
           <div class="provider-name-row">
             <span class="provider-name" :class="{ clickable: !!activeProvider.websiteUrl }" @click="openProviderWebsite(activeProvider.websiteUrl)">{{ activeProvider.name }}</span>
             <!-- 账户切换按钮：仅当 2 个及以上账户时显示 -->
@@ -281,14 +281,15 @@ onMounted(() => {
 }
 
 .provider-tabs {
-  display: inline-flex;
+  display: flex;
+  justify-content: center;
   gap: 2px;
   background: var(--bg-tab-bar);
   border-radius: 8px;
   max-height: 0;
   overflow: hidden;
   opacity: 0;
-  margin-bottom: 0;
+  margin: 0 10px;
   padding: 0 2px;
   transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1),
               opacity 0.2s ease,
@@ -296,7 +297,8 @@ onMounted(() => {
               padding 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.provider-section:hover .provider-tabs {
+.header:hover + .provider-tabs,
+.provider-tabs:hover {
   max-height: 40px;
   opacity: 1;
   margin-bottom: 8px;
