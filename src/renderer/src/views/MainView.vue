@@ -35,8 +35,19 @@
           </svg>
         </button>
       </div>
+      <div
+        v-if="providers.length > 1"
+        class="provider-arrow"
+        :class="{ 'arrow-hidden': showTabs }"
+        @mouseenter="onTabsAreaEnter"
+        @mouseleave="onTabsAreaLeave"
+      >
+        <svg width="10" height="6" viewBox="0 0 10 6">
+          <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
     </header>
-    <div v-if="providers.length > 1" class="provider-tabs" @wheel.passive="onTabsWheel">
+    <div v-if="providers.length > 1" class="provider-tabs" :class="{ expanded: showTabs }" @mouseenter="onTabsAreaEnter" @mouseleave="onTabsAreaLeave" @wheel.passive="onTabsWheel">
       <button
         v-for="p in providers"
         :key="p.key"
@@ -126,6 +137,17 @@ const loading = ref(false)
 const initialLoading = ref(true)
 const now = ref(Date.now())
 const isPinned = ref(false)
+const showTabs = ref(false)
+let hideTimer: ReturnType<typeof setTimeout> | null = null
+
+function onTabsAreaEnter() {
+  if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
+  showTabs.value = true
+}
+
+function onTabsAreaLeave() {
+  hideTimer = setTimeout(() => { showTabs.value = false }, 150)
+}
 
 // Provider Tab 状态
 const STORAGE_KEY_ACCOUNTS = 'active-accounts'
@@ -266,6 +288,38 @@ onMounted(() => {
   height: 100%;
 }
 
+.header {
+  position: relative;
+}
+
+.provider-arrow {
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 14px;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  opacity: 0.4;
+  transition: opacity 0.2s, color 0.2s;
+  z-index: 20;
+}
+
+.provider-arrow:hover {
+  opacity: 1;
+  color: var(--text-secondary);
+}
+
+.provider-arrow.arrow-hidden {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
 .main-body {
   flex: 1;
   overflow-y: auto;
@@ -297,8 +351,7 @@ onMounted(() => {
               padding 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.header:hover + .provider-tabs,
-.provider-tabs:hover {
+.provider-tabs.expanded {
   max-height: 40px;
   opacity: 1;
   margin-bottom: 8px;
