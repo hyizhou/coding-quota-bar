@@ -114,7 +114,13 @@
     "minimaxWeekly": "周额度",
     "deepseekTotalBalance": "总余额",
     "deepseekGranted": "赠送余额",
-    "deepseekToppedUp": "充值余额"
+    "deepseekToppedUp": "充值余额",
+    "deepseekApiService": "API 服务",
+    "deepseekWebService": "网页对话服务",
+    "statusOperational": "运行正常",
+    "statusDegraded": "性能下降",
+    "statusPartialOutage": "部分故障",
+    "statusMajorOutage": "重大故障"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",

@@ -34,7 +34,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import type { AccountUsageData } from '../types'
+
+
 
 const props = defineProps<{
   account: AccountUsageData
@@ -108,9 +109,9 @@ async function onBudgetChange(e: Event) {
 
 <style scoped>
 .balance-card {
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: var(--bg-card);
-  border-radius: 10px;
+  border-radius: 8px;
   box-shadow: var(--shadow-card);
   transition: background 0.2s, box-shadow 0.2s;
 }

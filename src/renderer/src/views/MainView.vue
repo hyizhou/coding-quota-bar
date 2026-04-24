@@ -105,6 +105,7 @@
               <ZhipuSection v-if="activeProvider.key === 'zhipu'" :account="getActiveAccount(activeProvider)!" />
               <MiniMaxSection v-else-if="activeProvider.key === 'minimax'" :account="getActiveAccount(activeProvider)!" />
               <DeepSeekSection v-else-if="activeProvider.key === 'deepseek'" :account="getActiveAccount(activeProvider)!" />
+              <DeepSeekServiceStatus v-if="activeProvider.key === 'deepseek' && !getActiveAccount(activeProvider)!.error" :account="getActiveAccount(activeProvider)!" />
             </template>
           </template>
         </div>
@@ -125,6 +126,7 @@ import FloatingTooltip from '../components/FloatingTooltip.vue'
 import ZhipuSection from '../components/ZhipuSection.vue'
 import MiniMaxSection from '../components/MiniMaxSection.vue'
 import DeepSeekSection from '../components/DeepSeekSection.vue'
+import DeepSeekServiceStatus from '../components/DeepSeekServiceStatus.vue'
 import type { ProviderUsageData, AccountUsageData, UsageState } from '../types'
 import { useTheme } from '../composables/useTheme'
 

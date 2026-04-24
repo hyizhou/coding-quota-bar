@@ -114,7 +114,13 @@
     "minimaxWeekly": "Weekly Quota",
     "deepseekTotalBalance": "Total Balance",
     "deepseekGranted": "Granted Balance",
-    "deepseekToppedUp": "Topped Up Balance"
+    "deepseekToppedUp": "Topped Up Balance",
+    "deepseekApiService": "API Service",
+    "deepseekWebService": "Web Chat",
+    "statusOperational": "Operational",
+    "statusDegraded": "Degraded",
+    "statusPartialOutage": "Partial Outage",
+    "statusMajorOutage": "Major Outage"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",

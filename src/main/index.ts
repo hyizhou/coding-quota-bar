@@ -141,6 +141,7 @@ interface AccountDisplayData {
   performanceHistory7d: SharedPerformanceRecord[];
   performanceHistory15d: SharedPerformanceRecord[];
   performanceHistory30d: SharedPerformanceRecord[];
+  serviceStatus?: import('../shared/types').DeepSeekServiceComponent[];
 }
 
 /**
@@ -879,7 +880,8 @@ function convertAccountData(
     modelHistory30d: mapModelHistory('modelHistory30d'),
     performanceHistory7d: mapPerformanceHistory('performanceHistory7d'),
     performanceHistory15d: mapPerformanceHistory('performanceHistory15d'),
-    performanceHistory30d: mapPerformanceHistory('performanceHistory30d')
+    performanceHistory30d: mapPerformanceHistory('performanceHistory30d'),
+    serviceStatus: (result.details?.serviceStatus as import('../shared/types').DeepSeekServiceComponent[]) ?? undefined,
   };
 }
 

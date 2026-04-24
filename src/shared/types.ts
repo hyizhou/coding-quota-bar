@@ -156,6 +156,20 @@ export interface AppConfig {
 export type DisplayColor = 'green' | 'yellow' | 'red';
 
 /**
+ * DeepSeek 服务组件当前状态
+ */
+export type ComponentStatus = 'operational' | 'degraded_performance' | 'partial_outage' | 'major_outage';
+export type DayStatus = 'operational' | 'degraded' | 'outage' | 'maintenance';
+
+export interface DeepSeekServiceComponent {
+  id: string;
+  name: string;
+  status: ComponentStatus;
+  days: DayStatus[];
+  uptime: number;  // 90-day uptime percentage, e.g. 99.95
+}
+
+/**
  * 生成账户 ID（8 位随机 hex）
  */
 export function generateAccountId(): string {

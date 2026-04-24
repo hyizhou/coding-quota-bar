@@ -81,6 +81,7 @@ export interface AccountUsageData {
   performanceHistory7d: PerformanceRecord[]
   performanceHistory15d: PerformanceRecord[]
   performanceHistory30d: PerformanceRecord[]
+  serviceStatus?: DeepSeekServiceComponent[]
 }
 
 /**
@@ -109,6 +110,17 @@ export interface AccountConfig {
 
 export interface ProviderTypeConfig {
   accounts: AccountConfig[]
+}
+
+export type ComponentStatus = 'operational' | 'degraded_performance' | 'partial_outage' | 'major_outage'
+export type DayStatus = 'operational' | 'degraded' | 'outage' | 'maintenance'
+
+export interface DeepSeekServiceComponent {
+  id: string
+  name: string
+  status: ComponentStatus
+  days: DayStatus[]
+  uptime: number
 }
 
 export interface UpdateInfo {
