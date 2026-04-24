@@ -1,4 +1,29 @@
 import type { UsageResult } from '../shared/types';
+import pricingConfig from '../providers/zai-pricing.json';
+
+const { models: MODEL_PRICING, tokenRatio: TOKEN_RATIO } = pricingConfig as {
+  models: Record<string, { cache: number; input: number; output: number }>;
+  tokenRatio: { cache: number; input: number; output: number };
+};
+
+function calcMockModelRates(): Record<string, number> {
+  const rates: Record<string, number> = {};
+  for (const [name, p] of Object.entries(MODEL_PRICING)) {
+    rates[name] = Math.round((
+      TOKEN_RATIO.cache * p.cache +
+      TOKEN_RATIO.input * p.input +
+      TOKEN_RATIO.output * p.output
+    ) * 100) / 100;
+  }
+  return rates;
+}
+
+function calcMockEstimatedCost(totalTokens: number): number {
+  const avgRate = Object.values(MODEL_PRICING)
+    .reduce((sum, p) => sum + TOKEN_RATIO.cache * p.cache + TOKEN_RATIO.input * p.input + TOKEN_RATIO.output * p.output, 0)
+    / Object.keys(MODEL_PRICING).length;
+  return Math.round(totalTokens / 1_000_000 * avgRate * 100) / 100;
+}
 
 const HOUR = 3600000;
 const DAY = 86400000;
@@ -135,6 +160,10 @@ function generatePerformanceHistory(days: number): { date: string; liteDecodeSpe
 export function generateMockData(): Record<string, UsageResult> {
   const now = Date.now();
 
+  const totalTokens1d = Math.round(500000 + Math.random() * 500000);
+  const totalTokens7d = Math.round(3000000 + Math.random() * 3000000);
+  const totalTokens30d = Math.round(10000000 + Math.random() * 10000000);
+
   return {
     zhipu: {
       used: 250000,
@@ -151,9 +180,13 @@ export function generateMockData(): Record<string, UsageResult> {
         history1d: generateZhipuHourlyHistory(24),
         history7d: generateZhipuHourlyHistory(168),
         history30d: generateZhipuDailyHistory(30),
-        totalTokens1d: Math.round(500000 + Math.random() * 500000),
-        totalTokens7d: Math.round(3000000 + Math.random() * 3000000),
-        totalTokens30d: Math.round(10000000 + Math.random() * 10000000),
+        totalTokens1d,
+        totalTokens7d,
+        totalTokens30d,
+        estimatedCost1d: calcMockEstimatedCost(totalTokens1d),
+        estimatedCost7d: calcMockEstimatedCost(totalTokens7d),
+        estimatedCost30d: calcMockEstimatedCost(totalTokens30d),
+        modelRates: calcMockModelRates(),
         mcpHistory1d: generateZhipuHourlyMcpHistory(24),
         mcpHistory7d: generateZhipuHourlyMcpHistory(168),
         mcpHistory30d: generateZhipuDailyMcpHistory(30),
