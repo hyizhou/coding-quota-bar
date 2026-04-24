@@ -830,7 +830,8 @@ function convertAccountData(
     resetAt: q.resetAt,
     startAt: (q as any).startAt,
     color: getColorByPercent(100 - q.usageRate, thresholds) as 'green' | 'yellow' | 'red',
-    limitType: q.limitType
+    limitType: q.limitType,
+    hideBar: (q as any).hideBar,
   }));
 
   const mapHistory = (key: string): SharedUsageRecord[] =>

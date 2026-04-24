@@ -179,6 +179,7 @@ interface AccountInfo {
   enabled: boolean
   apiKey: string
   showKey: boolean
+  budget?: number
 }
 
 interface ProviderInfo {
@@ -276,6 +277,7 @@ onMounted(async () => {
         enabled: account.enabled ?? false,
         apiKey: account.apiKey ?? '',
         showKey: false,
+        budget: (account as any).budget ?? undefined,
       }))
     }
   })
@@ -364,6 +366,7 @@ async function saveConfig() {
         label: a.label,
         enabled: a.enabled,
         apiKey: a.apiKey,
+        ...(a.budget != null ? { budget: a.budget } : {}),
       }))
     }
   }

@@ -32,6 +32,7 @@
     "defaultAccountLabel": "Account {n}",
     "performanceStats": "System Health",
     "estimatedCost": "≈¥{amount} API equiv.",
+    "setBudget": "Set total budget (CNY), leave empty for balance only",
     "costTotal": "Total",
     "perfSpeed": "Speed",
     "perfRate": "Rate",
@@ -109,7 +110,10 @@
     "tokensLimitDaily": "Weekly Quota",
     "mcpUsage": "MCP Usage",
     "minimaxDaily": "Daily Quota",
-    "minimaxWeekly": "Weekly Quota"
+    "minimaxWeekly": "Weekly Quota",
+    "deepseekTotalBalance": "Total Balance",
+    "deepseekGranted": "Granted Balance",
+    "deepseekToppedUp": "Topped Up Balance"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",
@@ -124,7 +128,8 @@
   "providers": {
     "zhipu": "Z AI",
     "minimax": "MiniMax",
-    "kimi": "Kimi"
+    "kimi": "Kimi",
+    "deepseek": "DeepSeek"
   },
   "subscription": {
     "plan": "Plan",

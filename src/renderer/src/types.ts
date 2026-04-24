@@ -23,6 +23,7 @@ export interface QuotaItem {
   startAt?: string     // 周期开始时间
   color: 'green' | 'yellow' | 'red'
   limitType?: string   // 限制类型标识，如 "tokens"、"mcp"
+  hideBar?: boolean    // 为 true 时不显示进度条，仅显示文本
 }
 
 export interface UsageRecord {
@@ -103,6 +104,7 @@ export interface AccountConfig {
   enabled: boolean
   apiKey: string
   label: string
+  budget?: number
 }
 
 export interface ProviderTypeConfig {

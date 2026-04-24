@@ -6,6 +6,7 @@ export interface AccountConfig {
   enabled: boolean;
   apiKey: string;
   label: string;    // 用户自定义备注，如 "工作号"
+  budget?: number;  // 用户自定义总额度（元），用于纯余额服务商
 }
 
 /**
@@ -37,6 +38,7 @@ export interface QuotaItem {
   resetAt: string;       // 重置时间 ISO 8601
   startAt?: string;      // 周期开始时间 ISO 8601
   limitType?: string;    // 限制类型标识，如 "tokens"、"mcp"
+  hideBar?: boolean;     // 为 true 时不显示进度条，仅显示文本
 }
 
 /**

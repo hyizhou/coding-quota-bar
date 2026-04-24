@@ -2,6 +2,7 @@ import type { Provider, ProviderConfig, ProviderTypeConfig } from '../shared/typ
 import { ZhipuProvider } from '../providers/zhipu';
 import { MiniMaxProvider } from '../providers/minimax';
 import { KimiProvider } from '../providers/kimi';
+import { DeepSeekProvider } from '../providers/deepseek';
 import buildConfig from '../../app.build';
 
 /**
@@ -11,6 +12,7 @@ const PROVIDER_CLASSES = {
   zhipu: ZhipuProvider,
   minimax: MiniMaxProvider,
   kimi: KimiProvider,
+  deepseek: DeepSeekProvider,
 } as const;
 
 /**
@@ -86,6 +88,7 @@ export class ProviderLoader {
               enabled: true,
               apiKey: account.apiKey,
               _baseUrl: buildEntry?.baseUrl || '',
+              ...(account.budget != null ? { budget: account.budget } : {}),
             },
           });
           console.log(`[Loader] Loaded provider: ${instance.name} (${account.label || account.id})`);

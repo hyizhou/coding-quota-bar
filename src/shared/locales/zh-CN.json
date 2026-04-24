@@ -32,6 +32,7 @@
     "defaultAccountLabel": "账号{n}",
     "performanceStats": "系统健康度",
     "estimatedCost": "≈¥{amount} API 等价",
+    "setBudget": "设置总额度（元），留空则仅显示余额",
     "costTotal": "合计",
     "perfSpeed": "速度",
     "perfRate": "成功率",
@@ -109,7 +110,10 @@
     "tokensLimitDaily": "周额度",
     "mcpUsage": "MCP 用量",
     "minimaxDaily": "日额度",
-    "minimaxWeekly": "周额度"
+    "minimaxWeekly": "周额度",
+    "deepseekTotalBalance": "总余额",
+    "deepseekGranted": "赠送余额",
+    "deepseekToppedUp": "充值余额"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",
@@ -124,7 +128,8 @@
   "providers": {
     "zhipu": "智谱",
     "minimax": "MiniMax",
-    "kimi": "Kimi"
+    "kimi": "Kimi",
+    "deepseek": "DeepSeek"
   },
   "subscription": {
     "plan": "套餐",
