@@ -124,21 +124,11 @@
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.showEstimatedCost') }}</span>
           </label>
-          <label class="toggle-row">
+          <label class="toggle-row" :title="$t('settings.autoCheckUpdateHint')">
             <input type="checkbox" v-model="autoCheckUpdateEnabled" />
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.autoCheckUpdate') }}</span>
           </label>
-        </div>
-        <div v-if="autoCheckUpdateEnabled" class="form-group">
-          <label class="form-label">{{ $t('settings.autoCheckInterval') }}</label>
-          <select v-model="autoCheckInterval" class="form-select">
-            <option value="3600">{{ $t('settings.interval1h') }}</option>
-            <option value="7200">{{ $t('settings.interval2h') }}</option>
-            <option value="14400">{{ $t('settings.interval4h') }}</option>
-            <option value="28800">{{ $t('settings.interval8h') }}</option>
-            <option value="86400">{{ $t('settings.interval24h') }}</option>
-          </select>
         </div>
       </div>
 
@@ -213,7 +203,6 @@ const memorySavingMode = ref(false)
 const showEstimatedCost = ref(false)
 const trayDisplayRule = ref<string>('lowest')
 const autoCheckUpdateEnabled = ref(true)
-const autoCheckInterval = ref('14400')
 const saving = ref(false)
 const settingsBodyRef = ref<HTMLElement | null>(null)
 const saveStatus = ref('')
@@ -307,10 +296,9 @@ onMounted(async () => {
   showEstimatedCost.value = config.showEstimatedCost ?? false
   trayDisplayRule.value = config.trayDisplayRule ?? 'lowest'
   autoCheckUpdateEnabled.value = config.autoCheckUpdate ?? true
-  autoCheckInterval.value = String(config.autoCheckUpdateInterval ?? 14400)
 
   // 配置加载完后开始监听变化，自动保存
-  watch([providerList, refreshInterval, autoStart, language, popupTrigger, memorySavingMode, showEstimatedCost, trayDisplayRule, autoCheckUpdateEnabled, autoCheckInterval], () => {
+  watch([providerList, refreshInterval, autoStart, language, popupTrigger, memorySavingMode, showEstimatedCost, trayDisplayRule, autoCheckUpdateEnabled], () => {
     scheduleSave()
   }, { deep: true })
 
@@ -401,7 +389,6 @@ async function saveConfig() {
       language: language.value,
       trayDisplayRule: trayDisplayRule.value,
       autoCheckUpdate: autoCheckUpdateEnabled.value,
-      autoCheckUpdateInterval: parseInt(autoCheckInterval.value, 10),
     })
     locale.value = language.value
     saveStatus.value = t('settings.saved')

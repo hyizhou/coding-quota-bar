@@ -98,12 +98,7 @@
     "feedbackScanTip": "Scan QR code to join Feishu feedback group",
     "feedbackClickLink": "Click link to join",
     "autoCheckUpdate": "Auto-check for Updates",
-    "autoCheckInterval": "Check Frequency",
-    "interval1h": "Every 1 hour",
-    "interval2h": "Every 2 hours",
-    "interval4h": "Every 4 hours",
-    "interval8h": "Every 8 hours",
-    "interval24h": "Every 24 hours"
+    "autoCheckUpdateHint": "Periodically check for new versions and notify on the main screen"
   },
   "provider": {
     "expired": "Expired",

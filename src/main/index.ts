@@ -111,10 +111,6 @@ async function performAutoCheck(): Promise<void> {
       parts[2] = (parts[2] || 0) + 1;
       const mockVersion = parts.join('.');
       console.log(`[AutoUpdate] Mock update: v${mockVersion}`);
-      await configManager?.updateConfig({
-        updateInfo: { version: mockVersion, downloaded: false },
-        lastAutoCheckTime: new Date().toISOString()
-      });
       if (popupWindow && !popupWindow.isDestroyed()) {
         popupWindow.webContents.send('update-available-auto', { version: mockVersion });
       }
@@ -616,6 +612,17 @@ async function initialize(): Promise<void> {
   setupIpcHandlers();
 
   // 10. 启动自动更新检查
+  // 模拟更新模式：启动时清除残留数据，写入模拟版本
+  if (mockUpdate) {
+    const currentVersion = app.getVersion();
+    const parts = currentVersion.split('.').map(Number);
+    parts[2] = (parts[2] || 0) + 1;
+    const mockVersion = parts.join('.');
+    await configManager?.updateConfig({
+      updateInfo: { version: mockVersion, downloaded: false }
+    });
+    console.log(`[AutoUpdate] Mock mode: simulated v${mockVersion}`);
+  }
   startAutoUpdateChecker();
 
   console.log('[App] Initialization complete');
@@ -685,9 +692,8 @@ function setupConfigListeners(): void {
       }
     }
 
-    // 自动更新检查设置变化时，重启调度器
-    if (newConfig.autoCheckUpdate !== oldConfig?.autoCheckUpdate ||
-        newConfig.autoCheckUpdateInterval !== oldConfig?.autoCheckUpdateInterval) {
+    // 自动更新检查开关变化时，启停调度器
+    if (newConfig.autoCheckUpdate !== oldConfig?.autoCheckUpdate) {
       stopAutoUpdateChecker();
       if (newConfig.autoCheckUpdate) {
         startAutoUpdateChecker();
@@ -791,10 +797,6 @@ function setupIpcHandlers(): void {
       const parts = currentVersion.split('.').map(Number);
       parts[2] = (parts[2] || 0) + 1;
       const mockVersion = parts.join('.');
-      await configManager?.updateConfig({
-        updateInfo: { version: mockVersion, downloaded: false },
-        lastAutoCheckTime: new Date().toISOString()
-      });
       return { available: true, version: mockVersion };
     }
     if (isAutoChecking) {
@@ -1067,6 +1069,11 @@ app.on('before-quit', () => {
 
   // 停止自动更新检查
   stopAutoUpdateChecker();
+
+  // 模拟更新模式：退出时清除模拟数据，避免下次启动残留
+  if (mockUpdate && configManager) {
+    configManager.updateConfig({ updateInfo: undefined }).catch(() => {});
+  }
 
   // 停止调度器
   scheduler?.destroy();

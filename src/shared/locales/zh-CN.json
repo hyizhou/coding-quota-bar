@@ -98,12 +98,7 @@
     "feedbackScanTip": "扫描二维码加入飞书反馈群",
     "feedbackClickLink": "点击链接加入",
     "autoCheckUpdate": "自动检查更新",
-    "autoCheckInterval": "检查频率",
-    "interval1h": "每 1 小时",
-    "interval2h": "每 2 小时",
-    "interval4h": "每 4 小时",
-    "interval8h": "每 8 小时",
-    "interval24h": "每 24 小时"
+    "autoCheckUpdateHint": "定期检查是否有新版本，发现更新后在主界面提示"
   },
   "provider": {
     "expired": "已过期",
