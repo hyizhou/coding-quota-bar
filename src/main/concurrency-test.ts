@@ -261,6 +261,15 @@ function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text:
   return new Promise((resolve) => {
     const startTime = performance.now();
     const stats = newStats();
+    let settled = false;
+
+    const safeResolve = (result: StreamResult) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(wallTimer);
+        resolve(result);
+      }
+    };
 
     const body = JSON.stringify({
       model,
@@ -287,13 +296,9 @@ function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text:
       timeout: 30000,
     };
 
-    let settled = false;
     const wallTimer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        req.destroy();
-        resolve(makeError(startTime, 'Timeout (30s)'));
-      }
+      req.destroy();
+      safeResolve(makeError(startTime, 'Timeout (30s)'));
     }, 30000);
 
     const req = https.request(options, (res) => {
@@ -303,9 +308,12 @@ function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text:
         let errBody = '';
         res.on('data', (chunk: Buffer) => { errBody += chunk.toString(); });
         res.on('end', () => {
-          settled = true;
-          clearTimeout(wallTimer);
-          resolve(makeError(startTime, `HTTP ${res.statusCode}: ${errBody.slice(0, 200)}`));
+          req.destroy();
+          safeResolve(makeError(startTime, `HTTP ${res.statusCode}: ${errBody.slice(0, 200)}`));
+        });
+        res.on('error', () => {
+          req.destroy();
+          safeResolve(makeError(startTime, `HTTP ${res.statusCode}`));
         });
         return;
       }
@@ -338,26 +346,28 @@ function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text:
       });
 
       res.on('end', () => {
-        settled = true;
-        clearTimeout(wallTimer);
-        resolve(makeStreamResult(startTime, stats));
+        safeResolve(makeStreamResult(startTime, stats));
       });
 
       res.on('error', (err) => {
-        settled = true;
-        clearTimeout(wallTimer);
-        resolve(makeError(startTime, err.message));
+        req.destroy();
+        safeResolve(makeError(startTime, err.message));
       });
     });
 
     req.on('error', (err) => {
-      if (!settled) { settled = true; clearTimeout(wallTimer); resolve(makeError(startTime, err.message)); }
+      safeResolve(makeError(startTime, err.message));
     });
     req.on('timeout', () => {
-      if (!settled) { settled = true; clearTimeout(wallTimer); req.destroy(); resolve(makeError(startTime, 'Connection timeout')); }
+      req.destroy();
+      safeResolve(makeError(startTime, 'Connection timeout'));
     });
-    req.write(body);
-    req.end();
+    try {
+      req.write(body);
+      req.end();
+    } catch (err: any) {
+      safeResolve(makeError(startTime, err?.message || 'Request write failed'));
+    }
   });
 }
 
@@ -370,6 +380,15 @@ function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (te
   return new Promise((resolve) => {
     const startTime = performance.now();
     const stats = newStats();
+    let settled = false;
+
+    const safeResolve = (result: StreamResult) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(wallTimer);
+        resolve(result);
+      }
+    };
 
     const body = JSON.stringify({
       model,
@@ -399,13 +418,9 @@ function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (te
       timeout: 30000,
     };
 
-    let settled = false;
     const wallTimer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        req.destroy();
-        resolve(makeError(startTime, 'Timeout (30s)'));
-      }
+      req.destroy();
+      safeResolve(makeError(startTime, 'Timeout (30s)'));
     }, 30000);
 
     const req = https.request(options, (res) => {
@@ -415,9 +430,12 @@ function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (te
         let errBody = '';
         res.on('data', (chunk: Buffer) => { errBody += chunk.toString(); });
         res.on('end', () => {
-          settled = true;
-          clearTimeout(wallTimer);
-          resolve(makeError(startTime, `HTTP ${res.statusCode}: ${errBody.slice(0, 200)}`));
+          req.destroy();
+          safeResolve(makeError(startTime, `HTTP ${res.statusCode}: ${errBody.slice(0, 200)}`));
+        });
+        res.on('error', () => {
+          req.destroy();
+          safeResolve(makeError(startTime, `HTTP ${res.statusCode}`));
         });
         return;
       }
@@ -458,26 +476,28 @@ function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (te
       });
 
       res.on('end', () => {
-        settled = true;
-        clearTimeout(wallTimer);
-        resolve(makeStreamResult(startTime, stats));
+        safeResolve(makeStreamResult(startTime, stats));
       });
 
       res.on('error', (err) => {
-        settled = true;
-        clearTimeout(wallTimer);
-        resolve(makeError(startTime, err.message));
+        req.destroy();
+        safeResolve(makeError(startTime, err.message));
       });
     });
 
     req.on('error', (err) => {
-      if (!settled) { settled = true; clearTimeout(wallTimer); resolve(makeError(startTime, err.message)); }
+      safeResolve(makeError(startTime, err.message));
     });
     req.on('timeout', () => {
-      if (!settled) { settled = true; clearTimeout(wallTimer); req.destroy(); resolve(makeError(startTime, 'Connection timeout')); }
+      req.destroy();
+      safeResolve(makeError(startTime, 'Connection timeout'));
     });
-    req.write(body);
-    req.end();
+    try {
+      req.write(body);
+      req.end();
+    } catch (err: any) {
+      safeResolve(makeError(startTime, err?.message || 'Request write failed'));
+    }
   });
 }
 
