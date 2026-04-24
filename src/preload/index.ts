@@ -85,6 +85,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
 
   /**
+   * 监听自动更新发现新版本
+   */
+  onUpdateAvailableAuto: (callback: (info: { version: string }) => void) => {
+    ipcRenderer.on('update-available-auto', (_, info) => callback(info));
+  },
+
+  /**
    * 通知主进程显示弹窗
    */
   showPopup: () => ipcRenderer.send('show-popup'),

@@ -40,7 +40,8 @@
     "perfLite": "Lite",
     "perfProMax": "Pro/Max",
     "perfAvgSpeed": "平均速度",
-    "perfAvgSuccessRate": "平均成功率"
+    "perfAvgSuccessRate": "平均成功率",
+    "updateAvailableBanner": "发现新版本 v{version}，点击查看"
   },
   "settings": {
     "title": "设置",
@@ -95,7 +96,14 @@
     "feedbackGroup": "反馈群聊",
     "feedbackGroupTitle": "加入飞书反馈群",
     "feedbackScanTip": "扫描二维码加入飞书反馈群",
-    "feedbackClickLink": "点击链接加入"
+    "feedbackClickLink": "点击链接加入",
+    "autoCheckUpdate": "自动检查更新",
+    "autoCheckInterval": "检查频率",
+    "interval1h": "每 1 小时",
+    "interval2h": "每 2 小时",
+    "interval4h": "每 4 小时",
+    "interval8h": "每 8 小时",
+    "interval24h": "每 24 小时"
   },
   "provider": {
     "expired": "已过期",

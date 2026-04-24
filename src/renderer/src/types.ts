@@ -143,6 +143,10 @@ export interface AppConfig {
   showEstimatedCost?: boolean
   language?: string
   theme?: 'light' | 'dark' | 'auto'
+  trayDisplayRule?: TrayDisplayRule
+  autoCheckUpdate?: boolean
+  autoCheckUpdateInterval?: number
+  lastAutoCheckTime?: string | null
   updateInfo?: UpdateInfo | null
 }
 
@@ -168,6 +172,7 @@ export interface ElectronAPI {
   setWindowPinned: (pinned: boolean) => void
   onWindowPinnedState: (callback: (pinned: boolean) => void) => void
   getAppVersion: () => Promise<string>
+  onUpdateAvailableAuto: (callback: (info: { version: string }) => void) => void
 }
 
 declare global {

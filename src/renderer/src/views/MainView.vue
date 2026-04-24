@@ -113,6 +113,13 @@
       </template>
     </div>
 
+    <UpdateBanner
+      v-if="updateNotification"
+      :version="updateNotification.version"
+      @click="handleUpdateBannerClick"
+      @close="updateNotification = null"
+    />
+
     <footer class="footer">
       <span>{{ lastUpdateText }}</span>
     </footer>
@@ -123,6 +130,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloatingTooltip from '../components/FloatingTooltip.vue'
+import UpdateBanner from '../components/UpdateBanner.vue'
 import ZhipuSection from '../components/ZhipuSection.vue'
 import MiniMaxSection from '../components/MiniMaxSection.vue'
 import DeepSeekSection from '../components/DeepSeekSection.vue'
@@ -130,7 +138,7 @@ import DeepSeekServiceStatus from '../components/DeepSeekServiceStatus.vue'
 import type { ProviderUsageData, AccountUsageData, UsageState } from '../types'
 import { useTheme } from '../composables/useTheme'
 
-defineEmits<{ 'open-settings': [] }>()
+const emit = defineEmits<{ 'open-settings': [options?: { checkUpdate?: boolean }] }>()
 
 const { t, locale } = useI18n()
 const { isDark, toggleTheme } = useTheme()
@@ -139,6 +147,7 @@ const providers = ref<ProviderUsageData[]>([])
 const lastUpdate = ref('')
 const loading = ref(false)
 const initialLoading = ref(true)
+const updateNotification = ref<{ version: string } | null>(null)
 const now = ref(Date.now())
 const isPinned = ref(false)
 const showTabs = ref(false)
@@ -270,9 +279,14 @@ function onTabsWheel(e: WheelEvent) {
   el.scrollLeft += e.deltaY
 }
 
+function handleUpdateBannerClick() {
+  updateNotification.value = null
+  emit('open-settings', { checkUpdate: true })
+}
+
 setInterval(() => { now.value = Date.now() }, 60000)
 
-onMounted(() => {
+onMounted(async () => {
   fetchData()
   // 监听主进程推送的数据更新
   window.electronAPI.onUsageDataUpdated((data) => {
@@ -282,6 +296,16 @@ onMounted(() => {
   window.electronAPI.onWindowPinnedState((pinned) => {
     isPinned.value = pinned
   })
+  // 监听自动更新发现新版本
+  window.electronAPI.onUpdateAvailableAuto?.((info) => {
+    updateNotification.value = info
+  })
+  // 恢复持久化的更新状态
+  const config = await window.electronAPI.getConfig()
+  const version = await window.electronAPI.getAppVersion()
+  if (config?.updateInfo?.version && config.updateInfo.version > version && !config.updateInfo.downloaded) {
+    updateNotification.value = { version: config.updateInfo.version }
+  }
 })
 </script>
 

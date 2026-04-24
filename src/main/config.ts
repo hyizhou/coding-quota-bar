@@ -208,7 +208,10 @@ export class ConfigManager extends EventEmitter {
       },
       autoStart: false,
       language: 'zh-CN',
-      theme: 'auto'
+      theme: 'auto',
+      autoCheckUpdate: true,
+      autoCheckUpdateInterval: 14400,
+      lastAutoCheckTime: null
     };
 
     await this.save(defaultConfig);

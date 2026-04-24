@@ -147,6 +147,9 @@ export interface AppConfig {
   language?: string;
   theme?: 'light' | 'dark' | 'auto';
   trayDisplayRule?: TrayDisplayRule;
+  autoCheckUpdate?: boolean;
+  autoCheckUpdateInterval?: number;
+  lastAutoCheckTime?: string | null;
   updateInfo?: UpdateInfo | null;
 }
 

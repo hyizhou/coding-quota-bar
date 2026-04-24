@@ -24,7 +24,8 @@ if (fs.existsSync(envPath)) {
 
 // 是否处于开发状态（CQB_DEV=1 时生效，来源可以是 .env 文件或系统环境变量）
 const isDev = process.env.CQB_DEV === '1';
-console.log('[App] DEV mode:', isDev);
+const mockUpdate = process.env.CQB_MOCK_UPDATE === '1';
+console.log('[App] DEV mode:', isDev, '| Mock update:', mockUpdate);
 
 // 自动更新配置
 autoUpdater.autoDownload = false;
@@ -68,6 +69,109 @@ autoUpdater.on('error', (error) => {
   console.error('[Updater] Error:', error.message);
 });
 
+/**
+ * 自动更新检查调度器
+ */
+function startAutoUpdateChecker(): void {
+  const config = configManager?.getConfig();
+  if (!config?.autoCheckUpdate || (isDev && !mockUpdate)) return;
+
+  const intervalMs = (config.autoCheckUpdateInterval || 14400) * 1000;
+  const lastCheck = config.lastAutoCheckTime ? new Date(config.lastAutoCheckTime).getTime() : 0;
+  const elapsed = Date.now() - lastCheck;
+  const remaining = Math.max(0, intervalMs - elapsed);
+  const initialDelay = lastCheck === 0 ? 30000 : remaining;
+
+  console.log(`[AutoUpdate] Scheduling first check in ${Math.round(initialDelay / 1000)}s`);
+
+  autoUpdateTimerId = setTimeout(async () => {
+    autoUpdateTimerId = null;
+    await performAutoCheck();
+    scheduleNextAutoCheck();
+  }, initialDelay);
+}
+
+async function performAutoCheck(): Promise<void> {
+  if (isAutoChecking) {
+    console.log('[AutoUpdate] Check already in progress, skipping');
+    return;
+  }
+
+  const config = configManager?.getConfig();
+  if (!config?.autoCheckUpdate) return;
+
+  isAutoChecking = true;
+  console.log('[AutoUpdate] Checking for updates...');
+
+  try {
+    // 模拟更新：构造一个比当前版本号更高的假版本
+    if (mockUpdate) {
+      const currentVersion = app.getVersion();
+      const parts = currentVersion.split('.').map(Number);
+      parts[2] = (parts[2] || 0) + 1;
+      const mockVersion = parts.join('.');
+      console.log(`[AutoUpdate] Mock update: v${mockVersion}`);
+      await configManager?.updateConfig({
+        updateInfo: { version: mockVersion, downloaded: false },
+        lastAutoCheckTime: new Date().toISOString()
+      });
+      if (popupWindow && !popupWindow.isDestroyed()) {
+        popupWindow.webContents.send('update-available-auto', { version: mockVersion });
+      }
+      return;
+    }
+
+    const result = await autoUpdater.checkForUpdates();
+    await configManager?.updateConfig({
+      lastAutoCheckTime: new Date().toISOString()
+    });
+
+    if (result?.updateInfo) {
+      const latestVersion = result.updateInfo.version;
+      const currentVersion = app.getVersion();
+
+      if (latestVersion > currentVersion) {
+        console.log(`[AutoUpdate] Update available: v${latestVersion}`);
+        await configManager?.updateConfig({
+          updateInfo: { version: latestVersion, downloaded: false }
+        });
+        if (popupWindow && !popupWindow.isDestroyed()) {
+          popupWindow.webContents.send('update-available-auto', { version: latestVersion });
+        }
+      } else {
+        console.log('[AutoUpdate] No update available');
+        await configManager?.updateConfig({ updateInfo: undefined });
+      }
+    }
+  } catch (error) {
+    console.error('[AutoUpdate] Check failed:', error);
+    await configManager?.updateConfig({
+      lastAutoCheckTime: new Date().toISOString()
+    });
+  } finally {
+    isAutoChecking = false;
+  }
+}
+
+function scheduleNextAutoCheck(): void {
+  const config = configManager?.getConfig();
+  if (!config?.autoCheckUpdate) return;
+
+  const intervalMs = (config.autoCheckUpdateInterval || 14400) * 1000;
+  autoUpdateTimerId = setTimeout(async () => {
+    autoUpdateTimerId = null;
+    await performAutoCheck();
+    scheduleNextAutoCheck();
+  }, intervalMs);
+}
+
+function stopAutoUpdateChecker(): void {
+  if (autoUpdateTimerId) {
+    clearTimeout(autoUpdateTimerId);
+    autoUpdateTimerId = null;
+  }
+}
+
 // 全局模块实例
 let trayManager: TrayManager | null = null;
 let popupWindow: BrowserWindow | null = null;
@@ -77,6 +181,10 @@ let hideTimer: ReturnType<typeof setTimeout> | null = null;
 let isHoveringWindow = false;
 let isPopupVisible = false;
 let blurHandler: (() => void) | null = null;
+
+// 自动更新检查调度
+let autoUpdateTimerId: ReturnType<typeof setTimeout> | null = null;
+let isAutoChecking = false;
 
 /**
  * 窗口显示模式
@@ -507,6 +615,9 @@ async function initialize(): Promise<void> {
   // 9. 设置 IPC 通信
   setupIpcHandlers();
 
+  // 10. 启动自动更新检查
+  startAutoUpdateChecker();
+
   console.log('[App] Initialization complete');
 }
 
@@ -571,6 +682,15 @@ function setupConfigListeners(): void {
         // 关闭模式 + 窗口不存在 → 预创建窗口
         createPopupWindow();
         console.log('[App] Memory saving mode disabled, pre-created window');
+      }
+    }
+
+    // 自动更新检查设置变化时，重启调度器
+    if (newConfig.autoCheckUpdate !== oldConfig?.autoCheckUpdate ||
+        newConfig.autoCheckUpdateInterval !== oldConfig?.autoCheckUpdateInterval) {
+      stopAutoUpdateChecker();
+      if (newConfig.autoCheckUpdate) {
+        startAutoUpdateChecker();
       }
     }
   });
@@ -663,9 +783,24 @@ function setupIpcHandlers(): void {
 
   // 检查更新（仅检查，不下载）
   ipcMain.handle('check-for-update', async () => {
-    if (isDev) {
+    if (isDev && !mockUpdate) {
       return { available: false };
     }
+    if (mockUpdate) {
+      const currentVersion = app.getVersion();
+      const parts = currentVersion.split('.').map(Number);
+      parts[2] = (parts[2] || 0) + 1;
+      const mockVersion = parts.join('.');
+      await configManager?.updateConfig({
+        updateInfo: { version: mockVersion, downloaded: false },
+        lastAutoCheckTime: new Date().toISOString()
+      });
+      return { available: true, version: mockVersion };
+    }
+    if (isAutoChecking) {
+      return { available: false };
+    }
+    isAutoChecking = true;
     try {
       const result = await autoUpdater.checkForUpdates();
       if (result?.updateInfo) {
@@ -675,16 +810,22 @@ function setupIpcHandlers(): void {
         // 持久化更新检查结果
         if (available) {
           await configManager?.updateConfig({
-            updateInfo: { version: latestVersion, downloaded: false }
+            updateInfo: { version: latestVersion, downloaded: false },
+            lastAutoCheckTime: new Date().toISOString()
           });
         } else {
-          await configManager?.updateConfig({ updateInfo: undefined });
+          await configManager?.updateConfig({
+            updateInfo: undefined,
+            lastAutoCheckTime: new Date().toISOString()
+          });
         }
         return { available, version: latestVersion };
       }
       return { available: false };
     } catch {
       return { available: false, error: true };
+    } finally {
+      isAutoChecking = false;
     }
   });
 
@@ -923,6 +1064,9 @@ app.on('window-all-closed', () => {
  */
 app.on('before-quit', () => {
   console.log('[App] Cleaning up...');
+
+  // 停止自动更新检查
+  stopAutoUpdateChecker();
 
   // 停止调度器
   scheduler?.destroy();

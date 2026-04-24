@@ -40,7 +40,8 @@
     "perfLite": "Lite",
     "perfProMax": "Pro/Max",
     "perfAvgSpeed": "Avg Speed",
-    "perfAvgSuccessRate": "Avg Rate"
+    "perfAvgSuccessRate": "Avg Rate",
+    "updateAvailableBanner": "New version v{version} available, click to view"
   },
   "settings": {
     "title": "Settings",
@@ -95,7 +96,14 @@
     "feedbackGroup": "Feedback Group",
     "feedbackGroupTitle": "Join Feishu Feedback Group",
     "feedbackScanTip": "Scan QR code to join Feishu feedback group",
-    "feedbackClickLink": "Click link to join"
+    "feedbackClickLink": "Click link to join",
+    "autoCheckUpdate": "Auto-check for Updates",
+    "autoCheckInterval": "Check Frequency",
+    "interval1h": "Every 1 hour",
+    "interval2h": "Every 2 hours",
+    "interval4h": "Every 4 hours",
+    "interval8h": "Every 8 hours",
+    "interval24h": "Every 24 hours"
   },
   "provider": {
     "expired": "Expired",
