@@ -2,10 +2,9 @@
   <div class="quota-card">
     <div class="card-top">
       <span class="quota-label">{{ $t(label, labelParams) }}</span>
-      <span v-if="hideBar" class="quota-amount">¥{{ labelParams?.amount ?? total.toFixed(2) }}</span>
-      <span v-else class="quota-percent" :class="color">{{ Math.round(usageRate) }}%</span>
+      <span class="quota-percent" :class="color">{{ Math.round(usageRate) }}%</span>
     </div>
-    <div v-if="!hideBar" class="progress-bar">
+    <div class="progress-bar">
       <div class="progress-fill" :class="color" :style="{ width: usageRate + '%' }"></div>
     </div>
     <div class="card-bottom">
@@ -77,13 +76,6 @@ function formatReset(iso: string): string {
 }
 .quota-percent.yellow { color: #a16207; }
 .quota-percent.red { color: #dc2626; }
-
-.quota-amount {
-  font-weight: 700;
-  font-size: 16px;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
 
 .progress-bar {
   height: 6px;

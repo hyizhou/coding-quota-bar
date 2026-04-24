@@ -33,6 +33,7 @@
     "performanceStats": "System Health",
     "estimatedCost": "≈¥{amount} API equiv.",
     "setBudget": "Set total budget (CNY), leave empty for balance only",
+    "budgetRemaining": "¥{n} remaining",
     "costTotal": "Total",
     "perfSpeed": "Speed",
     "perfRate": "Rate",

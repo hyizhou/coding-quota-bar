@@ -33,6 +33,7 @@
     "performanceStats": "系统健康度",
     "estimatedCost": "≈¥{amount} API 等价",
     "setBudget": "设置总额度（元），留空则仅显示余额",
+    "budgetRemaining": "剩余 ¥{n}",
     "costTotal": "合计",
     "perfSpeed": "速度",
     "perfRate": "成功率",
