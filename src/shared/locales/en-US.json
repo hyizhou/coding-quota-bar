@@ -15,8 +15,13 @@
     "tokenStats": "Token Usage",
     "mcpStats": "MCP Stats",
     "toggleTheme": "Toggle Theme",
+    "pinWindow": "Pin window (stay open on click outside)",
+    "unpinWindow": "Unpin (click tray icon to close)",
+    "tabToday": "Today",
+    "tab24h": "24h",
     "tab1d": "1D",
     "tab7d": "7D",
+    "tab15d": "15D",
     "tab30d": "30D",
     "tabToken": "Token",
     "tabMcp": "MCP",
@@ -24,7 +29,16 @@
     "mcpWebRead": "Web Read",
     "mcpZread": "ZRead",
     "mcpCountUnit": "",
-    "defaultAccountLabel": "Account {n}"
+    "defaultAccountLabel": "Account {n}",
+    "performanceStats": "System Health",
+    "estimatedCost": "≈¥{amount} API equiv.",
+    "costTotal": "Total",
+    "perfSpeed": "Speed",
+    "perfRate": "Rate",
+    "perfLite": "Lite",
+    "perfProMax": "Pro/Max",
+    "perfAvgSpeed": "Avg Speed",
+    "perfAvgSuccessRate": "Avg Rate"
   },
   "settings": {
     "title": "Settings",
@@ -38,6 +52,7 @@
     "interval10m": "10 minutes",
     "interval30m": "30 minutes",
     "autoStart": "Launch at startup",
+    "devModeHint": "(Dev mode, disabled)",
     "saveBtn": "Save Settings",
     "saving": "Saving...",
     "saved": "Saved",
@@ -59,6 +74,11 @@
     "popupTriggerLabel": "Popup Trigger",
     "memorySavingMode": "Memory Saving Mode",
     "memorySavingModeHint": "Release renderer process when popup is hidden to reduce memory usage (popup response may be slightly slower)",
+    "showEstimatedCost": "Estimated Token Cost",
+    "showEstimatedCostHint": "Z AI only. Estimates API cost per model using 96% cache / 3% input / 1% output token ratio",
+    "trayDisplayRule": "Icon Quota Display",
+    "trayDisplayLowest": "Lowest Quota",
+    "trayDisplayHighest": "Highest Quota",
     "addAccount": "Add Account",
     "removeAccount": "Remove Account",
     "accountLabelPlaceholder": "Account label (e.g. Work)",
@@ -69,7 +89,11 @@
     "updateAvailable": "New version available: v{version}",
     "updateFailed": "Update check failed",
     "downloading": "Downloading {percent}%",
-    "restartToUpdate": "Restart to Update"
+    "restartToUpdate": "Restart to Update",
+    "feedbackGroup": "Feedback Group",
+    "feedbackGroupTitle": "Join Feishu Feedback Group",
+    "feedbackScanTip": "Scan QR code to join Feishu feedback group",
+    "feedbackClickLink": "Click link to join"
   },
   "provider": {
     "expired": "Expired",
@@ -83,7 +107,9 @@
   "quota": {
     "tokensLimit": "{n}-Hour Quota",
     "tokensLimitDaily": "Weekly Quota",
-    "mcpUsage": "MCP Usage"
+    "mcpUsage": "MCP Usage",
+    "minimaxDaily": "Daily Quota",
+    "minimaxWeekly": "Weekly Quota"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",
@@ -127,5 +153,18 @@
     "clearConfirm": "Clear all history records?",
     "confirmYes": "Yes",
     "confirmNo": "Cancel"
+  },
+  "subscription": {
+    "plan": "Plan",
+    "subDate": "Sub Date",
+    "nextRenew": "Next Renew",
+    "autoRenew": "Auto Renew",
+    "actualPrice": "Paid",
+    "renewPrice": "Renewal",
+    "yes": "Yes",
+    "no": "No",
+    "yearly": "Yearly",
+    "monthly": "Monthly",
+    "yuan": "¥{n}"
   }
 }

@@ -81,6 +81,18 @@
           </select>
         </div>
         <div class="form-group">
+          <label class="form-label">{{ $t('settings.trayDisplayRule') }}</label>
+          <select v-model="trayDisplayRule" class="form-select">
+            <option value="lowest">{{ $t('settings.trayDisplayLowest') }}</option>
+            <option value="highest">{{ $t('settings.trayDisplayHighest') }}</option>
+            <option
+              v-for="opt in accountOptions"
+              :key="opt.value"
+              :value="opt.value"
+            >{{ opt.label }}</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label class="form-label">{{ $t('settings.language') }}</label>
           <select v-model="language" class="form-select">
             <option value="zh-CN">中文</option>
@@ -97,14 +109,20 @@
         </div>
         <div class="toggle-group">
           <label class="toggle-row">
-            <input type="checkbox" v-model="autoStart" />
+            <input type="checkbox" v-model="autoStart" :disabled="!isPackaged" />
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.autoStart') }}</span>
+            <span v-if="!isPackaged" class="dev-hint">{{ $t('settings.devModeHint') }}</span>
           </label>
           <label class="toggle-row" :title="$t('settings.memorySavingModeHint')">
             <input type="checkbox" v-model="memorySavingMode" />
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.memorySavingMode') }}</span>
+          </label>
+          <label class="toggle-row" :title="$t('settings.showEstimatedCostHint')">
+            <input type="checkbox" v-model="showEstimatedCost" />
+            <span class="toggle-switch"></span>
+            <span class="toggle-label">{{ $t('settings.showEstimatedCost') }}</span>
           </label>
         </div>
       </div>
@@ -114,6 +132,7 @@
           <button class="icon-btn github-btn" title="GitHub" @click="openGitHub">
             <img src="../assets/github.svg" alt="GitHub" />
           </button>
+          <button class="feedback-link" @click="openFeedback">{{ $t('settings.feedbackGroup') }}</button>
           <span class="version-text">v{{ appVersion }}</span>
         </div>
         <button
@@ -138,11 +157,12 @@
     <footer class="footer">
       <span class="save-status" :class="{ error: saveError }">{{ saveStatus }}</span>
     </footer>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AppConfig, ProviderTypeConfig, AccountConfig } from '../types'
 import { useTheme } from '../composables/useTheme'
@@ -170,14 +190,32 @@ interface ProviderInfo {
 const providerList = ref<ProviderInfo[]>([])
 const refreshInterval = ref('300')
 const autoStart = ref(false)
+const isPackaged = ref(true)
 const language = ref('zh-CN')
 const popupTrigger = ref<'hover' | 'click'>('hover')
 const memorySavingMode = ref(false)
+const showEstimatedCost = ref(false)
+const trayDisplayRule = ref<string>('lowest')
 const saving = ref(false)
 const settingsBodyRef = ref<HTMLElement | null>(null)
 const saveStatus = ref('')
 const saveError = ref(false)
 const currentConfig = ref<AppConfig | null>(null)
+
+const accountOptions = computed(() => {
+  const options: { value: string; label: string }[] = []
+  for (const info of providerList.value) {
+    const providerName = t(`providers.${info.key}`)
+    for (const account of info.accounts) {
+      const label = account.label || t('main.defaultAccountLabel', { n: info.accounts.indexOf(account) + 1 })
+      options.push({
+        value: `${info.key}:${account.id}`,
+        label: `${providerName} - ${label}`,
+      })
+    }
+  }
+  return options
+})
 const appVersion = ref('')
 const checkingUpdate = ref(false)
 const updateStatus = ref('')
@@ -243,14 +281,26 @@ onMounted(async () => {
   })
   refreshInterval.value = String(config.refreshInterval)
   autoStart.value = config.autoStart
+  isPackaged.value = (config as any).isPackaged ?? true
   language.value = config.language || locale.value
   popupTrigger.value = config.popupTrigger ?? 'hover'
   memorySavingMode.value = config.memorySavingMode ?? false
+  showEstimatedCost.value = config.showEstimatedCost ?? false
+  trayDisplayRule.value = config.trayDisplayRule ?? 'lowest'
 
   // 配置加载完后开始监听变化，自动保存
-  watch([providerList, refreshInterval, autoStart, language, popupTrigger, memorySavingMode], () => {
+  watch([providerList, refreshInterval, autoStart, language, popupTrigger, memorySavingMode, showEstimatedCost, trayDisplayRule], () => {
     scheduleSave()
   }, { deep: true })
+
+  // 选中的账户被删除时，回退到最低额度
+  watch(accountOptions, (opts) => {
+    if (trayDisplayRule.value !== 'lowest' && trayDisplayRule.value !== 'highest') {
+      if (!opts.some(o => o.value === trayDisplayRule.value)) {
+        trayDisplayRule.value = 'lowest'
+      }
+    }
+  })
 
   // 主题切换由 useTheme 自行持久化，不经过 scheduleSave
   watch(themePreference, (val) => {
@@ -325,7 +375,9 @@ async function saveConfig() {
       autoStart: autoStart.value,
       popupTrigger: popupTrigger.value,
       memorySavingMode: memorySavingMode.value,
-      language: language.value
+      showEstimatedCost: showEstimatedCost.value,
+      language: language.value,
+      trayDisplayRule: trayDisplayRule.value,
     })
     locale.value = language.value
     saveStatus.value = t('settings.saved')
@@ -341,6 +393,10 @@ async function saveConfig() {
 
 function openGitHub() {
   window.electronAPI.openExternal('https://github.com/hyizhou/coding-quota-bar')
+}
+
+function openFeedback() {
+  window.electronAPI.showFeedback()
 }
 
 function handleUpdateClick() {
@@ -565,5 +621,27 @@ async function handleStartDownload() {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.dev-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.feedback-link {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.feedback-link:hover {
+  color: var(--text-secondary);
 }
 </style>

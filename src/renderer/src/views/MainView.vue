@@ -3,6 +3,19 @@
     <header class="header">
       <h1>{{ $t('main.title') }}</h1>
       <div class="header-actions">
+        <button
+          class="icon-btn pin-btn"
+          :class="{ active: isPinned }"
+          :title="isPinned ? $t('main.unpinWindow') : $t('main.pinWindow')"
+          @click="togglePin"
+        >
+          <svg v-if="!isPinned" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z"/>
+          </svg>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z"/>
+          </svg>
+        </button>
         <button class="icon-btn" :title="$t('main.toggleTheme')" @click="toggleTheme">
           <svg v-if="isDark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
@@ -22,7 +35,29 @@
           </svg>
         </button>
       </div>
+      <div
+        v-if="providers.length > 1"
+        class="provider-arrow"
+        :class="{ 'arrow-hidden': showTabs }"
+        @mouseenter="onTabsAreaEnter"
+        @mouseleave="onTabsAreaLeave"
+      >
+        <svg width="10" height="6" viewBox="0 0 10 6">
+          <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
     </header>
+    <div v-if="providers.length > 1" class="provider-tabs" :class="{ expanded: showTabs }" @mouseenter="onTabsAreaEnter" @mouseleave="onTabsAreaLeave" @wheel.passive="onTabsWheel">
+      <button
+        v-for="p in providers"
+        :key="p.key"
+        class="provider-tab"
+        :class="{ active: activeProviderKey === p.key }"
+        @click="setActiveProvider(p.key)"
+      >
+        {{ p.name }}
+      </button>
+    </div>
 
     <div class="main-body">
       <template v-if="initialLoading">
@@ -39,26 +74,29 @@
         </div>
       </template>
 
-      <template v-for="p in providers" :key="p.key">
+      <template v-else>
+        <template v-if="activeProvider">
         <div class="provider-section">
           <div class="provider-name-row">
-            <span class="provider-name" :class="{ clickable: !!p.websiteUrl }" @click="openProviderWebsite(p.websiteUrl)">{{ p.name }}</span>
+            <span class="provider-name" :class="{ clickable: !!activeProvider.websiteUrl }" @click="openProviderWebsite(activeProvider.websiteUrl)">{{ activeProvider.name }}</span>
             <!-- 账户切换按钮：仅当 2 个及以上账户时显示 -->
-            <div v-if="p.accounts.length > 1" class="account-tabs" @wheel.passive="onTabsWheel">
+            <div v-if="activeProvider.accounts.length > 1" class="account-tabs" @wheel.passive="onTabsWheel">
               <button
-                v-for="(acc, idx) in p.accounts"
+                v-for="(acc, idx) in activeProvider.accounts"
                 :key="acc.id"
                 class="account-tab"
-                :class="{ active: getActiveAccountId(p) === acc.id }"
-                @click="setActiveAccount(p, acc.id)"
+                :class="{ active: getActiveAccountId(activeProvider) === acc.id }"
+                @click="setActiveAccount(activeProvider, acc.id)"
               >
                 {{ acc.label || $t('main.defaultAccountLabel', { n: idx + 1 }) }}
               </button>
             </div>
             <div class="provider-name-actions">
-              <span v-if="getActiveAccount(p)?.level" class="provider-level">{{ getActiveAccount(p)!.level }}</span>
+              <FloatingTooltip v-if="getActiveAccount(activeProvider)?.level" position="bottom" align="right" :rows="getSubRows(getActiveAccount(activeProvider)!.subscription)">
+                <span class="provider-level">{{ getActiveAccount(activeProvider)!.level }}</span>
+              </FloatingTooltip>
               <button
-                v-if="p.key === 'zhipu'"
+                v-if="activeProvider.key === 'zhipu'"
                 class="icon-btn concurrency-btn"
                 :title="$t('concurrencyTest.tooltip')"
                 @click="$emit('open-concurrency-test')"
@@ -70,32 +108,18 @@
             </div>
           </div>
 
-          <template v-if="getActiveAccount(p)">
-            <div v-if="getActiveAccount(p)!.error" class="error-card">
+          <template v-if="getActiveAccount(activeProvider)">
+            <div v-if="getActiveAccount(activeProvider)!.error" class="error-card">
               <span class="error-icon">!</span>
-              <span class="error-text">{{ formatError(getActiveAccount(p)!.error!) }}</span>
+              <span class="error-text">{{ formatError(getActiveAccount(activeProvider)!.error!) }}</span>
             </div>
             <template v-else>
-              <template v-for="(row, ri) in getQuotaRows(getActiveAccount(p)!.quotas)" :key="ri">
-                <div v-if="row.length === 1" class="quota-row-single">
-                  <QuotaCard v-bind="row[0]" />
-                </div>
-                <div v-else class="quota-row-pair">
-                  <QuotaCard v-for="q in row" :key="q.label" v-bind="q" />
-                </div>
-              </template>
-              <UsageStats
-                v-if="hasHistoryData(getActiveAccount(p)!)"
-                :model-records-1d="getActiveAccount(p)!.modelHistory1d"
-                :model-records-7d="getActiveAccount(p)!.modelHistory7d"
-                :model-records-30d="getActiveAccount(p)!.modelHistory30d"
-                :mcp-records-1d="getActiveAccount(p)!.mcpHistory1d"
-                :mcp-records-7d="getActiveAccount(p)!.mcpHistory7d"
-                :mcp-records-30d="getActiveAccount(p)!.mcpHistory30d"
-              />
+              <ZhipuSection v-if="activeProvider.key === 'zhipu'" :account="getActiveAccount(activeProvider)!" />
+              <MiniMaxSection v-else-if="activeProvider.key === 'minimax'" :account="getActiveAccount(activeProvider)!" />
             </template>
           </template>
         </div>
+      </template>
       </template>
     </div>
 
@@ -108,9 +132,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import QuotaCard from '../components/QuotaCard.vue'
-import UsageStats from '../components/UsageStats.vue'
-import type { ProviderUsageData, AccountUsageData, QuotaItem, UsageState } from '../types'
+import FloatingTooltip from '../components/FloatingTooltip.vue'
+import ZhipuSection from '../components/ZhipuSection.vue'
+import MiniMaxSection from '../components/MiniMaxSection.vue'
+import type { ProviderUsageData, AccountUsageData, UsageState } from '../types'
 import { useTheme } from '../composables/useTheme'
 
 defineEmits<{ 'open-settings': []; 'open-concurrency-test': [] }>()
@@ -123,21 +148,54 @@ const lastUpdate = ref('')
 const loading = ref(false)
 const initialLoading = ref(true)
 const now = ref(Date.now())
+const isPinned = ref(false)
+const showTabs = ref(false)
+let hideTimer: ReturnType<typeof setTimeout> | null = null
 
-// 每个选中的账户 provider key -> active account ID
-const STORAGE_KEY = 'active-accounts'
+function onTabsAreaEnter() {
+  if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
+  showTabs.value = true
+}
+
+function onTabsAreaLeave() {
+  hideTimer = setTimeout(() => { showTabs.value = false }, 150)
+}
+
+// Provider Tab 状态
+const STORAGE_KEY_ACCOUNTS = 'active-accounts'
+const STORAGE_KEY_PROVIDER = 'active-provider'
 const activeAccounts = ref<Record<string, string>>({})
+const activeProviderKey = ref('')
 
 function saveActiveAccounts() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(activeAccounts.value)) } catch {}
+  try { localStorage.setItem(STORAGE_KEY_ACCOUNTS, JSON.stringify(activeAccounts.value)) } catch {}
 }
 
 function restoreActiveAccounts() {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY)
+    const saved = localStorage.getItem(STORAGE_KEY_ACCOUNTS)
     if (saved) activeAccounts.value = JSON.parse(saved)
   } catch {}
 }
+
+function restoreActiveProvider() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_PROVIDER)
+    if (saved) activeProviderKey.value = saved
+  } catch {}
+}
+
+function setActiveProvider(key: string) {
+  activeProviderKey.value = key
+  try { localStorage.setItem(STORAGE_KEY_PROVIDER, key) } catch {}
+}
+
+const activeProvider = computed(() => {
+  if (providers.value.length === 0) return undefined
+  if (providers.value.length === 1) return providers.value[0]
+  const key = activeProviderKey.value || providers.value[0]?.key
+  return providers.value.find(p => p.key === key) || providers.value[0]
+})
 
 function getActiveAccountId(p: ProviderUsageData): string {
   return activeAccounts.value[p.key] || (p.accounts[0]?.id ?? '')
@@ -165,16 +223,12 @@ const lastUpdateText = computed(() => {
   } catch { return lastUpdate.value }
 })
 
-function hasHistoryData(acc: AccountUsageData): boolean {
-  return acc.modelHistory1d.length > 0 || acc.modelHistory7d.length > 0 || acc.modelHistory30d.length > 0 ||
-    acc.mcpHistory1d.length > 0 || acc.mcpHistory7d.length > 0 || acc.mcpHistory30d.length > 0
-}
-
 function applyState(state: UsageState) {
   providers.value = state.providers
   lastUpdate.value = state.lastUpdate
   initialLoading.value = false
   restoreActiveAccounts()
+  restoreActiveProvider()
 }
 
 async function fetchData() {
@@ -193,27 +247,6 @@ async function handleRefresh() {
   finally { loading.value = false }
 }
 
-/**
- * 将 quotas 分组为行：token 限制类型的项合并到一行，其他各占一行
- */
-function getQuotaRows(quotas: QuotaItem[]): QuotaItem[][] {
-  const tokenLimits = quotas.filter(q => q.limitType === 'tokens')
-  const others = quotas.filter(q => q.limitType !== 'tokens')
-  const rows: QuotaItem[][] = []
-
-  // 非 token 限制项（如 MCP）各占一行，保持原有顺序
-  for (const q of others) {
-    rows.push([q])
-  }
-
-  // token 限制项：多个并排一行，单个也占一行
-  if (tokenLimits.length > 0) {
-    rows.push(tokenLimits)
-  }
-
-  return rows
-}
-
 function formatError(msg: string): string {
   // 去掉 [Zhipu] 等前缀，保留核心信息
   return msg.replace(/^\[[\w]+\]\s*/, '')
@@ -221,6 +254,23 @@ function formatError(msg: string): string {
 
 function openProviderWebsite(url?: string) {
   if (url) window.electronAPI.openExternal(url)
+}
+
+function togglePin() {
+  isPinned.value = !isPinned.value
+  window.electronAPI.setWindowPinned(isPinned.value)
+}
+
+function getSubRows(sub: AccountUsageData['subscription']) {
+  if (!sub) return []
+  return [
+    { label: t('subscription.plan'), value: sub.plan },
+    { label: t('subscription.subDate'), value: sub.currentRenewTime },
+    { label: t('subscription.nextRenew'), value: sub.nextRenewTime },
+    { label: t('subscription.autoRenew'), value: sub.autoRenew ? t('subscription.yes') : t('subscription.no') },
+    { label: t('subscription.actualPrice'), value: String(sub.actualPrice) },
+    { label: t('subscription.renewPrice'), value: String(sub.renewPrice) },
+  ]
 }
 
 function onTabsWheel(e: WheelEvent) {
@@ -236,6 +286,10 @@ onMounted(() => {
   window.electronAPI.onUsageDataUpdated((data) => {
     if (data) applyState(data)
   })
+  // 监听窗口锁定状态
+  window.electronAPI.onWindowPinnedState((pinned) => {
+    isPinned.value = pinned
+  })
 })
 </script>
 
@@ -246,6 +300,38 @@ onMounted(() => {
   height: 100%;
 }
 
+.header {
+  position: relative;
+}
+
+.provider-arrow {
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 14px;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  opacity: 0.4;
+  transition: opacity 0.2s, color 0.2s;
+  z-index: 20;
+}
+
+.provider-arrow:hover {
+  opacity: 1;
+  color: var(--text-secondary);
+}
+
+.provider-arrow.arrow-hidden {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
 .main-body {
   flex: 1;
   overflow-y: auto;
@@ -253,10 +339,56 @@ onMounted(() => {
 }
 
 .main-body::-webkit-scrollbar { width: 3px; }
-.main-body::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+.main-body::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
+.main-body:hover::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
 
 .provider-section {
   margin-bottom: 10px;
+}
+
+.provider-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  background: var(--bg-tab-bar);
+  border-radius: 8px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  margin: 0 10px;
+  padding: 0 2px;
+  transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s ease,
+              margin 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.provider-tabs.expanded {
+  max-height: 40px;
+  opacity: 1;
+  margin-bottom: 8px;
+  padding: 2px;
+}
+
+.provider-tab {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.provider-tab:hover {
+  color: var(--text-secondary);
+}
+.provider-tab.active {
+  color: var(--text-heading);
+  font-weight: 600;
+  background: var(--bg-tab-active);
+  box-shadow: var(--shadow-tab-active);
 }
 
 .provider-name-row {
@@ -331,6 +463,11 @@ onMounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
+  line-height: 1;
+  cursor: default;
+}
+
+.provider-name-row > .ft-wrapper {
   margin-left: auto;
   flex-shrink: 0;
   line-height: 1;
@@ -447,5 +584,20 @@ onMounted(() => {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* Pin button: hidden by default, visible on window hover */
+.pin-btn {
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.header:hover .pin-btn {
+  opacity: 1;
+}
+
+.pin-btn.active {
+  opacity: 1;
+  color: var(--text-primary);
 }
 </style>

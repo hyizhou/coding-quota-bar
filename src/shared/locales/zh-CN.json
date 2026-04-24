@@ -15,8 +15,13 @@
     "tokenStats": "使用统计",
     "mcpStats": "MCP 统计",
     "toggleTheme": "切换主题",
+    "pinWindow": "固定窗口（点击外部不关闭）",
+    "unpinWindow": "取消固定（点击托盘图标关闭）",
+    "tabToday": "本日",
+    "tab24h": "24h",
     "tab1d": "1天",
     "tab7d": "7天",
+    "tab15d": "15天",
     "tab30d": "30天",
     "tabToken": "Token",
     "tabMcp": "MCP",
@@ -24,7 +29,16 @@
     "mcpWebRead": "阅读",
     "mcpZread": "ZRead",
     "mcpCountUnit": "次",
-    "defaultAccountLabel": "账号{n}"
+    "defaultAccountLabel": "账号{n}",
+    "performanceStats": "系统健康度",
+    "estimatedCost": "≈¥{amount} API 等价",
+    "costTotal": "合计",
+    "perfSpeed": "速度",
+    "perfRate": "成功率",
+    "perfLite": "Lite",
+    "perfProMax": "Pro/Max",
+    "perfAvgSpeed": "平均速度",
+    "perfAvgSuccessRate": "平均成功率"
   },
   "settings": {
     "title": "设置",
@@ -38,6 +52,7 @@
     "interval10m": "10 分钟",
     "interval30m": "30 分钟",
     "autoStart": "开机自启动",
+    "devModeHint": "（开发模式，此功能无效）",
     "saveBtn": "保存设置",
     "saving": "保存中...",
     "saved": "已保存",
@@ -59,6 +74,11 @@
     "popupTriggerLabel": "弹窗触发方式",
     "memorySavingMode": "内存节省模式",
     "memorySavingModeHint": "关闭弹窗时释放渲染进程，降低内存占用（弹窗响应会稍慢）",
+    "showEstimatedCost": "预估 Token 费用",
+    "showEstimatedCostHint": "仅支持智谱。按各模型 Token 用量 × 96%缓存/3%输入/1%输出 比例估算 API 等价金额",
+    "trayDisplayRule": "图标额度显示",
+    "trayDisplayLowest": "最少额度",
+    "trayDisplayHighest": "最多额度",
     "addAccount": "添加账号",
     "removeAccount": "删除账号",
     "accountLabelPlaceholder": "账号备注（如：工作号）",
@@ -69,7 +89,11 @@
     "updateAvailable": "发现新版本 v{version}",
     "updateFailed": "检查更新失败",
     "downloading": "下载中 {percent}%",
-    "restartToUpdate": "重启以更新"
+    "restartToUpdate": "重启以更新",
+    "feedbackGroup": "反馈群聊",
+    "feedbackGroupTitle": "加入飞书反馈群",
+    "feedbackScanTip": "扫描二维码加入飞书反馈群",
+    "feedbackClickLink": "点击链接加入"
   },
   "provider": {
     "expired": "已过期",
@@ -83,7 +107,9 @@
   "quota": {
     "tokensLimit": "{n}小时额度",
     "tokensLimitDaily": "周额度",
-    "mcpUsage": "MCP 用量"
+    "mcpUsage": "MCP 用量",
+    "minimaxDaily": "日额度",
+    "minimaxWeekly": "周额度"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",
@@ -127,5 +153,18 @@
     "clearConfirm": "确定清空所有历史记录？",
     "confirmYes": "确定",
     "confirmNo": "取消"
+  },
+  "subscription": {
+    "plan": "套餐",
+    "subDate": "订阅日期",
+    "nextRenew": "续费日期",
+    "autoRenew": "自动续费",
+    "actualPrice": "实付价格",
+    "renewPrice": "续费价格",
+    "yes": "是",
+    "no": "否",
+    "yearly": "年付",
+    "monthly": "月付",
+    "yuan": "¥{n}"
   }
 }

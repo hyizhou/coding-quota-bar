@@ -89,6 +89,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   showPopup: () => ipcRenderer.send('show-popup'),
 
+  /**
+   * 设置窗口锁定状态（防止失焦隐藏）
+   */
+  setWindowPinned: (pinned: boolean) => {
+    ipcRenderer.send('set-window-pinned', pinned);
+  },
+
+  /**
+   * 监听窗口锁定状态变化
+   */
+  onWindowPinnedState: (callback: (pinned: boolean) => void) => {
+    ipcRenderer.on('window-pinned-state', (_, pinned) => callback(pinned));
+  },
+
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
 
   /**
@@ -170,4 +184,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * 并发测试：删除历史记录
    */
   concurrencyTestDelete: (providerKey: string, id: string) => ipcRenderer.invoke('concurrency-test-delete', providerKey, id),
+
+  showFeedback: () => ipcRenderer.send('show-feedback')
 });

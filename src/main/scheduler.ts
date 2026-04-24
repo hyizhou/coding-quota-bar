@@ -1,4 +1,4 @@
-import type { AppConfig } from '../shared/types';
+import type { AppConfig, TrayDisplayRule, UsageResult } from '../shared/types';
 import type { LoadedProvider } from './loader';
 import { UsageAggregator } from './aggregator';
 import type { TrayManager, ColorThresholds } from './tray';
@@ -26,6 +26,7 @@ export class Scheduler extends EventEmitter {
   private running = false;
   private refreshInterval: number;
   private thresholds: ColorThresholds;
+  private displayRule: TrayDisplayRule = 'lowest';
 
   constructor(refreshInterval: number = 300000, thresholds: ColorThresholds = { green: 50, yellow: 20 }) {
     super();
@@ -73,7 +74,21 @@ export class Scheduler extends EventEmitter {
     // 立即更新托盘显示
     const currentData = this.aggregator.getCurrentData();
     if (currentData && this.trayManager) {
-      this.trayManager.updateDisplay(currentData.lowestPercent, this.thresholds);
+      const pct = this.calculateDisplayPercent(currentData.results);
+      this.trayManager.updateDisplay(pct, this.thresholds);
+    }
+  }
+
+  /**
+   * 设置图标显示规则
+   */
+  setDisplayRule(rule: TrayDisplayRule): void {
+    this.displayRule = rule;
+    // 立即更新托盘显示
+    const currentData = this.aggregator.getCurrentData();
+    if (currentData && this.trayManager) {
+      const pct = this.calculateDisplayPercent(currentData.results);
+      this.trayManager.updateDisplay(pct, this.thresholds);
     }
   }
 
@@ -146,13 +161,16 @@ export class Scheduler extends EventEmitter {
       // 汇总所有 Provider 的数据
       const aggregated = await this.aggregator.aggregate(this.providers);
 
+      // 根据显示规则计算百分比
+      const displayPercent = this.calculateDisplayPercent(aggregated.results);
+
       // 更新托盘显示
       if (this.trayManager) {
-        this.trayManager.updateDisplay(aggregated.lowestPercent, this.thresholds);
+        this.trayManager.updateDisplay(displayPercent, this.thresholds);
       }
 
       const elapsed = Date.now() - startTime;
-      console.log(`[Scheduler] Refresh completed in ${elapsed}ms. Lowest: ${aggregated.lowestPercent}%`);
+      console.log(`[Scheduler] Refresh completed in ${elapsed}ms. Display: ${displayPercent}%`);
 
       // 发送刷新完成事件
       this.emit('refreshed', aggregated);
@@ -182,6 +200,44 @@ export class Scheduler extends EventEmitter {
    */
   getAggregatedData() {
     return this.aggregator.getCurrentData();
+  }
+
+  /**
+   * 根据显示规则计算百分比（供外部调用，如 buildUsageData）
+   */
+  getDisplayPercent(results: Map<string, UsageResult>): number {
+    return this.calculateDisplayPercent(results);
+  }
+
+  /**
+   * 根据显示规则从 results 中计算托盘显示百分比
+   */
+  private calculateDisplayPercent(results: Map<string, UsageResult>): number {
+    if (results.size === 0) return -1;
+
+    // compound key 模式：直接取指定账户
+    if (this.displayRule !== 'lowest' && this.displayRule !== 'highest') {
+      const result = results.get(this.displayRule);
+      if (result) {
+        return Math.round(UsageAggregator.calcPercent(result) * 10) / 10;
+      }
+      // 账户不存在（已删除），回退到最低
+    }
+
+    if (this.displayRule === 'highest') {
+      let maxPercent = 0;
+      for (const result of results.values()) {
+        maxPercent = Math.max(maxPercent, UsageAggregator.calcPercent(result));
+      }
+      return Math.round(maxPercent * 10) / 10;
+    }
+
+    // lowest（默认）
+    let minPercent = 100;
+    for (const result of results.values()) {
+      minPercent = Math.min(minPercent, UsageAggregator.calcPercent(result));
+    }
+    return Math.round(minPercent * 10) / 10;
   }
 
   /**

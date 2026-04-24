@@ -35,6 +35,7 @@ export interface QuotaItem {
   total: number;         // 总量
   usageRate: number;     // 使用率 0-100
   resetAt: string;       // 重置时间 ISO 8601
+  startAt?: string;      // 周期开始时间 ISO 8601
   limitType?: string;    // 限制类型标识，如 "tokens"、"mcp"
 }
 
@@ -66,6 +67,31 @@ export interface ModelTokenRecord {
 }
 
 /**
+ * 模型性能历史记录（单日数据点）
+ */
+export interface PerformanceRecord {
+  date: string;              // 'YYYY-MM-DD'
+  liteDecodeSpeed: number;   // tokens/s
+  proMaxDecodeSpeed: number; // tokens/s
+  liteSuccessRate: number;   // 0~1
+  proMaxSuccessRate: number; // 0~1
+}
+
+/**
+ * 订阅信息
+ */
+export interface SubscriptionInfo {
+  plan: string;             // 套餐标识，如 "新 pro"、"老 lite"
+  status: string;           // 订阅状态，如 "VALID"
+  currentRenewTime: string;  // 当前订阅日期
+  nextRenewTime: string;    // 下次续费日期
+  autoRenew: boolean;       // 是否自动续费
+  actualPrice: number;      // 实付价格（元）
+  renewPrice: number;       // 续费价格（元）
+  billingCycle: string;     // 计费周期，如 "annually"
+}
+
+/**
  * 用量查询结果
  */
 export interface UsageResult {
@@ -75,8 +101,9 @@ export interface UsageResult {
   level?: string;        // 套餐等级，如 "lite"、"pro"、"max"
   error?: string;        // 错误信息（如 key 无效、网络异常等）
   details?: {
-    quotas?: QuotaItem[];          // 多个额度项
-    usageHistory?: UsageRecord[];  // 历史统计
+    quotas?: QuotaItem[];                // 多个额度项
+    usageHistory?: UsageRecord[];        // 历史统计
+    subscription?: SubscriptionInfo;     // 订阅信息
     [key: string]: unknown;
   };
 }
@@ -100,6 +127,8 @@ export interface UpdateInfo {
 /**
  * 应用配置
  */
+export type TrayDisplayRule = 'lowest' | 'highest' | string; // string = compound key "providerType:accountId"
+
 export interface AppConfig {
   refreshInterval: number;
   providers: Record<string, ProviderTypeConfig>;
@@ -112,8 +141,10 @@ export interface AppConfig {
   autoStart: boolean;
   popupTrigger?: 'hover' | 'click';
   memorySavingMode?: boolean;
+  showEstimatedCost?: boolean;
   language?: string;
   theme?: 'light' | 'dark' | 'auto';
+  trayDisplayRule?: TrayDisplayRule;
   updateInfo?: UpdateInfo | null;
 }
 

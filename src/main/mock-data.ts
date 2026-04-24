@@ -105,6 +105,25 @@ function generateZhipuDailyModelHistory(days: number): { date: string; model: st
   return records;
 }
 
+/**
+ * 生成系统健康度历史（天级）
+ */
+function generatePerformanceHistory(days: number): { date: string; liteDecodeSpeed: number; proMaxDecodeSpeed: number; liteSuccessRate: number; proMaxSuccessRate: number }[] {
+  const records: { date: string; liteDecodeSpeed: number; proMaxDecodeSpeed: number; liteSuccessRate: number; proMaxSuccessRate: number }[] = [];
+  const now = new Date();
+  for (let i = days; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * DAY);
+    records.push({
+      date: d.toISOString().slice(0, 10),
+      liteDecodeSpeed: Math.round(60 + Math.random() * 40),
+      proMaxDecodeSpeed: Math.round(30 + Math.random() * 30),
+      liteSuccessRate: +(0.85 + Math.random() * 0.14).toFixed(2),
+      proMaxSuccessRate: +(0.8 + Math.random() * 0.18).toFixed(2)
+    });
+  }
+  return records;
+}
+
 // ── 入口 ────────────────────────────────────────────
 
 /**
@@ -140,7 +159,10 @@ export function generateMockData(): Record<string, UsageResult> {
         mcpHistory30d: generateZhipuDailyMcpHistory(30),
         modelHistory1d: generateZhipuHourlyModelHistory(24),
         modelHistory7d: generateZhipuHourlyModelHistory(168),
-        modelHistory30d: generateZhipuDailyModelHistory(30)
+        modelHistory30d: generateZhipuDailyModelHistory(30),
+        performanceHistory7d: generatePerformanceHistory(7),
+        performanceHistory15d: generatePerformanceHistory(15),
+        performanceHistory30d: generatePerformanceHistory(30)
       }
     },
 

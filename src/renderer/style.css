@@ -34,6 +34,9 @@
   /* Tabs */
   --border-tab: rgba(0, 0, 0, 0.1);
   --border-tab-hover: rgba(0, 0, 0, 0.2);
+  --bg-tab-bar: rgba(0, 0, 0, 0.03);
+  --bg-tab-active: var(--bg-card);
+  --shadow-tab-active: 0 1px 3px rgba(0, 0, 0, 0.06);
 
   /* View-specific */
   --text-empty: #aaa;
@@ -75,6 +78,9 @@ html.dark {
 
   --border-tab: rgba(255, 255, 255, 0.12);
   --border-tab-hover: rgba(255, 255, 255, 0.2);
+  --bg-tab-bar: rgba(255, 255, 255, 0.04);
+  --bg-tab-active: var(--bg-card);
+  --shadow-tab-active: 0 1px 3px rgba(0, 0, 0, 0.16);
 
   --text-empty: #666;
   --text-empty-hint: #555;

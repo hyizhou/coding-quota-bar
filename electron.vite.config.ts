@@ -13,6 +13,14 @@ export default defineConfig({
     plugins: [vue()],
     server: {
       port: 5174
+    },
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'src/renderer/index.html'),
+          feedback: resolve(__dirname, 'src/renderer/feedback.html')
+        }
+      }
     }
   }
 })

@@ -2,6 +2,17 @@
  * Renderer 进程共享类型定义
  */
 
+export interface SubscriptionInfo {
+  plan: string
+  status: string
+  currentRenewTime: string
+  nextRenewTime: string
+  autoRenew: boolean
+  actualPrice: number
+  renewPrice: number
+  billingCycle: string
+}
+
 export interface QuotaItem {
   label: string
   labelParams?: Record<string, string | number>
@@ -9,6 +20,7 @@ export interface QuotaItem {
   total: number
   usageRate: number    // 使用率 0-100
   resetAt: string      // 重置时间
+  startAt?: string     // 周期开始时间
   color: 'green' | 'yellow' | 'red'
   limitType?: string   // 限制类型标识，如 "tokens"、"mcp"
 }
@@ -31,6 +43,14 @@ export interface ModelTokenRecord {
   used: number
 }
 
+export interface PerformanceRecord {
+  date: string
+  liteDecodeSpeed: number
+  proMaxDecodeSpeed: number
+  liteSuccessRate: number
+  proMaxSuccessRate: number
+}
+
 /**
  * 单个账户的用量数据
  */
@@ -38,6 +58,7 @@ export interface AccountUsageData {
   id: string
   label?: string
   level?: string
+  subscription?: SubscriptionInfo
   error?: string
   quotas: QuotaItem[]
   history1d: UsageRecord[]
@@ -46,12 +67,19 @@ export interface AccountUsageData {
   totalTokens1d: number
   totalTokens7d: number
   totalTokens30d: number
+  estimatedCost1d: number
+  estimatedCost7d: number
+  estimatedCost30d: number
+  modelRates?: Record<string, number>
   mcpHistory1d: McpUsageRecord[]
   mcpHistory7d: McpUsageRecord[]
   mcpHistory30d: McpUsageRecord[]
   modelHistory1d: ModelTokenRecord[]
   modelHistory7d: ModelTokenRecord[]
   modelHistory30d: ModelTokenRecord[]
+  performanceHistory7d: PerformanceRecord[]
+  performanceHistory15d: PerformanceRecord[]
+  performanceHistory30d: PerformanceRecord[]
 }
 
 /**
@@ -98,6 +126,7 @@ export interface AppConfig {
   autoStart: boolean
   popupTrigger?: 'hover' | 'click'
   memorySavingMode?: boolean
+  showEstimatedCost?: boolean
   language?: string
   theme?: 'light' | 'dark' | 'auto'
   updateInfo?: UpdateInfo | null
@@ -158,6 +187,8 @@ export interface ElectronAPI {
   offTriggerCheckUpdate: (callback: () => void) => void
   openExternal: (url: string) => Promise<void>
   showPopup: () => void
+  setWindowPinned: (pinned: boolean) => void
+  onWindowPinnedState: (callback: (pinned: boolean) => void) => void
   getAppVersion: () => Promise<string>
   concurrencyTestStart: (config: ConcurrencyTestConfig) => Promise<ConcurrencyTestResult>
   concurrencyTestGetHistory: (providerKey: string) => Promise<ConcurrencyTestResult[]>

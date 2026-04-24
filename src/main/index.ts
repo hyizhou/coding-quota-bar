@@ -8,7 +8,7 @@ import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale, t as i18nT } from './i18n';
 import { autoUpdater } from 'electron-updater';
-import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, ConcurrencyTestConfig, ProviderTypeConfig } from '../shared/types';
+import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ConcurrencyTestConfig, ProviderTypeConfig } from '../shared/types';
 import { ConcurrencyTestEngine } from './concurrency-test';
 
 // 加载 .env 文件
@@ -89,6 +89,7 @@ const enum PopupMode {
 }
 
 let popupMode: PopupMode = PopupMode.Hidden;
+let isLocked = false; // 窗口锁定：阻止 blur 隐藏
 
 /**
  * 检查是否启用了内存节省模式
@@ -107,6 +108,7 @@ interface QuotaDisplayItem {
   total: number;
   usageRate: number;
   resetAt: string;
+  startAt?: string;
   color: 'green' | 'yellow' | 'red';
   limitType?: string;
 }
@@ -118,6 +120,7 @@ interface AccountDisplayData {
   id: string;
   label?: string;
   level?: string;
+  subscription?: import('../shared/types').SubscriptionInfo;
   error?: string;
   quotas: QuotaDisplayItem[];
   history1d: SharedUsageRecord[];
@@ -126,12 +129,19 @@ interface AccountDisplayData {
   totalTokens1d: number;
   totalTokens7d: number;
   totalTokens30d: number;
+  estimatedCost1d: number;
+  estimatedCost7d: number;
+  estimatedCost30d: number;
+  modelRates?: Record<string, number>;
   mcpHistory1d: SharedMcpUsageRecord[];
   mcpHistory7d: SharedMcpUsageRecord[];
   mcpHistory30d: SharedMcpUsageRecord[];
   modelHistory1d: SharedModelTokenRecord[];
   modelHistory7d: SharedModelTokenRecord[];
   modelHistory30d: SharedModelTokenRecord[];
+  performanceHistory7d: SharedPerformanceRecord[];
+  performanceHistory15d: SharedPerformanceRecord[];
+  performanceHistory30d: SharedPerformanceRecord[];
 }
 
 /**
@@ -188,6 +198,41 @@ function getPopupPosition(): { x: number; y: number } {
 /**
  * 创建悬浮详情面板（启动时调用一次，之后复用 show/hide）
  */
+/**
+ * 显示反馈群窗口
+ */
+function showFeedbackWindow(): void {
+  console.log('[Feedback] showFeedbackWindow called');
+  const existing = BrowserWindow.getAllWindows().find(w => (w as any)._feedbackId);
+  if (existing) {
+    console.log('[Feedback] focusing existing window');
+    existing.focus();
+    return;
+  }
+
+  const win = new BrowserWindow({
+    width: 320,
+    height: 400,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+  (win as any)._feedbackId = 'feedback-window';
+  win.setMenuBarVisibility(false);
+
+  if (process.env.ELECTRON_RENDERER_URL) {
+    win.loadURL(`${process.env.ELECTRON_RENDERER_URL}/feedback.html`);
+  } else {
+    win.loadFile(path.join(__dirname, '../renderer/feedback.html'));
+  }
+}
+
 function createPopupWindow(): void {
   if (popupWindow) {
     return;
@@ -221,6 +266,10 @@ function createPopupWindow(): void {
   popupWindow.on('closed', () => {
     popupWindow = null;
   });
+
+  if (process.env.CQB_DEVTOOLS === '1') {
+    popupWindow.webContents.openDevTools({ mode: 'detach' });
+  }
 }
 
 /**
@@ -228,6 +277,7 @@ function createPopupWindow(): void {
  */
 function attachBlurHandler(): void {
   detachBlurHandler();
+  if (isLocked) return;
   blurHandler = () => {
     if (popupMode === PopupMode.Pinned) {
       hidePopupWindow();
@@ -264,6 +314,7 @@ function hidePopupWindow(): void {
 
   isPopupVisible = false;
   popupMode = PopupMode.Hidden;
+  isLocked = false;
 }
 
 /**
@@ -284,7 +335,15 @@ function showPopupWindow(mode: PopupMode.Hover | PopupMode.Pinned): void {
 
     if (mode === PopupMode.Pinned) {
       popupWindow.focus();
-      attachBlurHandler();
+      // DevTools 打开会抢走焦点，延迟绑定 blur 并重新聚焦
+      if (process.env.CQB_DEVTOOLS === '1') {
+        setTimeout(() => {
+          attachBlurHandler();
+          popupWindow?.focus();
+        }, 500);
+      } else {
+        attachBlurHandler();
+      }
     } else {
       detachBlurHandler();
     }
@@ -417,6 +476,7 @@ async function initialize(): Promise<void> {
   // 4. 创建调度器
   scheduler = createScheduler(config);
   scheduler.setTrayManager(trayManager);
+  scheduler.setDisplayRule(config.trayDisplayRule ?? 'lowest');
 
   // 5. 加载 Provider
   const providers = ProviderLoader.loadProviders(config.providers);
@@ -471,6 +531,11 @@ function setupConfigListeners(): void {
       newConfig.refreshInterval !== oldConfig?.refreshInterval ||
       JSON.stringify(newConfig.display.colorThresholds) !== JSON.stringify(oldConfig?.display?.colorThresholds);
 
+    // 更新图标显示规则（不需要重新请求数据，直接用已有数据重新计算）
+    if (newConfig.trayDisplayRule !== oldConfig?.trayDisplayRule) {
+      scheduler!.setDisplayRule(newConfig.trayDisplayRule ?? 'lowest');
+    }
+
     if (needsRefresh) {
       // 更新刷新间隔（间隔变化时会重启定时器并自动刷新）
       const intervalChanged = scheduler!.setRefreshInterval(newConfig.refreshInterval * 1000);
@@ -515,6 +580,11 @@ function setupConfigListeners(): void {
  * 设置开机自启
  */
 function updateAutoStart(enabled: boolean): void {
+  // 开发模式下跳过自启注册，避免将 electron.exe 路径写入系统启动项
+  if (!app.isPackaged) {
+    console.log('[App] Auto-start skipped: running in development mode');
+    return;
+  }
   app.setLoginItemSettings({
     openAtLogin: enabled,
     openAsHidden: true
@@ -545,6 +615,18 @@ function setupIpcHandlers(): void {
     showPopupWindow(PopupMode.Pinned);
   });
 
+  // 窗口锁定状态切换
+  ipcMain.on('set-window-pinned', (_, pinned: boolean) => {
+    isLocked = pinned;
+    if (pinned && popupMode === PopupMode.Hover) {
+      showPopupWindow(PopupMode.Pinned);
+    }
+    if (popupMode === PopupMode.Pinned) {
+      pinned ? detachBlurHandler() : attachBlurHandler();
+    }
+    popupWindow?.webContents.send('window-pinned-state', pinned);
+  });
+
   // 获取当前用量数据
   ipcMain.handle('get-usage-data', () => {
     return buildUsageData();
@@ -559,7 +641,7 @@ function setupIpcHandlers(): void {
 
   // 获取配置
   ipcMain.handle('get-config', () => {
-    return configManager?.getConfig();
+    return { ...configManager?.getConfig(), isPackaged: app.isPackaged };
   });
 
   // 获取可用的 provider 列表（编译时配置）
@@ -618,6 +700,17 @@ function setupIpcHandlers(): void {
 
   // 重启并安装更新
   ipcMain.handle('quit-and-install', () => {
+    // 先同步销毁资源，避免 NSIS 检测到旧进程仍在运行
+    if (popupWindow && !popupWindow.isDestroyed()) {
+      popupWindow.destroy();
+      popupWindow = null;
+    }
+    trayManager?.destroy();
+    trayManager = null;
+    scheduler?.destroy();
+    scheduler = null;
+    configManager?.destroy();
+    configManager = null;
     autoUpdater.quitAndInstall();
   });
 
@@ -658,6 +751,16 @@ function setupIpcHandlers(): void {
   // 并发测试：删除历史记录
   ipcMain.handle('concurrency-test-delete', async (_, providerKey: string, id: string) => {
     await ConcurrencyTestEngine.deleteResult(providerKey, id);
+  });
+
+  // 打开反馈群窗口
+  ipcMain.on('show-feedback', () => {
+    console.log('[Feedback] show-feedback received');
+    try {
+      showFeedbackWindow();
+    } catch (e) {
+      console.error('[Feedback] Error:', e);
+    }
   });
 }
 
@@ -711,12 +814,9 @@ function buildUsageData(): UsageDataForRenderer | null {
   const aggregated = scheduler.getAggregatedData();
   const thresholds = scheduler.getThresholds();
 
+  // 有启用的 Provider 但首次请求尚未完成，返回 null 让渲染进程保持骨架屏
   if (!aggregated) {
-    return {
-      providers: [],
-      lastUpdate: new Date().toISOString(),
-      overallPercent: -1
-    };
+    return null;
   }
 
   // 按 provider type 分组
@@ -743,7 +843,7 @@ function buildUsageData(): UsageDataForRenderer | null {
   return {
     providers,
     lastUpdate: aggregated.lastUpdate.toISOString(),
-    overallPercent: aggregated.lowestPercent
+    overallPercent: scheduler.getDisplayPercent(aggregated.results)
   };
 }
 
@@ -763,7 +863,8 @@ function convertAccountData(
     total: q.total,
     usageRate: q.usageRate,
     resetAt: q.resetAt,
-    color: getColorByPercent(100 - q.usageRate, thresholds),
+    startAt: (q as any).startAt,
+    color: getColorByPercent(100 - q.usageRate, thresholds) as 'green' | 'yellow' | 'red',
     limitType: q.limitType
   }));
 
@@ -776,12 +877,22 @@ function convertAccountData(
   const mapModelHistory = (key: string): SharedModelTokenRecord[] =>
     ((result.details?.[key] ?? []) as SharedModelTokenRecord[]).map(r => ({ date: r.date, model: r.model, used: r.used }));
 
+  const mapPerformanceHistory = (key: string): SharedPerformanceRecord[] =>
+    ((result.details?.[key] ?? []) as SharedPerformanceRecord[]).map(r => ({
+      date: r.date,
+      liteDecodeSpeed: r.liteDecodeSpeed,
+      proMaxDecodeSpeed: r.proMaxDecodeSpeed,
+      liteSuccessRate: r.liteSuccessRate,
+      proMaxSuccessRate: r.proMaxSuccessRate,
+    }));
+
   console.log(`[Data] ${type}:${accountId} 1d:${mapHistory('history1d').length} 7d:${mapHistory('history7d').length} 30d:${mapHistory('history30d').length}`);
 
   return {
     id: accountId,
     label: getAccountLabel(type, accountId) || undefined,
     level: result.level,
+    subscription: result.details?.subscription as import('../shared/types').SubscriptionInfo | undefined,
     error: result.error,
     quotas,
     history1d: mapHistory('history1d'),
@@ -790,12 +901,19 @@ function convertAccountData(
     totalTokens1d: (result.details?.totalTokens1d as number) ?? 0,
     totalTokens7d: (result.details?.totalTokens7d as number) ?? 0,
     totalTokens30d: (result.details?.totalTokens30d as number) ?? 0,
+    estimatedCost1d: (result.details?.estimatedCost1d as number) ?? 0,
+    estimatedCost7d: (result.details?.estimatedCost7d as number) ?? 0,
+    estimatedCost30d: (result.details?.estimatedCost30d as number) ?? 0,
+    modelRates: (result.details?.modelRates as Record<string, number>) ?? undefined,
     mcpHistory1d: mapMcpHistory('mcpHistory1d'),
     mcpHistory7d: mapMcpHistory('mcpHistory7d'),
     mcpHistory30d: mapMcpHistory('mcpHistory30d'),
     modelHistory1d: mapModelHistory('modelHistory1d'),
     modelHistory7d: mapModelHistory('modelHistory7d'),
-    modelHistory30d: mapModelHistory('modelHistory30d')
+    modelHistory30d: mapModelHistory('modelHistory30d'),
+    performanceHistory7d: mapPerformanceHistory('performanceHistory7d'),
+    performanceHistory15d: mapPerformanceHistory('performanceHistory15d'),
+    performanceHistory30d: mapPerformanceHistory('performanceHistory30d')
   };
 }
 

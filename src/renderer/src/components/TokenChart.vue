@@ -3,15 +3,14 @@
     <div class="chart-header">
       <div class="chart-left">
         <span class="chart-title">{{ title }}</span>
-        <span class="chart-total-wrapper">
+        <FloatingTooltip position="top" align="center" :rows="totalRows">
           <span class="chart-total">{{ formatCount(totalUsed) }}</span>
-          <div class="chart-total-tooltip">
-            <div v-for="[model, value] in modelTotals" :key="model" class="tooltip-row">
-              <span class="tooltip-model">{{ model }}</span>
-              <span class="tooltip-value">{{ formatCount(value) }}</span>
-            </div>
-          </div>
-        </span>
+        </FloatingTooltip>
+      </div>
+      <div v-if="totalCost > 0" class="chart-right">
+        <FloatingTooltip position="top" align="right" :rows="costRows">
+          <span class="chart-cost">¥ {{ totalCost.toFixed(2) }}</span>
+        </FloatingTooltip>
       </div>
     </div>
     <div class="chart-wrapper">
@@ -31,6 +30,7 @@ import {
   Tooltip
 } from 'chart.js'
 import type { ModelTokenRecord } from '../types'
+import FloatingTooltip from './FloatingTooltip.vue'
 import { useTheme } from '../composables/useTheme'
 
 /** 鼠标悬停时绘制垂直辅助线 */
@@ -63,7 +63,8 @@ const props = defineProps<{
   modelRecords1d: ModelTokenRecord[]
   modelRecords7d: ModelTokenRecord[]
   modelRecords30d: ModelTokenRecord[]
-  activeTab: '1d' | '7d' | '30d'
+  activeTab: 'today' | '24h' | '7d' | '30d'
+  modelRates?: Record<string, number>
 }>()
 
 function formatCount(n: number): string {
@@ -99,6 +100,35 @@ const MODEL_COLORS = [
 ]
 
 interface StackedResult { labels: string[]; models: string[]; values: Map<string, number[]> }
+
+/** 本日：从今天 00:00 到当前小时 */
+function aggregateTodayStacked(records: ModelTokenRecord[]): StackedResult {
+  const todayStr = localDateStr(new Date())
+  const modelSet = new Set<string>()
+  const buckets = new Map<string, Map<string, number>>()
+  for (const r of records) {
+    if (r.date.length !== 13 || !r.date.startsWith(todayStr)) continue
+    modelSet.add(r.model)
+    if (!buckets.has(r.date)) buckets.set(r.date, new Map())
+    const m = buckets.get(r.date)!
+    m.set(r.model, (m.get(r.model) || 0) + r.used)
+  }
+
+  const now = new Date()
+  const labels: string[] = []
+  const timeKeys: string[] = []
+  for (let h = 0; h <= now.getHours(); h++) {
+    labels.push(`${String(h).padStart(2, '0')}:00`)
+    timeKeys.push(`${todayStr}T${String(h).padStart(2, '0')}`)
+  }
+
+  const models = Array.from(modelSet)
+  const values = new Map<string, number[]>()
+  for (const model of models) {
+    values.set(model, timeKeys.map(key => buckets.get(key)?.get(model) || 0))
+  }
+  return { labels, models, values }
+}
 
 /** 按1天：过去24小时 */
 function aggregate1dStacked(records: ModelTokenRecord[]): StackedResult {
@@ -199,7 +229,11 @@ function aggregate30dStacked(records: ModelTokenRecord[]): StackedResult {
 }
 
 const stacked = computed(() => {
-  if (props.activeTab === '1d') {
+  if (props.activeTab === 'today') {
+    if (!props.modelRecords1d.length) return { labels: [] as string[], models: [] as string[], values: new Map<string, number[]>() }
+    return aggregateTodayStacked(props.modelRecords1d)
+  }
+  if (props.activeTab === '24h') {
     if (!props.modelRecords1d.length) return { labels: [] as string[], models: [] as string[], values: new Map<string, number[]>() }
     return aggregate1dStacked(props.modelRecords1d)
   }
@@ -225,6 +259,28 @@ const modelTotals = computed(() => {
     map.set(model, arr.reduce((s, v) => s + v, 0))
   }
   return map
+})
+
+const totalRows = computed(() =>
+  Array.from(modelTotals.value, ([model, value]) => ({ label: model, value: formatCount(value) }))
+)
+
+const totalCost = computed(() => {
+  if (!props.modelRates) return 0
+  let total = 0
+  for (const [model, tokens] of modelTotals.value) {
+    const rate = props.modelRates[model]
+    if (rate) total += tokens / 1_000_000 * rate
+  }
+  return total
+})
+
+const costRows = computed(() => {
+  if (!props.modelRates || totalCost.value <= 0) return []
+  return Array.from(modelTotals.value, ([model, tokens]) => {
+    const rate = props.modelRates![model]
+    return { label: model, value: rate ? `¥ ${(tokens / 1_000_000 * rate).toFixed(2)}` : '' }
+  })
 })
 
 const barData = computed(() => ({
@@ -343,46 +399,11 @@ const chartOptions = computed(() => ({
   cursor: default;
 }
 
-.chart-total-wrapper {
-  position: relative;
-}
-
-.chart-total-tooltip {
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%) scale(0.9);
-  transform-origin: bottom center;
-  background: rgba(0, 0, 0, 0.85);
-  color: #fff;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 10px;
-  white-space: nowrap;
-  z-index: 10;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.chart-total-wrapper:hover .chart-total-tooltip {
-  opacity: 1;
-  transform: translateX(-50%) scale(1);
-}
-
-.tooltip-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  line-height: 1.6;
-}
-
-.tooltip-model {
-  color: #bbb;
-}
-
-.tooltip-value {
+.chart-cost {
+  font-size: 11px;
   font-weight: 600;
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
+  cursor: default;
 }
 </style>
