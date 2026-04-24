@@ -322,7 +322,7 @@ onUnmounted(() => {
 
 .header h1 {
   flex: 1;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -332,8 +332,8 @@ onUnmounted(() => {
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 5px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -382,27 +382,27 @@ onUnmounted(() => {
 }
 
 .config-label {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
   min-width: 48px;
 }
 
 .config-select {
   flex: 1;
-  font-size: 11px;
-  padding: 3px 6px;
+  font-size: 12px;
+  padding: 6px 8px;
   border: 1px solid var(--border-default);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--bg-input);
   color: var(--text-primary);
   outline: none;
 }
 
 .start-btn {
-  font-size: 11px;
+  font-size: 12px;
   padding: 6px 12px;
-  border: 1px solid var(--border-default, rgba(255,255,255,0.12));
-  border-radius: 5px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
   background: var(--bg-settings-card);
   color: var(--text-primary);
   cursor: pointer;
@@ -444,9 +444,9 @@ onUnmounted(() => {
   font-size: 10px;
   line-height: 1.4;
   color: var(--text-primary);
-  background: var(--bg-settings-card, rgba(30, 30, 40, 0.95));
-  border: 1px solid var(--border-default, rgba(255,255,255,0.12));
-  border-radius: 4px;
+  background: var(--bg-settings-card);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
   padding: 4px 8px;
   white-space: nowrap;
   pointer-events: none;
@@ -457,7 +457,7 @@ onUnmounted(() => {
 .tooltip-error {
   white-space: normal;
   word-break: break-all;
-  color: #f87171;
+  color: var(--text-error, #f87171);
 }
 
 .indicator {
@@ -473,15 +473,15 @@ onUnmounted(() => {
   box-shadow: none;
 }
 .indicator.streaming {
-  background: #EAB308;
+  background: var(--color-warning, #EAB308);
   box-shadow: 0 0 4px rgba(234, 179, 8, 0.4);
 }
 .indicator.success {
-  background: #22C55E;
+  background: var(--color-success, #22C55E);
   box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
 }
 .indicator.fail {
-  background: #ef4444;
+  background: var(--color-error, #ef4444);
   box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
 }
 
@@ -514,7 +514,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -522,13 +522,13 @@ onUnmounted(() => {
   font-size: 12px;
 }
 
-.text-green { color: #22C55E; }
-.text-yellow { color: #EAB308; }
+.text-green { color: var(--color-success, #22C55E); }
+.text-yellow { color: var(--color-warning, #EAB308); }
 
 .result-details {
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+  border-top: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -570,11 +570,11 @@ onUnmounted(() => {
   border: none;
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: 6px;
   transition: color 0.15s, background 0.15s;
 }
 .clear-all-btn:hover {
-  color: #ef4444;
+  color: var(--color-error, #ef4444);
   background: rgba(239, 68, 68, 0.1);
 }
 
@@ -592,23 +592,23 @@ onUnmounted(() => {
 .confirm-yes, .confirm-no {
   font-size: 10px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 2px 8px;
   cursor: pointer;
 }
 .confirm-yes {
-  background: #ef4444;
+  background: var(--color-error, #ef4444);
   color: #fff;
 }
 .confirm-yes:hover {
-  background: #dc2626;
+  background: var(--color-error-dark, #dc2626);
 }
 .confirm-no {
-  background: var(--border-default, rgba(255,255,255,0.12));
+  background: var(--border-default);
   color: var(--text-secondary);
 }
 .confirm-no:hover {
-  background: var(--border-subtle, rgba(255,255,255,0.06));
+  background: var(--border-subtle);
 }
 
 .history-list {
@@ -625,7 +625,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 1px;
   padding: 3px 0;
-  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04));
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .history-item:last-child {
@@ -669,7 +669,7 @@ onUnmounted(() => {
   opacity: 1;
 }
 .history-delete:hover {
-  color: #ef4444;
+  color: var(--color-error, #ef4444);
 }
 
 .history-empty {

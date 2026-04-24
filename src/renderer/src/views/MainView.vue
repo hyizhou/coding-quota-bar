@@ -480,7 +480,7 @@ onMounted(() => {
 }
 .concurrency-btn:hover {
   opacity: 1;
-  color: #3B82F6;
+  color: var(--color-info, #3B82F6);
 }
 
 .provider-section .quota-row-single .quota-card {
