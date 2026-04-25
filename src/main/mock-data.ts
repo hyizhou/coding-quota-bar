@@ -172,6 +172,16 @@ export function generateMockData(): Record<string, UsageResult> {
       level: 'pro',
       details: {
         remainingPercent: 75,
+        subscription: {
+          plan: '老 Pro',
+          status: 'VALID',
+          currentRenewTime: '2026-03-03',
+          nextRenewTime: '2027-03-03',
+          autoRenew: true,
+          actualPrice: 2400,
+          renewPrice: 2400,
+          billingCycle: 'annually'
+        },
         quotas: [
           { label: 'quota.mcpUsage', used: 12, total: 50, usageRate: 24, resetAt: new Date(new Date(now).getFullYear(), new Date(now).getMonth() + 1, 1).toISOString(), limitType: 'mcp' },
           { label: 'quota.tokensLimit', labelParams: { n: 5 }, used: 250000, total: 1000000, usageRate: 25, resetAt: new Date(now + 5 * HOUR).toISOString(), limitType: 'tokens' },
