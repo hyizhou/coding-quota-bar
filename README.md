@@ -11,11 +11,6 @@ Windows 托盘工具，实时监控智谱 AI、MiniMax 等 AI 平台 Coding Plan
 
 ![使用](img/1.gif)
 
-### 截图
-
-![截图](img/2.png)
-![截图](img/3.png)
-
 ## 功能
 
 ### 托盘图标实时显示
