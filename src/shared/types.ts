@@ -119,7 +119,7 @@ export interface Provider {
 }
 
 /**
- * 更新检查结果（持久化到配置文件）
+ * 更新检查结果（仅保留在会话内存中）
  */
 export interface UpdateInfo {
   version: string;
@@ -150,7 +150,6 @@ export interface AppConfig {
   autoCheckUpdate?: boolean;
   autoCheckUpdateInterval?: number;
   lastAutoCheckTime?: string | null;
-  updateInfo?: UpdateInfo | null;
 }
 
 /**

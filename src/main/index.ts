@@ -8,7 +8,7 @@ import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale, t as i18nT } from './i18n';
 import { autoUpdater } from 'electron-updater';
-import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig } from '../shared/types';
+import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, UpdateInfo } from '../shared/types';
 
 // 加载 .env 文件
 const envPath = path.join(__dirname, '..', '..', '.env');
@@ -47,14 +47,8 @@ autoUpdater.on('download-progress', (progress) => {
 
 autoUpdater.on('update-downloaded', () => {
   console.log('[Updater] Update downloaded');
-  // 持久化下载完成状态
-  const config = configManager?.getConfig();
-  if (config?.updateInfo) {
-    configManager?.updateConfig({
-      updateInfo: { ...config.updateInfo, downloaded: true }
-    }).catch((error) => {
-      console.error('[Updater] Failed to save update info:', error);
-    });
+  if (sessionUpdateInfo) {
+    sessionUpdateInfo = { ...sessionUpdateInfo, downloaded: true };
   }
   if (popupWindow && !popupWindow.isDestroyed()) {
     popupWindow.webContents.send('update-downloaded');
@@ -111,6 +105,7 @@ async function performAutoCheck(): Promise<void> {
       parts[2] = (parts[2] || 0) + 1;
       const mockVersion = parts.join('.');
       console.log(`[AutoUpdate] Mock update: v${mockVersion}`);
+      sessionUpdateInfo = { version: mockVersion, downloaded: false };
       if (popupWindow && !popupWindow.isDestroyed()) {
         popupWindow.webContents.send('update-available-auto', { version: mockVersion });
       }
@@ -128,15 +123,13 @@ async function performAutoCheck(): Promise<void> {
 
       if (latestVersion > currentVersion) {
         console.log(`[AutoUpdate] Update available: v${latestVersion}`);
-        await configManager?.updateConfig({
-          updateInfo: { version: latestVersion, downloaded: false }
-        });
+        sessionUpdateInfo = { version: latestVersion, downloaded: false };
         if (popupWindow && !popupWindow.isDestroyed()) {
           popupWindow.webContents.send('update-available-auto', { version: latestVersion });
         }
       } else {
         console.log('[AutoUpdate] No update available');
-        await configManager?.updateConfig({ updateInfo: undefined });
+        sessionUpdateInfo = null;
       }
     }
   } catch (error) {
@@ -181,6 +174,7 @@ let blurHandler: (() => void) | null = null;
 // 自动更新检查调度
 let autoUpdateTimerId: ReturnType<typeof setTimeout> | null = null;
 let isAutoChecking = false;
+let sessionUpdateInfo: UpdateInfo | null = null;
 
 /**
  * 窗口显示模式
@@ -612,15 +606,13 @@ async function initialize(): Promise<void> {
   setupIpcHandlers();
 
   // 10. 启动自动更新检查
-  // 模拟更新模式：启动时清除残留数据，写入模拟版本
+  // 模拟更新模式：写入模拟版本到会话内存
   if (mockUpdate) {
     const currentVersion = app.getVersion();
     const parts = currentVersion.split('.').map(Number);
     parts[2] = (parts[2] || 0) + 1;
     const mockVersion = parts.join('.');
-    await configManager?.updateConfig({
-      updateInfo: { version: mockVersion, downloaded: false }
-    });
+    sessionUpdateInfo = { version: mockVersion, downloaded: false };
     console.log(`[AutoUpdate] Mock mode: simulated v${mockVersion}`);
   }
   startAutoUpdateChecker();
@@ -767,7 +759,8 @@ function setupIpcHandlers(): void {
 
   // 获取配置
   ipcMain.handle('get-config', () => {
-    return { ...configManager?.getConfig(), isPackaged: app.isPackaged };
+    const config = configManager?.getConfig();
+    return config ? { ...config, isPackaged: app.isPackaged, updateInfo: sessionUpdateInfo } : null;
   });
 
   // 获取可用的 provider 列表（编译时配置）
@@ -797,6 +790,7 @@ function setupIpcHandlers(): void {
       const parts = currentVersion.split('.').map(Number);
       parts[2] = (parts[2] || 0) + 1;
       const mockVersion = parts.join('.');
+      sessionUpdateInfo = { version: mockVersion, downloaded: false };
       return { available: true, version: mockVersion };
     }
     if (isAutoChecking) {
@@ -809,18 +803,14 @@ function setupIpcHandlers(): void {
         const latestVersion = result.updateInfo.version;
         const currentVersion = app.getVersion();
         const available = latestVersion > currentVersion;
-        // 持久化更新检查结果
         if (available) {
-          await configManager?.updateConfig({
-            updateInfo: { version: latestVersion, downloaded: false },
-            lastAutoCheckTime: new Date().toISOString()
-          });
+          sessionUpdateInfo = { version: latestVersion, downloaded: false };
         } else {
-          await configManager?.updateConfig({
-            updateInfo: undefined,
-            lastAutoCheckTime: new Date().toISOString()
-          });
+          sessionUpdateInfo = null;
         }
+        await configManager?.updateConfig({
+          lastAutoCheckTime: new Date().toISOString()
+        });
         return { available, version: latestVersion };
       }
       return { available: false };
@@ -1069,11 +1059,6 @@ app.on('before-quit', () => {
 
   // 停止自动更新检查
   stopAutoUpdateChecker();
-
-  // 模拟更新模式：退出时清除模拟数据，避免下次启动残留
-  if (mockUpdate && configManager) {
-    configManager.updateConfig({ updateInfo: undefined }).catch(() => {});
-  }
 
   // 停止调度器
   scheduler?.destroy();

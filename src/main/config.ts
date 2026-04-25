@@ -154,6 +154,14 @@ export class ConfigManager extends EventEmitter {
           console.log(`[Config] Migrated: added missing provider "${key}"`);
         }
       }
+
+      // 迁移：清除持久化的更新信息（更新数据仅保留在会话内存中）
+      if ('updateInfo' in this.config) {
+        delete (this.config as any).updateInfo;
+        migrated = true;
+        console.log('[Config] Migrated: removed updateInfo from persisted config');
+      }
+
       if (migrated) {
         await this.save(this.config);
       }
