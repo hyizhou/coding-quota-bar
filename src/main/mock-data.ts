@@ -210,14 +210,50 @@ export function generateMockData(): Record<string, UsageResult> {
     },
 
     minimax: {
-      used: 460000,
-      total: 500000,
-      expiresAt: new Date(now + 15 * DAY).toISOString(),
+      used: 720,
+      total: 1000,
+      expiresAt: new Date(now + 7 * DAY).toISOString(),
       details: {
         quotas: [
-          { label: '配额', used: 460000, total: 500000, usageRate: 92, resetAt: new Date(now + 15 * DAY).toISOString() }
-        ]
-      }
+          {
+            label: 'quota.minimaxDaily', used: 720, total: 1000, usageRate: 72,
+            resetAt: new Date(now + 5 * HOUR).toISOString(),
+            startAt: new Date(now - 19 * HOUR).toISOString(),
+            limitType: 'MiniMax-M1',
+          },
+          {
+            label: 'quota.minimaxWeekly', used: 3200, total: 5000, usageRate: 64,
+            resetAt: new Date(now + 3 * DAY).toISOString(),
+            startAt: new Date(now - 4 * DAY).toISOString(),
+            limitType: 'MiniMax-M1',
+          },
+          {
+            label: 'quota.minimaxDaily', used: 450, total: 500, usageRate: 90,
+            resetAt: new Date(now + 5 * HOUR).toISOString(),
+            startAt: new Date(now - 19 * HOUR).toISOString(),
+            limitType: 'MiniMax-Text-01',
+          },
+          {
+            label: 'quota.minimaxDaily', used: 30, total: 200, usageRate: 15,
+            resetAt: new Date(now + 5 * HOUR).toISOString(),
+            startAt: new Date(now - 19 * HOUR).toISOString(),
+            limitType: 'MiniMax-VL-01',
+          },
+        ],
+      },
+    },
+
+    deepseek: {
+      used: 0,
+      total: 50,
+      expiresAt: '',
+      details: {
+        quotas: [
+          { label: 'quota.deepseekTotalBalance', used: 0, total: 50, usageRate: 0, resetAt: '', hideBar: true, labelParams: { amount: '50.00' } },
+          { label: 'quota.deepseekGranted', used: 0, total: 30, usageRate: 0, resetAt: '', hideBar: true, labelParams: { amount: '30.00' } },
+          { label: 'quota.deepseekToppedUp', used: 0, total: 20, usageRate: 0, resetAt: '', hideBar: true, labelParams: { amount: '20.00' } },
+        ],
+      },
     },
 
     kimi: {

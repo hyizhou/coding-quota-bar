@@ -1,6 +1,7 @@
 import type { UsageResult } from '../shared/types';
 import type { LoadedProvider } from './loader';
 import { generateMockData } from './mock-data';
+import { fetchServiceStatus } from '../providers/deepseek';
 
 /**
  * 聚合后的用量数据
@@ -49,6 +50,20 @@ export class UsageAggregator {
         const compoundKey = `${type}:${accountId}`;
         const mock = MOCK_DATA[type] || { used: 0, total: 100, expiresAt: '', details: {} };
         this.results.set(compoundKey, mock);
+      }
+      // DeepSeek 服务状态使用真实 API 数据
+      const deepseekEntries = [...this.results.entries()].filter(([k]) => k.startsWith('deepseek:'));
+      if (deepseekEntries.length > 0) {
+        try {
+          const status = await fetchServiceStatus();
+          for (const [key, result] of deepseekEntries) {
+            if (result.details) {
+              result.details.serviceStatus = status;
+            }
+          }
+        } catch (e) {
+          console.warn('[Aggregator] Failed to fetch DeepSeek service status:', e);
+        }
       }
       if (this.results.size === 0) {
         // 没有启用的 provider 时，填充所有模拟数据

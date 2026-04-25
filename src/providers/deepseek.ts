@@ -44,15 +44,16 @@ let statusCache: { data: DeepSeekServiceComponent[]; ts: number } | null = null;
 
 const STATUS_DAYS = 90;
 
-async function fetchServiceStatus(httpClient: HttpClientWithRetry): Promise<DeepSeekServiceComponent[]> {
+export async function fetchServiceStatus(httpClient?: HttpClientWithRetry): Promise<DeepSeekServiceComponent[]> {
   if (statusCache && Date.now() - statusCache.ts < STATUS_CACHE_TTL) {
     return statusCache.data;
   }
 
   try {
+    const client = httpClient || new HttpClientWithRetry(3, 1000);
     const [summaryResp, incidentsResp] = await Promise.all([
-      httpClient.getJson<StatusPageSummary>('https://status.deepseek.com/api/v2/summary.json', {}),
-      httpClient.getJson<IncidentsResponse>('https://status.deepseek.com/api/v2/incidents.json', {}),
+      client.getJson<StatusPageSummary>('https://status.deepseek.com/api/v2/summary.json', {}),
+      client.getJson<IncidentsResponse>('https://status.deepseek.com/api/v2/incidents.json', {}),
     ]);
 
     const components = summaryResp.components || [];
