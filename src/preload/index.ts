@@ -136,4 +136,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => {
     ipcRenderer.on('deepseek-web-login-success', (_, accountId) => callback(accountId));
   },
+  deepseekFetchMonthUsage: (accountId: string, year: number, month: number) =>
+    ipcRenderer.invoke('deepseek-fetch-month-usage', accountId, year, month),
 });

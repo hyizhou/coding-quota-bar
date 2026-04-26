@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'path';
 import { TrayManager, getColorByPercent } from './tray';
 import { ProviderLoader, getAvailableProviderKeys } from './loader';
+import { DeepSeekProvider } from '../providers/deepseek';
 import buildConfig from '../../app.build';
 import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
@@ -1003,6 +1004,20 @@ function setupIpcHandlers(): void {
   // DeepSeek 网页登出
   ipcMain.handle('deepseek-web-logout', async (_, accountId: string) => {
     await deepseekWebLogout(accountId);
+  });
+
+  // DeepSeek 按月获取模型历史数据
+  ipcMain.handle('deepseek-fetch-month-usage', async (_, accountId: string, year: number, month: number) => {
+    const loaded = (scheduler as any)?.providers as import('./loader').LoadedProvider[] | undefined;
+    if (!loaded) return [];
+    const provider = loaded.find(p => p.accountId === accountId && p.instance instanceof DeepSeekProvider);
+    if (!provider) return [];
+    try {
+      return await (provider.instance as DeepSeekProvider).fetchMonthModelHistory(provider.config, month, year);
+    } catch (e) {
+      console.warn('[DeepSeek] Failed to fetch month usage:', e);
+      return [];
+    }
   });
 }
 

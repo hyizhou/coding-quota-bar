@@ -179,6 +179,7 @@ export interface ElectronAPI {
   deepseekWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
   deepseekWebLogout: (accountId: string) => Promise<void>
   onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => void
+  deepseekFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<ModelTokenRecord[]>
 }
 
 declare global {

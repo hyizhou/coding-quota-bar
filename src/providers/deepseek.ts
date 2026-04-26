@@ -331,23 +331,7 @@ export class DeepSeekProvider implements Provider {
       console.warn('[DeepSeek] Failed to fetch usage amount/cost:', e);
     }
 
-    // 3. Fetch previous month for 30-day history
-    const prevMonth = month === 1 ? 12 : month - 1;
-    const prevYear = month === 1 ? year - 1 : year;
-    let prevDays: UsageAmountDayEntry[] = [];
-
-    try {
-      const prevResp = await this.httpClient.getJson<InternalApiData<{ total: UsageAmountDayEntry[]; days: UsageAmountDayEntry[] }>>(
-        `${baseUrl}/api/v0/usage/amount?month=${prevMonth}&year=${prevYear}`, headers
-      );
-      checkExpired(prevResp.code);
-      prevDays = prevResp.data?.biz_data?.days ?? [];
-    } catch (e) {
-      if (e instanceof Error && e.message === TOKEN_EXPIRED) throw e;
-      console.warn('[DeepSeek] Failed to fetch previous month data:', e);
-    }
-
-    // 4. Build quotas from summary
+    // 3. Build quotas from summary
     const quotas: QuotaItem[] = [];
     const totalBalance = summary ? parseFloat(summary.normal_wallets?.[0]?.balance || '0') : 0;
     const monthlyCost = summary ? parseFloat(summary.monthly_costs?.[0]?.amount || '0') : 0;
@@ -387,22 +371,12 @@ export class DeepSeekProvider implements Provider {
       });
     }
 
-    // 5. Build usage history from daily data
+    // 4. Build usage history from current month daily data
     const currentDays = amountData?.days ?? [];
-    const allDays = [...prevDays, ...currentDays];
 
-    // UTC 今天日期（DeepSeek 所有日期按 UTC 显示）
-    const todayStr = `${year}-${String(month).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
-    const todayDate = new Date(todayStr + 'T00:00:00Z');
-
-    const buildHistory = (days: UsageAmountDayEntry[], rangeDays: number): import('../shared/types').UsageRecord[] => {
+    const buildHistory = (days: UsageAmountDayEntry[]): import('../shared/types').UsageRecord[] => {
       const records: import('../shared/types').UsageRecord[] = [];
-      const cutoff = new Date(todayDate);
-      cutoff.setUTCDate(cutoff.getUTCDate() - rangeDays + 1);
-
       for (const day of days) {
-        const d = new Date(day.date + 'T00:00:00Z');
-        if (d < cutoff) continue;
         let total = 0;
         for (const model of day.data) {
           for (const u of model.usage) {
@@ -416,19 +390,12 @@ export class DeepSeekProvider implements Provider {
       return records;
     };
 
-    const history1d = buildHistory(currentDays, 1);
-    const history7d = buildHistory(allDays, 7);
-    const history30d = buildHistory(allDays, 30);
+    const history30d = buildHistory(currentDays);
 
-    // 6. Build model token history
-    const buildModelHistory = (days: UsageAmountDayEntry[], rangeDays: number): import('../shared/types').ModelTokenRecord[] => {
+    // 5. Build model token history for current month
+    const buildModelHistory = (days: UsageAmountDayEntry[]): import('../shared/types').ModelTokenRecord[] => {
       const records: import('../shared/types').ModelTokenRecord[] = [];
-      const cutoff = new Date(todayDate);
-      cutoff.setUTCDate(cutoff.getUTCDate() - rangeDays + 1);
-
       for (const day of days) {
-        const d = new Date(day.date + 'T00:00:00Z');
-        if (d < cutoff) continue;
         for (const model of day.data) {
           let total = 0;
           for (const u of model.usage) {
@@ -444,11 +411,9 @@ export class DeepSeekProvider implements Provider {
       return records;
     };
 
-    const modelHistory1d = buildModelHistory(allDays, 1);
-    const modelHistory7d = buildModelHistory(allDays, 7);
-    const modelHistory30d = buildModelHistory(allDays, 30);
+    const modelHistory30d = buildModelHistory(currentDays);
 
-    // 7. Calculate totals
+    // 6. Calculate totals
     const sumUsed = (records: import('../shared/types').UsageRecord[]) =>
       records.reduce((sum, r) => sum + r.used, 0);
 
@@ -460,20 +425,51 @@ export class DeepSeekProvider implements Provider {
       expiresAt: '',
       details: {
         quotas,
-        history1d,
-        history7d,
         history30d,
-        totalTokens1d: sumUsed(history1d),
-        totalTokens7d: sumUsed(history7d),
         totalTokens30d: sumUsed(history30d),
-        estimatedCost1d: 0,
-        estimatedCost7d: 0,
         estimatedCost30d: monthlyCost,
-        modelHistory1d,
-        modelHistory7d,
         modelHistory30d,
         serviceStatus,
       },
     };
+  }
+
+  /** 按月获取模型 token 历史（供 IPC 按需调用） */
+  async fetchMonthModelHistory(config: ProviderConfig, month: number, year: number): Promise<import('../shared/types').ModelTokenRecord[]> {
+    const token = config.webToken?.trim();
+    if (!token) throw new Error('[DeepSeek] Web token is required');
+
+    const baseUrl = 'https://platform.deepseek.com';
+    const userAgent = config.webUserAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36';
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'User-Agent': userAgent,
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+      'Referer': 'https://platform.deepseek.com/usage',
+      'Origin': 'https://platform.deepseek.com',
+    };
+
+    const resp = await this.httpClient.getJson<InternalApiData<{ total: UsageAmountDayEntry[]; days: UsageAmountDayEntry[] }>>(
+      `${baseUrl}/api/v0/usage/amount?month=${month}&year=${year}`, headers
+    );
+    if (resp.code === 40002) throw new Error(TOKEN_EXPIRED);
+
+    const days = resp.data?.biz_data?.days ?? [];
+    const records: import('../shared/types').ModelTokenRecord[] = [];
+    for (const day of days) {
+      for (const model of day.data) {
+        let total = 0;
+        for (const u of model.usage) {
+          if (u.type !== 'REQUEST') {
+            total += parseInt(u.amount, 10);
+          }
+        }
+        if (total > 0) {
+          records.push({ date: day.date, model: model.model, used: total });
+        }
+      }
+    }
+    return records;
   }
 }

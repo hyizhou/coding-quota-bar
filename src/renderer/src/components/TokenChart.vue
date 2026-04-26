@@ -65,6 +65,7 @@ const props = defineProps<{
   modelRecords30d: ModelTokenRecord[]
   activeTab: 'today' | '24h' | '7d' | '30d'
   granularity?: 'hourly' | 'daily'
+  displayMonth?: { year: number; month: number }
   modelRates?: Record<string, number>
 }>()
 
@@ -167,9 +168,13 @@ function aggregate1dStacked(records: ModelTokenRecord[]): StackedResult {
   return { labels, models, values }
 }
 
-/** 按7天：每天一个bar（日粒度数据，如 DeepSeek） */
-function aggregate7dDailyStacked(records: ModelTokenRecord[]): StackedResult {
+/** 按月份聚合：每天一个bar（日粒度数据，如 DeepSeek） */
+function aggregateMonthStacked(records: ModelTokenRecord[], year: number, month: number): StackedResult {
   const now = new Date()
+  const isCurrent = now.getFullYear() === year && now.getMonth() + 1 === month
+
+  const lastDay = isCurrent ? now.getDate() : new Date(year, month, 0).getDate()
+
   const modelSet = new Set<string>()
   const buckets = new Map<string, Map<string, number>>()
   for (const r of records) {
@@ -180,12 +185,13 @@ function aggregate7dDailyStacked(records: ModelTokenRecord[]): StackedResult {
     m.set(r.model, (m.get(r.model) || 0) + r.used)
   }
 
+  const monthStr = String(month).padStart(2, '0')
   const labels: string[] = []
   const dayKeys: string[] = []
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 86400000)
-    const key = localDateStr(d)
-    labels.push(key.slice(5))
+  for (let d = 1; d <= lastDay; d++) {
+    const dayStr = String(d).padStart(2, '0')
+    const key = `${year}-${monthStr}-${dayStr}`
+    labels.push(dayStr)
     dayKeys.push(key)
   }
 
@@ -270,7 +276,7 @@ const stacked = computed(() => {
   }
   if (props.activeTab === '7d') {
     if (!props.modelRecords7d.length) return { labels: [] as string[], models: [] as string[], values: new Map<string, number[]>() }
-    if (props.granularity === 'daily') return aggregate7dDailyStacked(props.modelRecords7d)
+    if (props.granularity === 'daily' && props.displayMonth) return aggregateMonthStacked(props.modelRecords7d, props.displayMonth.year, props.displayMonth.month)
     return aggregate7dStacked(props.modelRecords7d)
   }
   if (!props.modelRecords30d.length) return { labels: [] as string[], models: [] as string[], values: new Map<string, number[]>() }

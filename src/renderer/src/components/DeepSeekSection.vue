@@ -34,32 +34,31 @@
   <div v-if="hasModelHistory" class="usage-stats">
     <div class="stats-tabs-row">
       <span class="chart-title">{{ $t('main.tokenStats') }}</span>
-      <div class="stats-time-tabs">
-        <button
-          v-for="tab in tabs"
-          :key="tab.value"
-          class="tab-btn"
-          :class="{ active: activeTab === tab.value }"
-          @click="activeTab = tab.value"
-        >{{ tab.label }}</button>
+      <div class="month-selector">
+        <button class="month-arrow" @click="prevMonth">&lt;</button>
+        <span class="month-label">{{ monthLabel }}</span>
+        <button class="month-arrow" :disabled="isCurrentMonth" @click="nextMonth">&gt;</button>
       </div>
     </div>
+    <div v-if="loading" class="chart-loading">...</div>
     <TokenChart
+      v-else
       :title="$t('main.tokenStats')"
-      :model-records-1d="account.modelHistory1d"
-      :model-records-7d="account.modelHistory7d"
-      :model-records-30d="account.modelHistory30d"
-      :active-tab="activeTab"
+      :model-records-1d="[]"
+      :model-records-7d="monthRecords"
+      :model-records-30d="[]"
+      :active-tab="'7d'"
       granularity="daily"
+      :display-month="{ year: selectedYear, month: selectedMonth }"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TokenChart from './TokenChart.vue'
-import type { AccountUsageData } from '../types'
+import type { AccountUsageData, ModelTokenRecord } from '../types'
 
 const { t } = useI18n()
 
@@ -69,6 +68,13 @@ const props = defineProps<{
 
 const budget = ref<number | undefined>(undefined)
 
+// Month selector state
+const now = new Date()
+const selectedYear = ref(now.getFullYear())
+const selectedMonth = ref(now.getMonth() + 1)
+const monthRecords = ref<ModelTokenRecord[]>([])
+const loading = ref(false)
+
 onMounted(async () => {
   const config = await window.electronAPI.getConfig()
   if (config?.providers?.deepseek) {
@@ -76,6 +82,64 @@ onMounted(async () => {
     if (acc && (acc as any).budget != null) {
       budget.value = (acc as any).budget
     }
+  }
+  // Initialize with current month data from provider
+  monthRecords.value = props.account.modelHistory30d
+})
+
+const isCurrentMonth = computed(() => {
+  const n = new Date()
+  return selectedYear.value === n.getFullYear() && selectedMonth.value === n.getMonth() + 1
+})
+
+const monthLabel = computed(() => {
+  return `${selectedYear.value}年${String(selectedMonth.value).padStart(2, '0')}月`
+})
+
+async function prevMonth() {
+  if (selectedMonth.value === 1) {
+    selectedMonth.value = 12
+    selectedYear.value--
+  } else {
+    selectedMonth.value--
+  }
+  await fetchMonthData()
+}
+
+async function nextMonth() {
+  if (isCurrentMonth.value) return
+  if (selectedMonth.value === 12) {
+    selectedMonth.value = 1
+    selectedYear.value++
+  } else {
+    selectedMonth.value++
+  }
+  await fetchMonthData()
+}
+
+async function fetchMonthData() {
+  if (isCurrentMonth.value) {
+    monthRecords.value = props.account.modelHistory30d
+    return
+  }
+  loading.value = true
+  try {
+    const result = await window.electronAPI.deepseekFetchMonthUsage(
+      props.account.id, selectedYear.value, selectedMonth.value
+    )
+    monthRecords.value = result || []
+  } catch (e) {
+    console.warn('[DeepSeekSection] Failed to fetch month data:', e)
+    monthRecords.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// When account data refreshes, update current month cache if viewing current month
+watch(() => props.account.modelHistory30d, (newData) => {
+  if (isCurrentMonth.value) {
+    monthRecords.value = newData
   }
 })
 
@@ -116,14 +180,6 @@ const hasModelHistory = computed(() =>
   props.account.modelHistory7d.length > 0 ||
   props.account.modelHistory30d.length > 0
 )
-
-type TabValue = '7d' | '30d'
-const activeTab = ref<TabValue>('7d')
-
-const tabs = [
-  { label: t('main.tab7d'), value: '7d' as TabValue },
-  { label: t('main.tab30d'), value: '30d' as TabValue },
-]
 
 async function onBudgetChange(e: Event) {
   const input = e.target as HTMLInputElement
@@ -269,22 +325,23 @@ async function onBudgetChange(e: Event) {
   margin-bottom: 6px;
 }
 
-.stats-time-tabs {
-  display: flex;
-  gap: 2px;
-}
-
 .chart-title {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-heading);
 }
 
-.tab-btn {
+.month-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.month-arrow {
   background: none;
   border: 1px solid var(--border-tab);
   border-radius: 4px;
-  padding: 1px 6px;
+  padding: 1px 5px;
   font-size: 10px;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -292,10 +349,23 @@ async function onBudgetChange(e: Event) {
   line-height: 1.4;
 }
 
-.tab-btn:hover { color: var(--text-secondary); border-color: var(--border-tab-hover); }
-.tab-btn.active {
-  background: var(--bg-toggle-active);
-  color: var(--bg-input);
-  border-color: var(--bg-toggle-active);
+.month-arrow:hover:not(:disabled) { color: var(--text-secondary); border-color: var(--border-tab-hover); }
+.month-arrow:disabled { opacity: 0.3; cursor: default; }
+
+.month-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 70px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-loading {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  padding: 20px 0;
+  letter-spacing: 3px;
 }
 </style>
