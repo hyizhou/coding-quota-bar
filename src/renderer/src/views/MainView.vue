@@ -99,7 +99,13 @@
           <template v-if="getActiveAccount(activeProvider)">
             <div v-if="getActiveAccount(activeProvider)!.error" class="error-card">
               <span class="error-icon">!</span>
-              <span class="error-text">{{ formatError(getActiveAccount(activeProvider)!.error!) }}</span>
+              <span class="error-text">
+                <template v-if="getActiveAccount(activeProvider)!.error === 'TOKEN_EXPIRED'">
+                  {{ $t('main.deepseekTokenExpired') }}
+                  <button class="relogin-btn" @click="$emit('open-settings')">{{ $t('main.reloginBtn') }}</button>
+                </template>
+                <template v-else>{{ formatError(getActiveAccount(activeProvider)!.error!) }}</template>
+              </span>
             </div>
             <template v-else>
               <ZhipuSection v-if="activeProvider.key === 'zhipu'" :account="getActiveAccount(activeProvider)!" />
@@ -517,6 +523,22 @@ onMounted(async () => {
   font-size: 12px;
   color: var(--text-error);
   line-height: 1.4;
+}
+
+.relogin-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  margin-left: 6px;
+  border: 1px solid #3B82F6;
+  border-radius: 4px;
+  background: transparent;
+  color: #3B82F6;
+  cursor: pointer;
+}
+
+.relogin-btn:hover {
+  background: #3B82F6;
+  color: #fff;
 }
 
 .skeleton-group {

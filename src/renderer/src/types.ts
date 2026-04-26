@@ -106,6 +106,9 @@ export interface AccountConfig {
   apiKey: string
   label: string
   budget?: number
+  authMode?: 'apikey' | 'weblogin'
+  webToken?: string
+  webUserAgent?: string
 }
 
 export interface ProviderTypeConfig {
@@ -173,6 +176,9 @@ export interface ElectronAPI {
   onWindowPinnedState: (callback: (pinned: boolean) => void) => void
   getAppVersion: () => Promise<string>
   onUpdateAvailableAuto: (callback: (info: { version: string }) => void) => void
+  deepseekWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
+  deepseekWebLogout: (accountId: string) => Promise<void>
+  onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => void
 }
 
 declare global {

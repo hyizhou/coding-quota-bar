@@ -7,6 +7,9 @@ export interface AccountConfig {
   apiKey: string;
   label: string;    // 用户自定义备注，如 "工作号"
   budget?: number;  // 用户自定义总额度（元），用于纯余额服务商
+  authMode?: 'apikey' | 'weblogin';  // 认证模式，默认 apikey
+  webToken?: string;                  // 加密的网页 session token（weblogin 模式）
+  webUserAgent?: string;              // 登录时的浏览器 User-Agent，用于 API 请求伪装
 }
 
 /**
@@ -23,6 +26,10 @@ export interface ProviderConfig {
   enabled: boolean;
   apiKey: string;
   _baseUrl?: string;
+  authMode?: 'apikey' | 'weblogin';
+  webToken?: string;
+  webUserAgent?: string;
+  accountId?: string;
   [key: string]: unknown;
 }
 

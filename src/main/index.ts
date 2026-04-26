@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, session, shell } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'path';
 import { TrayManager, getColorByPercent } from './tray';
@@ -176,6 +176,9 @@ let autoUpdateTimerId: ReturnType<typeof setTimeout> | null = null;
 let isAutoChecking = false;
 let sessionUpdateInfo: UpdateInfo | null = null;
 
+// DeepSeek 网页登录窗口
+const loginWindows = new Map<string, BrowserWindow>();
+
 /**
  * 窗口显示模式
  */
@@ -296,6 +299,136 @@ function getPopupPosition(): { x: number; y: number } {
 /**
  * 创建悬浮详情面板（启动时调用一次，之后复用 show/hide）
  */
+/**
+ * DeepSeek 网页登录：弹出 BrowserWindow 让用户登录，提取 session token
+ */
+function deepseekWebLogin(accountId: string): Promise<{ success: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    const existing = loginWindows.get(accountId);
+    if (existing && !existing.isDestroyed()) {
+      existing.focus();
+      resolve({ success: false, error: 'Login window already open' });
+      return;
+    }
+
+    const partition = `persist:deepseek-${accountId}`;
+
+    const win = new BrowserWindow({
+      width: 480,
+      height: 700,
+      autoHideMenuBar: true,
+      title: 'DeepSeek Login',
+      webPreferences: {
+        partition,
+        contextIsolation: true,
+        nodeIntegration: false,
+        webSecurity: true,
+      },
+    });
+
+    win.setMenuBarVisibility(false);
+    loginWindows.set(accountId, win);
+
+    let resolved = false;
+
+    // 检查并保存 token
+    async function checkAndSaveToken(): Promise<boolean> {
+      if (resolved || win.isDestroyed()) return false;
+      try {
+        const tokenJson = await win.webContents.executeJavaScript(
+          `localStorage.getItem('userToken')`
+        );
+        if (!tokenJson) return false;
+
+        const parsed = JSON.parse(tokenJson);
+        const token = parsed?.value;
+        if (!token) return false;
+
+        resolved = true;
+        clearInterval(checkInterval);
+
+        if (configManager) {
+          const config = configManager.getConfig();
+          if (config) {
+            const providers = structuredClone(config.providers);
+            const ds = providers.deepseek as ProviderTypeConfig;
+            if (ds?.accounts) {
+              const account = ds.accounts.find(a => a.id === accountId);
+              if (account) {
+                account.webToken = token;
+                account.authMode = 'weblogin';
+                account.webUserAgent = win.webContents.getUserAgent();
+                await configManager.updateConfig({ providers });
+              }
+            }
+          }
+        }
+
+        win.close();
+        loginWindows.delete(accountId);
+
+        if (popupWindow && !popupWindow.isDestroyed()) {
+          popupWindow.webContents.send('deepseek-web-login-success', accountId);
+        }
+
+        resolve({ success: true });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    // 页面加载完成后立即检查 token
+    win.webContents.on('did-finish-load', () => {
+      checkAndSaveToken();
+    });
+
+    // 轮询检查（兜底）
+    const checkInterval = setInterval(() => {
+      if (win.isDestroyed()) {
+        clearInterval(checkInterval);
+        loginWindows.delete(accountId);
+        if (!resolved) resolve({ success: false, error: 'Window closed' });
+        return;
+      }
+      checkAndSaveToken();
+    }, 1000);
+
+    win.on('closed', () => {
+      clearInterval(checkInterval);
+      loginWindows.delete(accountId);
+      if (!resolved) resolve({ success: false, error: 'Window closed' });
+    });
+
+    win.loadURL('https://platform.deepseek.com');
+  });
+}
+
+/**
+ * DeepSeek 网页登出：清除 webToken 和 session 数据
+ */
+async function deepseekWebLogout(accountId: string): Promise<void> {
+  if (!configManager) return;
+  const config = configManager.getConfig();
+  if (!config) return;
+
+  const providers = structuredClone(config.providers);
+  const ds = providers.deepseek as ProviderTypeConfig;
+  if (ds?.accounts) {
+    const account = ds.accounts.find(a => a.id === accountId);
+    if (account) {
+      account.webToken = '';
+      account.authMode = 'apikey';
+      await configManager.updateConfig({ providers });
+    }
+  }
+
+  // 清除 session partition 数据
+  const partition = `persist:deepseek-${accountId}`;
+  const ses = session.fromPartition(partition);
+  await ses.clearStorageData();
+}
+
 /**
  * 显示反馈群窗口
  */
@@ -861,6 +994,16 @@ function setupIpcHandlers(): void {
       console.error('[Feedback] Error:', e);
     }
   });
+
+  // DeepSeek 网页登录
+  ipcMain.handle('deepseek-web-login', async (_, accountId: string) => {
+    return await deepseekWebLogin(accountId);
+  });
+
+  // DeepSeek 网页登出
+  ipcMain.handle('deepseek-web-logout', async (_, accountId: string) => {
+    await deepseekWebLogout(accountId);
+  });
 }
 
 /**
@@ -871,7 +1014,11 @@ function hasEnabledProviders(): boolean {
   if (!config) return false;
   return Object.values(config.providers).some(p => {
     const accounts = (p as ProviderTypeConfig).accounts;
-    return Array.isArray(accounts) && accounts.some(a => a.enabled && a.apiKey?.trim());
+    return Array.isArray(accounts) && accounts.some(a => {
+      if (!a.enabled) return false;
+      if (a.authMode === 'weblogin') return !!a.webToken?.trim();
+      return !!a.apiKey?.trim();
+    });
   });
 }
 

@@ -44,6 +44,42 @@ let statusCache: { data: DeepSeekServiceComponent[]; ts: number } | null = null;
 
 const STATUS_DAYS = 90;
 
+const TOKEN_EXPIRED = 'TOKEN_EXPIRED';
+
+// 内部 API 响应类型
+interface UserSummaryBizData {
+  current_token: number;
+  monthly_usage: string;
+  total_usage: number;
+  normal_wallets: Array<{ currency: string; balance: string; token_estimation: string }>;
+  bonus_wallets: Array<{ currency: string; balance: string; token_estimation: string }>;
+  total_available_token_estimation: string;
+  monthly_costs: Array<{ currency: string; amount: string }>;
+  monthly_token_usage: string;
+}
+
+interface InternalApiData<T> {
+  code: number;
+  msg?: string;
+  data?: { biz_code: number; biz_msg: string; biz_data: T };
+}
+
+interface UsageAmountDayEntry {
+  date: string;
+  data: Array<{
+    model: string;
+    usage: Array<{ type: string; amount: string }>;
+  }>;
+}
+
+interface UsageCostDayEntry {
+  date: string;
+  data: Array<{
+    model: string;
+    usage: Array<{ type: string; amount: string }>;
+  }>;
+}
+
 export async function fetchServiceStatus(httpClient?: HttpClientWithRetry): Promise<DeepSeekServiceComponent[]> {
   if (statusCache && Date.now() - statusCache.ts < STATUS_CACHE_TTL) {
     return statusCache.data;
@@ -149,6 +185,27 @@ export class DeepSeekProvider implements Provider {
   private httpClient = new HttpClientWithRetry(3, 1000);
 
   async fetchUsage(config: ProviderConfig): Promise<UsageResult> {
+    const mode = config.authMode || 'apikey';
+    try {
+      if (mode === 'weblogin') {
+        return await this.fetchUsageWebLogin(config);
+      }
+      return await this.fetchUsageApiKey(config);
+    } catch (error) {
+      if (error instanceof Error && error.message === TOKEN_EXPIRED) {
+        return {
+          used: 0,
+          total: 0,
+          expiresAt: '',
+          error: TOKEN_EXPIRED,
+          details: { quotas: [] },
+        };
+      }
+      throw error;
+    }
+  }
+
+  private async fetchUsageApiKey(config: ProviderConfig): Promise<UsageResult> {
     const apiKey = config.apiKey?.trim();
     if (!apiKey) {
       throw new Error('[DeepSeek] API Key is required');
@@ -217,6 +274,206 @@ export class DeepSeekProvider implements Provider {
       total: totalBalance,
       expiresAt: '',
       details: { quotas, serviceStatus },
+    };
+  }
+
+  private async fetchUsageWebLogin(config: ProviderConfig): Promise<UsageResult> {
+    const token = config.webToken?.trim();
+    if (!token) {
+      throw new Error('[DeepSeek] Web token is required for weblogin mode');
+    }
+
+    const baseUrl = 'https://platform.deepseek.com';
+    const userAgent = config.webUserAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36';
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'User-Agent': userAgent,
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+      'Referer': 'https://platform.deepseek.com/usage',
+      'Origin': 'https://platform.deepseek.com',
+    };
+
+    const checkExpired = (code: number | undefined) => {
+      if (code === 40002) throw new Error(TOKEN_EXPIRED);
+    };
+
+    // 1. Fetch user summary
+    const summaryResp = await this.httpClient.getJson<InternalApiData<UserSummaryBizData>>(
+      `${baseUrl}/api/v0/users/get_user_summary`, headers
+    );
+    checkExpired(summaryResp.code);
+    const summary = summaryResp.data?.biz_data;
+
+    // 2. Fetch current month usage amount and cost concurrently
+    const now = new Date();
+    const month = now.getUTCMonth() + 1;
+    const year = now.getUTCFullYear();
+
+    let amountData: { total: UsageAmountDayEntry[]; days: UsageAmountDayEntry[] } | undefined;
+    let costData: { total: UsageCostDayEntry[]; days: UsageCostDayEntry[] } | undefined;
+
+    try {
+      const [amountResp, costResp] = await Promise.all([
+        this.httpClient.getJson<InternalApiData<{ total: UsageAmountDayEntry[]; days: UsageAmountDayEntry[] }>>(
+          `${baseUrl}/api/v0/usage/amount?month=${month}&year=${year}`, headers
+        ),
+        this.httpClient.getJson<InternalApiData<{ total: UsageCostDayEntry[]; days: UsageCostDayEntry[] }>>(
+          `${baseUrl}/api/v0/usage/cost?month=${month}&year=${year}`, headers
+        ),
+      ]);
+      checkExpired(amountResp.code);
+      checkExpired(costResp.code);
+      amountData = amountResp.data?.biz_data;
+      costData = costResp.data?.biz_data?.[0]; // cost returns an array with one element
+    } catch (e) {
+      if (e instanceof Error && e.message === TOKEN_EXPIRED) throw e;
+      console.warn('[DeepSeek] Failed to fetch usage amount/cost:', e);
+    }
+
+    // 3. Fetch previous month for 30-day history
+    const prevMonth = month === 1 ? 12 : month - 1;
+    const prevYear = month === 1 ? year - 1 : year;
+    let prevDays: UsageAmountDayEntry[] = [];
+
+    try {
+      const prevResp = await this.httpClient.getJson<InternalApiData<{ total: UsageAmountDayEntry[]; days: UsageAmountDayEntry[] }>>(
+        `${baseUrl}/api/v0/usage/amount?month=${prevMonth}&year=${prevYear}`, headers
+      );
+      checkExpired(prevResp.code);
+      prevDays = prevResp.data?.biz_data?.days ?? [];
+    } catch (e) {
+      if (e instanceof Error && e.message === TOKEN_EXPIRED) throw e;
+      console.warn('[DeepSeek] Failed to fetch previous month data:', e);
+    }
+
+    // 4. Build quotas from summary
+    const quotas: QuotaItem[] = [];
+    const totalBalance = summary ? parseFloat(summary.normal_wallets?.[0]?.balance || '0') : 0;
+    const monthlyCost = summary ? parseFloat(summary.monthly_costs?.[0]?.amount || '0') : 0;
+    const monthlyTokens = summary ? parseInt(summary.monthly_usage || '0', 10) : 0;
+
+    quotas.push({
+      label: 'quota.deepseekTotalBalance',
+      used: 0,
+      total: totalBalance,
+      usageRate: 0,
+      resetAt: '',
+      hideBar: true,
+      labelParams: { amount: totalBalance.toFixed(2) },
+    });
+
+    if (monthlyCost > 0) {
+      quotas.push({
+        label: 'quota.deepseekMonthlyCost',
+        used: 0,
+        total: monthlyCost,
+        usageRate: 0,
+        resetAt: '',
+        hideBar: true,
+        labelParams: { amount: monthlyCost.toFixed(2) },
+      });
+    }
+
+    if (monthlyTokens > 0) {
+      quotas.push({
+        label: 'quota.deepseekMonthlyUsage',
+        used: monthlyTokens,
+        total: monthlyTokens,
+        usageRate: 100,
+        resetAt: '',
+        hideBar: true,
+        labelParams: { tokens: monthlyTokens.toLocaleString() },
+      });
+    }
+
+    // 5. Build usage history from daily data
+    const currentDays = amountData?.days ?? [];
+    const allDays = [...prevDays, ...currentDays];
+
+    // UTC 今天日期（DeepSeek 所有日期按 UTC 显示）
+    const todayStr = `${year}-${String(month).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+    const todayDate = new Date(todayStr + 'T00:00:00Z');
+
+    const buildHistory = (days: UsageAmountDayEntry[], rangeDays: number): import('../shared/types').UsageRecord[] => {
+      const records: import('../shared/types').UsageRecord[] = [];
+      const cutoff = new Date(todayDate);
+      cutoff.setUTCDate(cutoff.getUTCDate() - rangeDays + 1);
+
+      for (const day of days) {
+        const d = new Date(day.date + 'T00:00:00Z');
+        if (d < cutoff) continue;
+        let total = 0;
+        for (const model of day.data) {
+          for (const u of model.usage) {
+            if (u.type === 'RESPONSE_TOKEN') {
+              total += parseInt(u.amount, 10);
+            }
+          }
+        }
+        records.push({ date: day.date, used: total });
+      }
+      return records;
+    };
+
+    const history1d = buildHistory(currentDays, 1);
+    const history7d = buildHistory(allDays, 7);
+    const history30d = buildHistory(allDays, 30);
+
+    // 6. Build model token history
+    const buildModelHistory = (days: UsageAmountDayEntry[], rangeDays: number): import('../shared/types').ModelTokenRecord[] => {
+      const records: import('../shared/types').ModelTokenRecord[] = [];
+      const cutoff = new Date(todayDate);
+      cutoff.setUTCDate(cutoff.getUTCDate() - rangeDays + 1);
+
+      for (const day of days) {
+        const d = new Date(day.date + 'T00:00:00Z');
+        if (d < cutoff) continue;
+        for (const model of day.data) {
+          let total = 0;
+          for (const u of model.usage) {
+            if (u.type !== 'REQUEST') {
+              total += parseInt(u.amount, 10);
+            }
+          }
+          if (total > 0) {
+            records.push({ date: day.date, model: model.model, used: total });
+          }
+        }
+      }
+      return records;
+    };
+
+    const modelHistory1d = buildModelHistory(allDays, 1);
+    const modelHistory7d = buildModelHistory(allDays, 7);
+    const modelHistory30d = buildModelHistory(allDays, 30);
+
+    // 7. Calculate totals
+    const sumUsed = (records: import('../shared/types').UsageRecord[]) =>
+      records.reduce((sum, r) => sum + r.used, 0);
+
+    const serviceStatus = await fetchServiceStatus(this.httpClient);
+
+    return {
+      used: 0,
+      total: totalBalance,
+      expiresAt: '',
+      details: {
+        quotas,
+        history1d,
+        history7d,
+        history30d,
+        totalTokens1d: sumUsed(history1d),
+        totalTokens7d: sumUsed(history7d),
+        totalTokens30d: sumUsed(history30d),
+        estimatedCost1d: 0,
+        estimatedCost7d: 0,
+        estimatedCost30d: monthlyCost,
+        modelHistory1d,
+        modelHistory7d,
+        modelHistory30d,
+        serviceStatus,
+      },
     };
   }
 }

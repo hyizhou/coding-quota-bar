@@ -6,7 +6,7 @@
     </div>
     <div v-if="hasDetails" class="balance-details">
       <span v-for="d in details" :key="d.label" class="detail-item">
-        {{ $t(d.label) }}: ¥{{ d.amount }}
+        {{ $t(d.label) }}: {{ d.label.includes('Usage') ? d.amount : '¥' + d.amount }}
       </span>
     </div>
     <template v-if="hasBudget">
@@ -30,12 +30,38 @@
       />
     </div>
   </div>
+  <!-- 网页登录模式：Token 用量图表 -->
+  <div v-if="hasModelHistory" class="usage-stats">
+    <div class="stats-tabs-row">
+      <span class="chart-title">{{ $t('main.tokenStats') }}</span>
+      <div class="stats-time-tabs">
+        <button
+          v-for="tab in tabs"
+          :key="tab.value"
+          class="tab-btn"
+          :class="{ active: activeTab === tab.value }"
+          @click="activeTab = tab.value"
+        >{{ tab.label }}</button>
+      </div>
+    </div>
+    <TokenChart
+      :title="$t('main.tokenStats')"
+      :model-records-1d="account.modelHistory1d"
+      :model-records-7d="account.modelHistory7d"
+      :model-records-30d="account.modelHistory30d"
+      :active-tab="activeTab"
+      granularity="daily"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import TokenChart from './TokenChart.vue'
+import type { AccountUsageData } from '../types'
 
-
+const { t } = useI18n()
 
 const props = defineProps<{
   account: AccountUsageData
@@ -84,6 +110,20 @@ const details = computed(() => {
 })
 
 const hasDetails = computed(() => details.value.length > 0)
+
+const hasModelHistory = computed(() =>
+  props.account.modelHistory1d.length > 0 ||
+  props.account.modelHistory7d.length > 0 ||
+  props.account.modelHistory30d.length > 0
+)
+
+type TabValue = '7d' | '30d'
+const activeTab = ref<TabValue>('7d')
+
+const tabs = [
+  { label: t('main.tab7d'), value: '7d' as TabValue },
+  { label: t('main.tab30d'), value: '30d' as TabValue },
+]
 
 async function onBudgetChange(e: Event) {
   const input = e.target as HTMLInputElement
@@ -216,5 +256,46 @@ async function onBudgetChange(e: Event) {
 .budget-inline-input:focus {
   border-bottom-color: var(--border-default);
   border-bottom-style: solid;
+}
+
+.usage-stats {
+  margin-top: 8px;
+}
+
+.stats-tabs-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.stats-time-tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.chart-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.tab-btn {
+  background: none;
+  border: 1px solid var(--border-tab);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1.4;
+}
+
+.tab-btn:hover { color: var(--text-secondary); border-color: var(--border-tab-hover); }
+.tab-btn.active {
+  background: var(--bg-toggle-active);
+  color: var(--bg-input);
+  border-color: var(--bg-toggle-active);
 }
 </style>
