@@ -42,6 +42,10 @@ export interface ModelTokenRecord {
   date: string
   model: string
   used: number
+  requests?: number
+  cacheHitTokens?: number
+  cacheMissTokens?: number
+  responseTokens?: number
 }
 
 export interface PerformanceRecord {

@@ -30,7 +30,7 @@
       />
     </div>
   </div>
-  <!-- 网页登录模式：Token 用量图表 -->
+  <!-- 网页登录模式：按模型展示图表 -->
   <div v-if="hasModelHistory" class="usage-stats">
     <div class="stats-tabs-row">
       <span class="chart-title">{{ $t('main.tokenStats') }}</span>
@@ -41,25 +41,38 @@
       </div>
     </div>
     <div v-if="loading" class="chart-loading">...</div>
-    <TokenChart
-      v-else
-      :title="$t('main.tokenStats')"
-      :model-records-1d="[]"
-      :model-records-7d="monthRecords"
-      :model-records-30d="[]"
-      :active-tab="'7d'"
-      granularity="daily"
-      :display-month="{ year: selectedYear, month: selectedMonth }"
-    />
+    <template v-else>
+      <div v-for="mg in modelGroups" :key="mg.name" class="model-chart-card">
+        <div class="model-header">
+          <span class="model-name">{{ mg.name }}</span>
+          <div class="model-summary">
+            <span class="model-stat">{{ formatCount(mg.totalTokens) }} tokens</span>
+            <span class="model-stat-sep">·</span>
+            <span class="model-stat">{{ mg.totalRequests }} requests</span>
+          </div>
+        </div>
+        <div class="model-chart-wrapper">
+          <Bar :data="mg.chartData" :options="getChartOpts(mg)" />
+        </div>
+      </div>
+      <div v-if="modelGroups.length === 0" class="no-data">No data</div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import TokenChart from './TokenChart.vue'
+import { Bar } from 'vue-chartjs'
+import {
+  Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Filler
+} from 'chart.js'
 import type { AccountUsageData, ModelTokenRecord } from '../types'
+import { useTheme } from '../composables/useTheme'
 
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Filler)
+
+const { isDark } = useTheme()
 const { t } = useI18n()
 
 const props = defineProps<{
@@ -83,7 +96,6 @@ onMounted(async () => {
       budget.value = (acc as any).budget
     }
   }
-  // Initialize with current month data from provider
   monthRecords.value = props.account.modelHistory30d
 })
 
@@ -136,12 +148,209 @@ async function fetchMonthData() {
   }
 }
 
-// When account data refreshes, update current month cache if viewing current month
 watch(() => props.account.modelHistory30d, (newData) => {
   if (isCurrentMonth.value) {
     monthRecords.value = newData
   }
 })
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return `${n}`
+}
+
+interface DayDetail {
+  tokens: number
+  requests: number
+  cacheHit: number
+  cacheMiss: number
+  response: number
+}
+
+interface ModelGroup {
+  name: string
+  totalTokens: number
+  totalRequests: number
+  chartData: { labels: string[]; datasets: any[] }
+  dayDetails: Map<string, DayDetail>
+}
+
+const modelGroups = computed(() => {
+  const isCur = isCurrentMonth.value
+  const year = selectedYear.value
+  const month = selectedMonth.value
+
+  const lastDay = isCur ? now.getDate() : new Date(year, month, 0).getDate()
+  const monthStr = String(month).padStart(2, '0')
+
+  // Generate all day keys for the month
+  const dayKeys: string[] = []
+  const dayLabels: string[] = []
+  for (let d = 1; d <= lastDay; d++) {
+    const ds = String(d).padStart(2, '0')
+    dayKeys.push(`${year}-${monthStr}-${ds}`)
+    dayLabels.push(ds)
+  }
+
+  // Group records by model
+  const byModel = new Map<string, Map<string, DayDetail>>()
+  for (const r of monthRecords.value) {
+    if (!byModel.has(r.model)) byModel.set(r.model, new Map())
+    const dayMap = byModel.get(r.model)!
+    dayMap.set(r.date, {
+      tokens: r.used,
+      requests: r.requests ?? 0,
+      cacheHit: r.cacheHitTokens ?? 0,
+      cacheMiss: r.cacheMissTokens ?? 0,
+      response: r.responseTokens ?? 0,
+    })
+  }
+
+  const groups: ModelGroup[] = []
+
+  // Sort models: v4-pro first, v4-flash second, old models last
+  const modelOrder = ['deepseek-v4-pro', 'deepseek-v4-flash']
+  const sortedModels = Array.from(byModel.keys()).sort((a, b) => {
+    const ai = modelOrder.indexOf(a)
+    const bi = modelOrder.indexOf(b)
+    if (ai !== -1 && bi !== -1) return ai - bi
+    if (ai !== -1) return -1
+    if (bi !== -1) return 1
+    return a.localeCompare(b)
+  })
+
+  for (const model of sortedModels) {
+    const dayMap = byModel.get(model)!
+    const tokensArr = dayKeys.map(k => dayMap.get(k)?.tokens ?? 0)
+    const requestsArr = dayKeys.map(k => dayMap.get(k)?.requests ?? 0)
+    const detailMap = new Map<string, DayDetail>()
+    for (const [k, v] of dayMap) detailMap.set(k, v)
+
+    groups.push({
+      name: model,
+      totalTokens: tokensArr.reduce((a, b) => a + b, 0),
+      totalRequests: requestsArr.reduce((a, b) => a + b, 0),
+      dayDetails: detailMap,
+      chartData: {
+        labels: dayLabels,
+        datasets: [
+          {
+            type: 'bar' as const,
+            label: 'Tokens',
+            data: tokensArr,
+            backgroundColor: 'rgba(59, 130, 246, 0.6)',
+            hoverBackgroundColor: 'rgba(59, 130, 246, 0.85)',
+            borderRadius: 2,
+            borderSkipped: false,
+            yAxisID: 'y',
+            order: 2,
+          },
+          {
+            type: 'line' as const,
+            label: 'Requests',
+            data: requestsArr,
+            borderColor: 'rgba(16, 185, 129, 0.45)',
+            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            pointBackgroundColor: 'rgba(16, 185, 129, 0.45)',
+            borderWidth: 1.5,
+            borderDash: [4, 3],
+            tension: 0.3,
+            fill: false,
+            yAxisID: 'y1',
+            order: 1,
+          },
+        ],
+      },
+    })
+  }
+
+  return groups
+})
+
+function getChartOpts(group: ModelGroup) {
+  const y = selectedYear.value
+  const m = selectedMonth.value
+  const isCur = isCurrentMonth.value
+  const lastDay = isCur ? now.getDate() : new Date(y, m, 0).getDate()
+  const monthStr = String(m).padStart(2, '0')
+  const dayKeys: string[] = []
+  for (let d = 1; d <= lastDay; d++) {
+    dayKeys.push(`${y}-${monthStr}-${String(d).padStart(2, '0')}`)
+  }
+
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index' as const, intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: isDark.value ? 'rgba(40, 40, 40, 0.9)' : 'rgba(0, 0, 0, 0.8)',
+        titleColor: isDark.value ? '#e0e0e0' : '#fff',
+        bodyColor: isDark.value ? '#ccc' : '#fff',
+        titleFont: { size: 11 },
+        bodyFont: { size: 11 },
+        padding: { top: 4, bottom: 4, left: 8, right: 8 },
+        cornerRadius: 4,
+        displayColors: true,
+        boxWidth: 8,
+        boxHeight: 8,
+        callbacks: {
+          title: (items: any[]) => {
+            const idx = items[0]?.dataIndex
+            if (idx == null) return ''
+            return dayKeys[idx] || ''
+          },
+          label: (ctx: any) => {
+            const idx = ctx.dataIndex
+            const dayKey = dayKeys[idx]
+            const detail = group.dayDetails.get(dayKey)
+            if (!detail) return ''
+            if (ctx.dataset.label === 'Requests') {
+              return `${t('main.ttRequests')}: ${detail.requests}`
+            }
+            return `${t('main.ttOutput')}: ${formatCount(detail.response)}`
+          },
+          afterBody: (items: any[]) => {
+            const idx = items[0]?.dataIndex
+            const dayKey = dayKeys[idx]
+            const detail = group.dayDetails.get(dayKey)
+            if (!detail) return []
+            return [
+              `${t('main.ttCacheHit')}: ${formatCount(detail.cacheHit)}`,
+              `${t('main.ttCacheMiss')}: ${formatCount(detail.cacheMiss)}`,
+            ]
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        ticks: { color: isDark.value ? '#666' : '#999', font: { size: 8 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
+        grid: { display: false },
+        border: { display: false },
+      },
+      y: {
+        position: 'left' as const,
+        stacked: false,
+        ticks: { color: isDark.value ? '#666' : '#999', font: { size: 8 }, callback: (v: number) => formatCount(v), maxTicksLimit: 4 },
+        grid: { color: isDark.value ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
+        border: { display: false },
+      },
+      y1: {
+        position: 'right' as const,
+        stacked: false,
+        ticks: { color: isDark.value ? '#4a7a5e' : '#6da882', font: { size: 8 }, maxTicksLimit: 4 },
+        grid: { display: false },
+        border: { display: false },
+      },
+    },
+    layout: { padding: { top: 2, bottom: 0, left: 0, right: 0 } },
+  }
+}
 
 const totalBalance = computed(() => {
   const q = props.account.quotas.find(q => q.label === 'quota.deepseekTotalBalance')
@@ -367,5 +576,52 @@ async function onBudgetChange(e: Event) {
   color: var(--text-tertiary);
   padding: 20px 0;
   letter-spacing: 3px;
+}
+
+.model-chart-card {
+  padding: 6px 0;
+}
+
+.model-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.model-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.model-summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.model-stat {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.model-stat-sep {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  opacity: 0.5;
+}
+
+.model-chart-wrapper {
+  height: 100px;
+  width: 100%;
+}
+
+.no-data {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  padding: 16px 0;
 }
 </style>

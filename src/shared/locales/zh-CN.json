@@ -43,7 +43,11 @@
     "perfAvgSuccessRate": "平均成功率",
     "updateAvailableBanner": "发现新版本 v{version}，点击查看",
     "deepseekTokenExpired": "DeepSeek 登录已过期，请重新登录",
-    "reloginBtn": "重新登录"
+    "reloginBtn": "重新登录",
+    "ttCacheHit": "缓存命中",
+    "ttCacheMiss": "缓存未命中",
+    "ttOutput": "输出",
+    "ttRequests": "请求数"
   },
   "settings": {
     "title": "设置",

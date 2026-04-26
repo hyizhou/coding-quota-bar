@@ -1137,7 +1137,7 @@ function convertAccountData(
     ((result.details?.[key] ?? []) as SharedMcpUsageRecord[]).map(r => ({ date: r.date, search: r.search, webRead: r.webRead, zread: r.zread }));
 
   const mapModelHistory = (key: string): SharedModelTokenRecord[] =>
-    ((result.details?.[key] ?? []) as SharedModelTokenRecord[]).map(r => ({ date: r.date, model: r.model, used: r.used }));
+    ((result.details?.[key] ?? []) as SharedModelTokenRecord[]).map(r => ({ date: r.date, model: r.model, used: r.used, requests: (r as any).requests, cacheHitTokens: (r as any).cacheHitTokens, cacheMissTokens: (r as any).cacheMissTokens, responseTokens: (r as any).responseTokens }));
 
   const mapPerformanceHistory = (key: string): SharedPerformanceRecord[] =>
     ((result.details?.[key] ?? []) as SharedPerformanceRecord[]).map(r => ({

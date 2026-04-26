@@ -46,6 +46,29 @@ const STATUS_DAYS = 90;
 
 const TOKEN_EXPIRED = 'TOKEN_EXPIRED';
 
+function parseModelRecords(days: UsageAmountDayEntry[]): import('../shared/types').ModelTokenRecord[] {
+  const records: import('../shared/types').ModelTokenRecord[] = [];
+  for (const day of days) {
+    for (const model of day.data) {
+      let total = 0, requests = 0, cacheHit = 0, cacheMiss = 0, response = 0;
+      for (const u of model.usage) {
+        const n = parseInt(u.amount, 10);
+        switch (u.type) {
+          case 'REQUEST': requests = n; break;
+          case 'PROMPT_CACHE_HIT_TOKEN': cacheHit = n; total += n; break;
+          case 'PROMPT_CACHE_MISS_TOKEN': cacheMiss = n; total += n; break;
+          case 'RESPONSE_TOKEN': response = n; total += n; break;
+          default: total += n; break;
+        }
+      }
+      if (total > 0 || requests > 0) {
+        records.push({ date: day.date, model: model.model, used: total, requests, cacheHitTokens: cacheHit, cacheMissTokens: cacheMiss, responseTokens: response });
+      }
+    }
+  }
+  return records;
+}
+
 // 内部 API 响应类型
 interface UserSummaryBizData {
   current_token: number;
@@ -393,25 +416,7 @@ export class DeepSeekProvider implements Provider {
     const history30d = buildHistory(currentDays);
 
     // 5. Build model token history for current month
-    const buildModelHistory = (days: UsageAmountDayEntry[]): import('../shared/types').ModelTokenRecord[] => {
-      const records: import('../shared/types').ModelTokenRecord[] = [];
-      for (const day of days) {
-        for (const model of day.data) {
-          let total = 0;
-          for (const u of model.usage) {
-            if (u.type !== 'REQUEST') {
-              total += parseInt(u.amount, 10);
-            }
-          }
-          if (total > 0) {
-            records.push({ date: day.date, model: model.model, used: total });
-          }
-        }
-      }
-      return records;
-    };
-
-    const modelHistory30d = buildModelHistory(currentDays);
+    const modelHistory30d = parseModelRecords(currentDays);
 
     // 6. Calculate totals
     const sumUsed = (records: import('../shared/types').UsageRecord[]) =>
@@ -456,20 +461,6 @@ export class DeepSeekProvider implements Provider {
     if (resp.code === 40002) throw new Error(TOKEN_EXPIRED);
 
     const days = resp.data?.biz_data?.days ?? [];
-    const records: import('../shared/types').ModelTokenRecord[] = [];
-    for (const day of days) {
-      for (const model of day.data) {
-        let total = 0;
-        for (const u of model.usage) {
-          if (u.type !== 'REQUEST') {
-            total += parseInt(u.amount, 10);
-          }
-        }
-        if (total > 0) {
-          records.push({ date: day.date, model: model.model, used: total });
-        }
-      }
-    }
-    return records;
+    return parseModelRecords(days);
   }
 }

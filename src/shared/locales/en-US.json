@@ -43,7 +43,11 @@
     "perfAvgSuccessRate": "Avg Rate",
     "updateAvailableBanner": "New version v{version} available, click to view",
     "deepseekTokenExpired": "DeepSeek login expired, please re-login",
-    "reloginBtn": "Re-login"
+    "reloginBtn": "Re-login",
+    "ttCacheHit": "Cache Hit",
+    "ttCacheMiss": "Cache Miss",
+    "ttOutput": "Output",
+    "ttRequests": "Requests"
   },
   "settings": {
     "title": "Settings",
