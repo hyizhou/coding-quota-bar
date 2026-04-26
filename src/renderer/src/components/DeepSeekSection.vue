@@ -288,38 +288,41 @@ function getChartOpts(group: ModelGroup) {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: isDark.value ? 'rgba(40, 40, 40, 0.9)' : 'rgba(0, 0, 0, 0.8)',
-        titleColor: isDark.value ? '#e0e0e0' : '#fff',
-        bodyColor: isDark.value ? '#ccc' : '#fff',
-        titleFont: { size: 11 },
-        bodyFont: { size: 11 },
-        padding: { top: 4, bottom: 4, left: 8, right: 8 },
-        cornerRadius: 4,
-        displayColors: false,
-        boxWidth: 8,
-        boxHeight: 8,
-        callbacks: {
-          title: (items: any[]) => {
-            const idx = items[0]?.dataIndex
-            if (idx == null) return ''
-            const dayKey = dayKeys[idx]
-            const detail = group.dayDetails.get(dayKey)
-            return dayKey ? `${dayKey}  ${formatCount(detail?.tokens ?? 0)}` : ''
-          },
-          label: () => '',
-          beforeBody: (items: any[]) => {
-            const idx = items[0]?.dataIndex
-            if (idx == null) return []
-            const dayKey = dayKeys[idx]
-            const detail = group.dayDetails.get(dayKey)
-            if (!detail) return []
-            return [
-              `${t('main.ttCacheHit')}: ${formatCount(detail.cacheHit)}`,
-              `${t('main.ttCacheMiss')}: ${formatCount(detail.cacheMiss)}`,
-              `${t('main.ttOutput')}: ${formatCount(detail.response)}`,
-              `${t('main.ttRequests')}: ${detail.requests}`,
-            ]
-          },
+        enabled: false,
+        external(context) {
+          let el = document.getElementById('ds-tooltip') as HTMLDivElement | null
+          if (!el) {
+            el = document.createElement('div')
+            el.id = 'ds-tooltip'
+            el.style.cssText = 'position:fixed;pointer-events:none;z-index:9999;padding:6px 8px;border-radius:4px;font-size:11px;line-height:1.6;transition:all 0.05s ease;'
+            document.body.appendChild(el)
+          }
+          const model = context.tooltip
+          if (model.opacity === 0) { el.style.opacity = '0'; return }
+
+          const idx = model.dataPoints?.[0]?.dataIndex
+          if (idx == null) { el.style.opacity = '0'; return }
+          const dayKey = dayKeys[idx]
+          const detail = group.dayDetails.get(dayKey)
+          const dark = isDark.value
+          el.style.background = dark ? 'rgba(40,40,40,0.92)' : 'rgba(0,0,0,0.8)'
+          el.style.color = dark ? '#ccc' : '#fff'
+
+          el.innerHTML = `<div style="font-weight:600;margin-bottom:2px;color:${dark ? '#e0e0e0' : '#fff'}">${dayKey}  ${formatCount(detail?.tokens ?? 0)}</div>` +
+            `<div>${t('main.ttCacheHit')}: ${formatCount(detail?.cacheHit ?? 0)}</div>` +
+            `<div>${t('main.ttCacheMiss')}: ${formatCount(detail?.cacheMiss ?? 0)}</div>` +
+            `<div>${t('main.ttOutput')}: ${formatCount(detail?.response ?? 0)}</div>` +
+            `<div>${t('main.ttRequests')}: ${detail?.requests ?? 0}</div>`
+
+          const rect = context.chart.canvas.getBoundingClientRect()
+          let left = rect.left + model.caretX + 10
+          let top = rect.top + model.caretY - el.offsetHeight / 2
+          if (left + el.offsetWidth > window.innerWidth - 8) left = left - el.offsetWidth - 20
+          if (top < 4) top = 4
+          if (top + el.offsetHeight > window.innerHeight - 4) top = window.innerHeight - el.offsetHeight - 4
+          el.style.left = left + 'px'
+          el.style.top = top + 'px'
+          el.style.opacity = '1'
         },
       },
     },
