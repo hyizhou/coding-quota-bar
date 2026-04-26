@@ -295,33 +295,29 @@ function getChartOpts(group: ModelGroup) {
         bodyFont: { size: 11 },
         padding: { top: 4, bottom: 4, left: 8, right: 8 },
         cornerRadius: 4,
-        displayColors: true,
+        displayColors: false,
         boxWidth: 8,
         boxHeight: 8,
         callbacks: {
           title: (items: any[]) => {
             const idx = items[0]?.dataIndex
             if (idx == null) return ''
-            return dayKeys[idx] || ''
-          },
-          label: (ctx: any) => {
-            const idx = ctx.dataIndex
             const dayKey = dayKeys[idx]
             const detail = group.dayDetails.get(dayKey)
-            if (!detail) return ''
-            if (ctx.dataset.label === 'Requests') {
-              return `${t('main.ttRequests')}: ${detail.requests}`
-            }
-            return `${t('main.ttOutput')}: ${formatCount(detail.response)}`
+            return dayKey ? `${dayKey}  ${formatCount(detail?.tokens ?? 0)}` : ''
           },
-          afterBody: (items: any[]) => {
+          label: () => '',
+          beforeBody: (items: any[]) => {
             const idx = items[0]?.dataIndex
+            if (idx == null) return []
             const dayKey = dayKeys[idx]
             const detail = group.dayDetails.get(dayKey)
             if (!detail) return []
             return [
               `${t('main.ttCacheHit')}: ${formatCount(detail.cacheHit)}`,
               `${t('main.ttCacheMiss')}: ${formatCount(detail.cacheMiss)}`,
+              `${t('main.ttOutput')}: ${formatCount(detail.response)}`,
+              `${t('main.ttRequests')}: ${detail.requests}`,
             ]
           },
         },
