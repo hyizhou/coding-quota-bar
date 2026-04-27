@@ -46,6 +46,7 @@ export interface QuotaItem {
   startAt?: string;      // 周期开始时间 ISO 8601
   limitType?: string;    // 限制类型标识，如 "tokens"、"mcp"
   hideBar?: boolean;     // 为 true 时不显示进度条，仅显示文本
+  currency?: string;     // ISO 币种代码，如 "CNY"、"USD"
 }
 
 /**

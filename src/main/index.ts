@@ -212,6 +212,7 @@ interface QuotaDisplayItem {
   startAt?: string;
   color: 'green' | 'yellow' | 'red';
   limitType?: string;
+  currency?: string;
 }
 
 /**
@@ -223,6 +224,7 @@ interface AccountDisplayData {
   level?: string;
   subscription?: import('../shared/types').SubscriptionInfo;
   error?: string;
+  currency?: string;
   quotas: QuotaDisplayItem[];
   history1d: SharedUsageRecord[];
   history7d: SharedUsageRecord[];
@@ -1130,6 +1132,7 @@ function convertAccountData(
     color: getColorByPercent(100 - q.usageRate, thresholds) as 'green' | 'yellow' | 'red',
     limitType: q.limitType,
     hideBar: (q as any).hideBar,
+    currency: (q as any).currency,
   }));
 
   const mapHistory = (key: string): SharedUsageRecord[] =>
@@ -1158,6 +1161,7 @@ function convertAccountData(
     level: result.level,
     subscription: result.details?.subscription as import('../shared/types').SubscriptionInfo | undefined,
     error: result.error,
+    currency: (result.details?.currency as string) || undefined,
     quotas,
     history1d: mapHistory('history1d'),
     history7d: mapHistory('history7d'),

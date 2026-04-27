@@ -2,11 +2,11 @@
   <div class="balance-card">
     <div class="balance-header">
       <span class="balance-label">{{ $t('quota.deepseekTotalBalance') }}</span>
-      <span class="balance-value">¥{{ totalBalance.toFixed(2) }}</span>
+      <span class="balance-value">{{ cs }}{{ totalBalance.toFixed(2) }}</span>
     </div>
     <div v-if="hasDetails" class="balance-details">
       <span v-for="d in details" :key="d.label" class="detail-item">
-        {{ $t(d.label) }}: {{ d.label.includes('Usage') ? d.amount : '¥' + d.amount }}
+        {{ $t(d.label) }}: {{ d.label.includes('Usage') ? d.amount : cs + d.amount }}
       </span>
     </div>
   </div>
@@ -28,7 +28,7 @@
           <span class="model-name">{{ t('main.costStats') }}</span>
           <span v-if="monthlyCost > 0 || monthlyUsage > 0" class="monthly-stats">
             <span v-if="monthlyUsage > 0" class="monthly-tokens">{{ formatCount(monthlyUsage) }}</span>
-            <span v-if="monthlyCost > 0" class="monthly-cost">¥ {{ monthlyCost.toFixed(2) }}</span>
+            <span v-if="monthlyCost > 0" class="monthly-cost">{{ cs }} {{ monthlyCost.toFixed(2) }}</span>
           </span>
         </div>
         <div class="cost-chart-wrapper">
@@ -161,6 +161,17 @@ function formatCount(n: number): string {
 function shortModelName(model: string): string {
   return model.replace(/deepseek-/g, '')
 }
+
+function currencySymbol(currency?: string): string {
+  switch (currency?.toUpperCase()) {
+    case 'USD': return '$'
+    case 'EUR': return '€'
+    case 'GBP': return '£'
+    default: return '¥'
+  }
+}
+
+const cs = computed(() => currencySymbol(props.account.currency))
 
 const baseTooltipOpts = () => ({
   backgroundColor: isDark.value ? 'rgba(40,40,40,0.92)' : 'rgba(0,0,0,0.8)',
@@ -369,9 +380,9 @@ function getChartOpts(group: ModelGroup) {
         border: { display: false },
       },
       y1: {
+        display: false,
         position: 'right' as const,
         stacked: false,
-        ticks: { color: isDark.value ? '#4a7a5e' : '#6da882', font: { size: 8 }, maxTicksLimit: 4 },
         grid: { display: false },
         border: { display: false },
       },
@@ -507,10 +518,10 @@ const costChartOpts = computed(() => ({
           const ds = String(idx + 1).padStart(2, '0')
           return `${year}-${monthStr}-${ds}`
         },
-        label: (ctx: any) => `${ctx.dataset.label}: ¥${(ctx.raw as number).toFixed(2)}`,
+        label: (ctx: any) => `${ctx.dataset.label}: ${cs.value}${(ctx.raw as number).toFixed(2)}`,
         footer: (items: any[]) => {
           const total = items.reduce((s: number, i: any) => s + (i.raw as number), 0)
-          return `${t('main.costTotal')}: ¥${total.toFixed(2)}`
+          return `${t('main.costTotal')}: ${cs.value}${total.toFixed(2)}`
         },
       },
     },
@@ -527,7 +538,7 @@ const costChartOpts = computed(() => ({
       ticks: {
         color: isDark.value ? '#666' : '#999',
         font: { size: 8 },
-        callback: (v: any) => '¥' + Number(v).toFixed(2),
+        callback: (v: any) => cs.value + Number(v).toFixed(2),
         maxTicksLimit: 4,
       },
       grid: { color: isDark.value ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },

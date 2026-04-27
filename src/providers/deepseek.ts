@@ -269,6 +269,7 @@ export class DeepSeekProvider implements Provider {
     const totalBalance = parseFloat(info.total_balance) || 0;
     const grantedBalance = parseFloat(info.granted_balance) || 0;
     const toppedUpBalance = parseFloat(info.topped_up_balance) || 0;
+    const currency = info.currency || 'CNY';
 
     const quotas: QuotaItem[] = [];
 
@@ -280,6 +281,7 @@ export class DeepSeekProvider implements Provider {
       resetAt: '',
       hideBar: true,
       labelParams: { amount: totalBalance.toFixed(2) },
+      currency,
     });
 
     if (grantedBalance > 0) {
@@ -291,6 +293,7 @@ export class DeepSeekProvider implements Provider {
         resetAt: '',
         hideBar: true,
         labelParams: { amount: grantedBalance.toFixed(2) },
+        currency,
       });
     }
 
@@ -303,6 +306,7 @@ export class DeepSeekProvider implements Provider {
         resetAt: '',
         hideBar: true,
         labelParams: { amount: toppedUpBalance.toFixed(2) },
+        currency,
       });
     }
 
@@ -312,7 +316,7 @@ export class DeepSeekProvider implements Provider {
       used: 0,
       total: totalBalance,
       expiresAt: '',
-      details: { quotas, serviceStatus },
+      details: { quotas, serviceStatus, currency },
     };
   }
 
@@ -375,6 +379,7 @@ export class DeepSeekProvider implements Provider {
     const totalBalance = summary ? parseFloat(summary.normal_wallets?.[0]?.balance || '0') : 0;
     const monthlyCost = summary ? parseFloat(summary.monthly_costs?.[0]?.amount || '0') : 0;
     const monthlyTokens = summary ? parseInt(summary.monthly_usage || '0', 10) : 0;
+    const currency = summary?.normal_wallets?.[0]?.currency || summary?.monthly_costs?.[0]?.currency || 'CNY';
 
     quotas.push({
       label: 'quota.deepseekTotalBalance',
@@ -384,6 +389,7 @@ export class DeepSeekProvider implements Provider {
       resetAt: '',
       hideBar: true,
       labelParams: { amount: totalBalance.toFixed(2) },
+      currency,
     });
 
     if (monthlyCost > 0) {
@@ -395,6 +401,7 @@ export class DeepSeekProvider implements Provider {
         resetAt: '',
         hideBar: true,
         labelParams: { amount: monthlyCost.toFixed(2) },
+        currency,
       });
     }
 
@@ -453,6 +460,7 @@ export class DeepSeekProvider implements Provider {
         modelHistory30d,
         modelCostHistory30d,
         serviceStatus,
+        currency,
       },
     };
   }
