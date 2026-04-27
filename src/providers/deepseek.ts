@@ -1,4 +1,4 @@
-import type { Provider, ProviderConfig, QuotaItem, UsageResult, DeepSeekServiceComponent, DayStatus } from '../shared/types';
+import type { Provider, ProviderConfig, QuotaItem, UsageResult, DeepSeekServiceComponent, DayStatus, ModelCostRecord } from '../shared/types';
 import { HttpClientWithRetry } from '../main/http';
 
 interface BalanceInfo {
@@ -63,6 +63,22 @@ function parseModelRecords(days: UsageAmountDayEntry[]): import('../shared/types
       }
       if (total > 0 || requests > 0) {
         records.push({ date: day.date, model: model.model, used: total, requests, cacheHitTokens: cacheHit, cacheMissTokens: cacheMiss, responseTokens: response });
+      }
+    }
+  }
+  return records;
+}
+
+function parseModelCostRecords(days: UsageCostDayEntry[]): ModelCostRecord[] {
+  const records: ModelCostRecord[] = [];
+  for (const day of days) {
+    for (const model of day.data) {
+      let cost = 0;
+      for (const u of model.usage) {
+        cost += parseFloat(u.amount) || 0;
+      }
+      if (cost > 0) {
+        records.push({ date: day.date, model: model.model, cost });
       }
     }
   }
@@ -417,6 +433,7 @@ export class DeepSeekProvider implements Provider {
 
     // 5. Build model token history for current month
     const modelHistory30d = parseModelRecords(currentDays);
+    const modelCostHistory30d = parseModelCostRecords(costData?.days ?? []);
 
     // 6. Calculate totals
     const sumUsed = (records: import('../shared/types').UsageRecord[]) =>
@@ -434,13 +451,17 @@ export class DeepSeekProvider implements Provider {
         totalTokens30d: sumUsed(history30d),
         estimatedCost30d: monthlyCost,
         modelHistory30d,
+        modelCostHistory30d,
         serviceStatus,
       },
     };
   }
 
-  /** 按月获取模型 token 历史（供 IPC 按需调用） */
-  async fetchMonthModelHistory(config: ProviderConfig, month: number, year: number): Promise<import('../shared/types').ModelTokenRecord[]> {
+  /** 按月获取模型 token 和费用历史（供 IPC 按需调用） */
+  async fetchMonthModelHistory(config: ProviderConfig, month: number, year: number): Promise<{
+    tokens: import('../shared/types').ModelTokenRecord[];
+    costs: ModelCostRecord[];
+  }> {
     const token = config.webToken?.trim();
     if (!token) throw new Error('[DeepSeek] Web token is required');
 
@@ -455,12 +476,21 @@ export class DeepSeekProvider implements Provider {
       'Origin': 'https://platform.deepseek.com',
     };
 
-    const resp = await this.httpClient.getJson<InternalApiData<{ total: UsageAmountDayEntry[]; days: UsageAmountDayEntry[] }>>(
-      `${baseUrl}/api/v0/usage/amount?month=${month}&year=${year}`, headers
-    );
-    if (resp.code === 40002) throw new Error(TOKEN_EXPIRED);
+    const [amountResp, costResp] = await Promise.all([
+      this.httpClient.getJson<InternalApiData<{ total: UsageAmountDayEntry[]; days: UsageAmountDayEntry[] }>>(
+        `${baseUrl}/api/v0/usage/amount?month=${month}&year=${year}`, headers
+      ),
+      this.httpClient.getJson<InternalApiData<UsageCostDayEntry[]>>(
+        `${baseUrl}/api/v0/usage/cost?month=${month}&year=${year}`, headers
+      ),
+    ]);
+    if (amountResp.code === 40002) throw new Error(TOKEN_EXPIRED);
 
-    const days = resp.data?.biz_data?.days ?? [];
-    return parseModelRecords(days);
+    const days = amountResp.data?.biz_data?.days ?? [];
+    const costDays = costResp.data?.biz_data?.[0]?.days ?? [];
+    return {
+      tokens: parseModelRecords(days),
+      costs: parseModelCostRecords(costDays),
+    };
   }
 }

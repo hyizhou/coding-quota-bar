@@ -240,6 +240,7 @@ interface AccountDisplayData {
   modelHistory1d: SharedModelTokenRecord[];
   modelHistory7d: SharedModelTokenRecord[];
   modelHistory30d: SharedModelTokenRecord[];
+  modelCostHistory30d: import('../shared/types').ModelCostRecord[];
   performanceHistory7d: SharedPerformanceRecord[];
   performanceHistory15d: SharedPerformanceRecord[];
   performanceHistory30d: SharedPerformanceRecord[];
@@ -1009,14 +1010,15 @@ function setupIpcHandlers(): void {
   // DeepSeek 按月获取模型历史数据
   ipcMain.handle('deepseek-fetch-month-usage', async (_, accountId: string, year: number, month: number) => {
     const loaded = (scheduler as any)?.providers as import('./loader').LoadedProvider[] | undefined;
-    if (!loaded) return [];
+    const empty = { tokens: [], costs: [] };
+    if (!loaded) return empty;
     const provider = loaded.find(p => p.accountId === accountId && p.instance instanceof DeepSeekProvider);
-    if (!provider) return [];
+    if (!provider) return empty;
     try {
       return await (provider.instance as DeepSeekProvider).fetchMonthModelHistory(provider.config, month, year);
     } catch (e) {
       console.warn('[DeepSeek] Failed to fetch month usage:', e);
-      return [];
+      return empty;
     }
   });
 }
@@ -1173,6 +1175,7 @@ function convertAccountData(
     modelHistory1d: mapModelHistory('modelHistory1d'),
     modelHistory7d: mapModelHistory('modelHistory7d'),
     modelHistory30d: mapModelHistory('modelHistory30d'),
+    modelCostHistory30d: (result.details?.modelCostHistory30d as import('../shared/types').ModelCostRecord[]) ?? [],
     performanceHistory7d: mapPerformanceHistory('performanceHistory7d'),
     performanceHistory15d: mapPerformanceHistory('performanceHistory15d'),
     performanceHistory30d: mapPerformanceHistory('performanceHistory30d'),

@@ -80,6 +80,15 @@ export interface ModelTokenRecord {
 }
 
 /**
+ * 分模型每日费用记录
+ */
+export interface ModelCostRecord {
+  date: string;
+  model: string;
+  cost: number;
+}
+
+/**
  * 模型性能历史记录（单日数据点）
  */
 export interface PerformanceRecord {

@@ -48,6 +48,12 @@ export interface ModelTokenRecord {
   responseTokens?: number
 }
 
+export interface ModelCostRecord {
+  date: string
+  model: string
+  cost: number
+}
+
 export interface PerformanceRecord {
   date: string
   liteDecodeSpeed: number
@@ -82,6 +88,7 @@ export interface AccountUsageData {
   modelHistory1d: ModelTokenRecord[]
   modelHistory7d: ModelTokenRecord[]
   modelHistory30d: ModelTokenRecord[]
+  modelCostHistory30d: ModelCostRecord[]
   performanceHistory7d: PerformanceRecord[]
   performanceHistory15d: PerformanceRecord[]
   performanceHistory30d: PerformanceRecord[]
@@ -183,7 +190,7 @@ export interface ElectronAPI {
   deepseekWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
   deepseekWebLogout: (accountId: string) => Promise<void>
   onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => void
-  deepseekFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<ModelTokenRecord[]>
+  deepseekFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<{ tokens: ModelTokenRecord[]; costs: ModelCostRecord[] }>
 }
 
 declare global {

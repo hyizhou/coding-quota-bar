@@ -30,7 +30,7 @@
       />
     </div>
   </div>
-  <!-- 网页登录模式：按模型展示图表 -->
+  <!-- 网页登录模式：每月用量（费用 + Token） -->
   <div v-if="hasModelHistory" class="usage-stats">
     <div class="stats-tabs-row">
       <span class="chart-title">{{ $t('main.tokenStats') }}</span>
@@ -42,6 +42,11 @@
     </div>
     <div v-if="loading" class="chart-loading">...</div>
     <template v-else>
+      <!-- 费用统计图表 -->
+      <div v-if="hasCostData" class="cost-chart-wrapper">
+        <Bar :data="costChartData" :options="costChartOpts" />
+      </div>
+      <!-- 按模型展示 Token 图表 -->
       <div v-for="mg in modelGroups" :key="mg.name" class="model-chart-card">
         <div class="model-header">
           <span class="model-name">{{ mg.name }}</span>
@@ -67,7 +72,7 @@ import { Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Filler
 } from 'chart.js'
-import type { AccountUsageData, ModelTokenRecord } from '../types'
+import type { AccountUsageData, ModelTokenRecord, ModelCostRecord } from '../types'
 import { useTheme } from '../composables/useTheme'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Filler)
@@ -86,6 +91,7 @@ const now = new Date()
 const selectedYear = ref(now.getFullYear())
 const selectedMonth = ref(now.getMonth() + 1)
 const monthRecords = ref<ModelTokenRecord[]>([])
+const monthCostRecords = ref<ModelCostRecord[]>([])
 const loading = ref(false)
 
 onMounted(async () => {
@@ -97,6 +103,7 @@ onMounted(async () => {
     }
   }
   monthRecords.value = props.account.modelHistory30d
+  monthCostRecords.value = props.account.modelCostHistory30d
 })
 
 const isCurrentMonth = computed(() => {
@@ -132,6 +139,7 @@ async function nextMonth() {
 async function fetchMonthData() {
   if (isCurrentMonth.value) {
     monthRecords.value = props.account.modelHistory30d
+    monthCostRecords.value = props.account.modelCostHistory30d
     return
   }
   loading.value = true
@@ -139,10 +147,12 @@ async function fetchMonthData() {
     const result = await window.electronAPI.deepseekFetchMonthUsage(
       props.account.id, selectedYear.value, selectedMonth.value
     )
-    monthRecords.value = result || []
+    monthRecords.value = result?.tokens || []
+    monthCostRecords.value = result?.costs || []
   } catch (e) {
     console.warn('[DeepSeekSection] Failed to fetch month data:', e)
     monthRecords.value = []
+    monthCostRecords.value = []
   } finally {
     loading.value = false
   }
@@ -154,11 +164,33 @@ watch(() => props.account.modelHistory30d, (newData) => {
   }
 })
 
+watch(() => props.account.modelCostHistory30d, (newData) => {
+  if (isCurrentMonth.value) {
+    monthCostRecords.value = newData
+  }
+})
+
 function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
   return `${n}`
 }
+
+function shortModelName(model: string): string {
+  return model.replace(/^deepseek-/, '')
+}
+
+const baseTooltipOpts = () => ({
+  backgroundColor: isDark.value ? 'rgba(40,40,40,0.92)' : 'rgba(0,0,0,0.8)',
+  titleColor: isDark.value ? '#e0e0e0' : '#fff',
+  bodyColor: isDark.value ? '#ccc' : '#fff',
+  padding: 8,
+  cornerRadius: 4,
+  bodyFont: { size: 11 },
+  titleFont: { size: 11, weight: 'bold' as const },
+  caretSize: 6,
+  caretPadding: 4,
+})
 
 interface DayDetail {
   tokens: number
@@ -177,11 +209,10 @@ interface ModelGroup {
 }
 
 const modelGroups = computed(() => {
-  const isCur = isCurrentMonth.value
   const year = selectedYear.value
   const month = selectedMonth.value
 
-  const lastDay = isCur ? now.getDate() : new Date(year, month, 0).getDate()
+  const lastDay = new Date(year, month, 0).getDate()
   const monthStr = String(month).padStart(2, '0')
 
   // Generate all day keys for the month
@@ -228,7 +259,7 @@ const modelGroups = computed(() => {
     for (const [k, v] of dayMap) detailMap.set(k, v)
 
     groups.push({
-      name: model,
+      name: shortModelName(model),
       totalTokens: tokensArr.reduce((a, b) => a + b, 0),
       totalRequests: requestsArr.reduce((a, b) => a + b, 0),
       dayDetails: detailMap,
@@ -273,8 +304,7 @@ const modelGroups = computed(() => {
 function getChartOpts(group: ModelGroup) {
   const y = selectedYear.value
   const m = selectedMonth.value
-  const isCur = isCurrentMonth.value
-  const lastDay = isCur ? now.getDate() : new Date(y, m, 0).getDate()
+  const lastDay = new Date(y, m, 0).getDate()
   const monthStr = String(m).padStart(2, '0')
   const dayKeys: string[] = []
   for (let d = 1; d <= lastDay; d++) {
@@ -288,41 +318,31 @@ function getChartOpts(group: ModelGroup) {
     plugins: {
       legend: { display: false },
       tooltip: {
-        enabled: false,
-        external(context) {
-          let el = document.getElementById('ds-tooltip') as HTMLDivElement | null
-          if (!el) {
-            el = document.createElement('div')
-            el.id = 'ds-tooltip'
-            el.style.cssText = 'position:fixed;pointer-events:none;z-index:9999;padding:6px 8px;border-radius:4px;font-size:11px;line-height:1.6;transition:all 0.05s ease;'
-            document.body.appendChild(el)
-          }
-          const model = context.tooltip
-          if (model.opacity === 0) { el.style.opacity = '0'; return }
-
-          const idx = model.dataPoints?.[0]?.dataIndex
-          if (idx == null) { el.style.opacity = '0'; return }
-          const dayKey = dayKeys[idx]
-          const detail = group.dayDetails.get(dayKey)
-          const dark = isDark.value
-          el.style.background = dark ? 'rgba(40,40,40,0.92)' : 'rgba(0,0,0,0.8)'
-          el.style.color = dark ? '#ccc' : '#fff'
-
-          el.innerHTML = `<div style="font-weight:600;margin-bottom:2px;color:${dark ? '#e0e0e0' : '#fff'}">${dayKey}  ${formatCount(detail?.tokens ?? 0)}</div>` +
-            `<div>${t('main.ttCacheHit')}: ${formatCount(detail?.cacheHit ?? 0)}</div>` +
-            `<div>${t('main.ttCacheMiss')}: ${formatCount(detail?.cacheMiss ?? 0)}</div>` +
-            `<div>${t('main.ttOutput')}: ${formatCount(detail?.response ?? 0)}</div>` +
-            `<div>${t('main.ttRequests')}: ${detail?.requests ?? 0}</div>`
-
-          const rect = context.chart.canvas.getBoundingClientRect()
-          let left = rect.left + model.caretX + 10
-          let top = rect.top + model.caretY - el.offsetHeight / 2
-          if (left + el.offsetWidth > window.innerWidth - 8) left = left - el.offsetWidth - 20
-          if (top < 4) top = 4
-          if (top + el.offsetHeight > window.innerHeight - 4) top = window.innerHeight - el.offsetHeight - 4
-          el.style.left = left + 'px'
-          el.style.top = top + 'px'
-          el.style.opacity = '1'
+        ...baseTooltipOpts(),
+        mode: 'index' as const,
+        intersect: false,
+        callbacks: {
+          title(items: any) {
+            const idx = items[0]?.dataIndex
+            return idx != null ? dayKeys[idx] : ''
+          },
+          label(ctx: any) {
+            const idx = ctx.dataIndex
+            const dayKey = dayKeys[idx]
+            const detail = group.dayDetails.get(dayKey)
+            return `Tokens: ${formatCount(detail?.tokens ?? 0)}`
+          },
+          afterBody(items: any) {
+            const idx = items[0]?.dataIndex
+            const dayKey = idx != null ? dayKeys[idx] : ''
+            const detail = group.dayDetails.get(dayKey)
+            return [
+              `${t('main.ttCacheHit')}: ${formatCount(detail?.cacheHit ?? 0)}`,
+              `${t('main.ttCacheMiss')}: ${formatCount(detail?.cacheMiss ?? 0)}`,
+              `${t('main.ttOutput')}: ${formatCount(detail?.response ?? 0)}`,
+              `${t('main.ttRequests')}: ${detail?.requests ?? 0}`,
+            ]
+          },
         },
       },
     },
@@ -388,6 +408,105 @@ const hasModelHistory = computed(() =>
   props.account.modelHistory7d.length > 0 ||
   props.account.modelHistory30d.length > 0
 )
+
+const COST_MODEL_COLORS: Record<string, string> = {
+  pro: '#FFA10A',
+  flash: '#FFC104',
+  chat: '#FFDC0A',
+  reasoner: '#FFDC0A',
+}
+
+function getCostModelColor(model: string): string {
+  const lower = model.toLowerCase()
+  for (const [key, color] of Object.entries(COST_MODEL_COLORS)) {
+    if (lower.includes(key)) return color
+  }
+  return '#FFDC0A'
+}
+
+const hasCostData = computed(() => monthCostRecords.value.length > 0)
+
+const costChartData = computed(() => {
+  const year = selectedYear.value
+  const month = selectedMonth.value
+  const lastDay = new Date(year, month, 0).getDate()
+  const monthStr = String(month).padStart(2, '0')
+
+  const dayLabels: string[] = []
+  const dayKeys: string[] = []
+  for (let d = 1; d <= lastDay; d++) {
+    dayLabels.push(String(d).padStart(2, '0'))
+    dayKeys.push(`${year}-${monthStr}-${String(d).padStart(2, '0')}`)
+  }
+
+  // Group costs by model
+  const byModel = new Map<string, Map<string, number>>()
+  for (const r of monthCostRecords.value) {
+    if (!byModel.has(r.model)) byModel.set(r.model, new Map())
+    byModel.get(r.model)!.set(r.date, r.cost)
+  }
+
+  const datasets = Array.from(byModel.entries()).map(([model, dayMap]) => ({
+    label: shortModelName(model),
+    data: dayKeys.map(k => dayMap.get(k) ?? 0),
+    backgroundColor: getCostModelColor(model),
+    borderRadius: 2,
+    borderSkipped: false,
+  }))
+
+  return { labels: dayLabels, datasets }
+})
+
+const costChartOpts = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: { mode: 'index' as const, intersect: false },
+  plugins: {
+    legend: {
+      display: true,
+      position: 'bottom' as const,
+      labels: {
+        boxWidth: 8,
+        boxHeight: 8,
+        padding: 8,
+        font: { size: 10 },
+        color: isDark.value ? '#999' : '#666',
+        usePointStyle: true,
+        pointStyle: 'rectRounded',
+      },
+    },
+    tooltip: {
+      ...baseTooltipOpts(),
+      callbacks: {
+        label: (ctx: any) => `${ctx.dataset.label}: ¥${(ctx.raw as number).toFixed(4)}`,
+        footer: (items: any[]) => {
+          const total = items.reduce((s: number, i: any) => s + (i.raw as number), 0)
+          return `合计: ¥${total.toFixed(4)}`
+        },
+      },
+    },
+  },
+  scales: {
+    x: {
+      stacked: true,
+      ticks: { color: isDark.value ? '#666' : '#999', font: { size: 8 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
+      grid: { display: false },
+      border: { display: false },
+    },
+    y: {
+      stacked: true,
+      ticks: {
+        color: isDark.value ? '#666' : '#999',
+        font: { size: 8 },
+        callback: (v: any) => '¥' + Number(v).toFixed(2),
+        maxTicksLimit: 4,
+      },
+      grid: { color: isDark.value ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
+      border: { display: false },
+    },
+  },
+  layout: { padding: { top: 2, bottom: 0, left: 0, right: 0 } },
+}))
 
 async function onBudgetChange(e: Event) {
   const input = e.target as HTMLInputElement
@@ -622,5 +741,11 @@ async function onBudgetChange(e: Event) {
   font-size: 11px;
   color: var(--text-tertiary);
   padding: 16px 0;
+}
+
+.cost-chart-wrapper {
+  height: 120px;
+  width: 100%;
+  margin-bottom: 6px;
 }
 </style>
