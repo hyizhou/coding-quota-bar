@@ -48,6 +48,7 @@ autoUpdater.on('download-progress', (progress) => {
 
 autoUpdater.on('update-downloaded', () => {
   console.log('[Updater] Update downloaded');
+  isDownloading = false;
   if (sessionUpdateInfo) {
     sessionUpdateInfo = { ...sessionUpdateInfo, downloaded: true };
   }
@@ -62,6 +63,7 @@ autoUpdater.on('update-not-available', () => {
 
 autoUpdater.on('error', (error) => {
   console.error('[Updater] Error:', error.message);
+  isDownloading = false;
 });
 
 /**
@@ -175,6 +177,7 @@ let blurHandler: (() => void) | null = null;
 // 自动更新检查调度
 let autoUpdateTimerId: ReturnType<typeof setTimeout> | null = null;
 let isAutoChecking = false;
+let isDownloading = false;
 let sessionUpdateInfo: UpdateInfo | null = null;
 
 // DeepSeek 网页登录窗口
@@ -897,7 +900,7 @@ function setupIpcHandlers(): void {
   // 获取配置
   ipcMain.handle('get-config', () => {
     const config = configManager?.getConfig();
-    return config ? { ...config, isPackaged: app.isPackaged, updateInfo: sessionUpdateInfo } : null;
+    return config ? { ...config, isPackaged: app.isPackaged, updateInfo: sessionUpdateInfo, isDownloading } : null;
   });
 
   // 获取可用的 provider 列表（编译时配置）
@@ -960,10 +963,13 @@ function setupIpcHandlers(): void {
 
   // 下载更新
   ipcMain.handle('download-update', async () => {
+    if (isDownloading) return true;
+    isDownloading = true;
     try {
       await autoUpdater.downloadUpdate();
       return true;
     } catch {
+      isDownloading = false;
       return false;
     }
   });

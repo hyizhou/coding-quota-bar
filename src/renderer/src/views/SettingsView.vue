@@ -392,6 +392,10 @@ onMounted(async () => {
     availableVersion.value = config.updateInfo.version
     if (config.updateInfo.downloaded) {
       updateReady.value = true
+    } else if ((config as any).isDownloading) {
+      downloading.value = true
+      downloadProgress.value = 0
+      updateAvailable.value = true
     } else {
       updateAvailable.value = true
     }
@@ -411,7 +415,7 @@ onMounted(async () => {
   if (props.autoCheckUpdate) {
     nextTick(() => {
       settingsBodyRef.value?.scrollTo({ top: settingsBodyRef.value.scrollHeight })
-      if (!updateAvailable.value && !updateReady.value) {
+      if (!updateAvailable.value && !updateReady.value && !downloading.value) {
         handleCheckUpdate()
       }
       window.electronAPI.showPopup()
