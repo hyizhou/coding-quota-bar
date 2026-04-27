@@ -407,11 +407,13 @@ onMounted(async () => {
     window.electronAPI.offTriggerCheckUpdate?.(onTriggerCheckUpdate)
   })
 
-  // 从托盘菜单进入时，数据加载完后滚到底部、检查更新、再显示弹窗
+  // 从托盘菜单或更新浮窗进入时，滚到底部；若已有更新信息则不再重复检查
   if (props.autoCheckUpdate) {
     nextTick(() => {
       settingsBodyRef.value?.scrollTo({ top: settingsBodyRef.value.scrollHeight })
-      handleCheckUpdate()
+      if (!updateAvailable.value && !updateReady.value) {
+        handleCheckUpdate()
+      }
       window.electronAPI.showPopup()
     })
   }
