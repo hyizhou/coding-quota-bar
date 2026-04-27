@@ -31,7 +31,20 @@
             />
           </label>
           <div class="provider-body" v-if="account.enabled">
-            <div class="input-group">
+            <!-- DeepSeek 认证模式选择 -->
+            <div v-if="info.key === 'deepseek'" class="auth-mode-row">
+              <label class="mode-option" :class="{ active: account.authMode !== 'weblogin' }" :title="$t('settings.authModeApikeyHint')">
+                <input type="radio" :value="'apikey'" v-model="account.authMode" />
+                <span>API Key</span>
+              </label>
+              <label class="mode-option" :class="{ active: account.authMode === 'weblogin' }" :title="$t('settings.authModeWebloginHint')">
+                <input type="radio" :value="'weblogin'" v-model="account.authMode" />
+                <span>{{ $t('settings.authModeWeblogin') }}</span>
+              </label>
+            </div>
+
+            <!-- API Key 输入（apikey 模式） -->
+            <div v-if="account.authMode !== 'weblogin'" class="input-group">
               <input
                 :type="account.showKey ? 'text' : 'password'"
                 class="form-input"
@@ -50,6 +63,28 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                 </svg>
+              </button>
+            </div>
+
+            <!-- 网页登录按钮（weblogin 模式，仅 DeepSeek） -->
+            <div v-if="info.key === 'deepseek' && account.authMode === 'weblogin'" class="web-login-section">
+              <button
+                class="web-login-btn"
+                :class="{ active: account.webTokenStatus === 'active' }"
+                @click="handleWebLogin(account)"
+              >
+                {{ account.webTokenStatus === 'active'
+                   ? $t('settings.webLoginActive')
+                   : account.webTokenStatus === 'expired'
+                     ? $t('settings.webTokenExpired')
+                     : $t('settings.webLoginBtn') }}
+              </button>
+              <button
+                v-if="account.webTokenStatus === 'active'"
+                class="web-logout-btn"
+                @click="handleWebLogout(account)"
+              >
+                {{ $t('settings.webLogoutBtn') }}
               </button>
             </div>
           </div>
@@ -185,6 +220,8 @@ interface AccountInfo {
   apiKey: string
   showKey: boolean
   budget?: number
+  authMode: 'apikey' | 'weblogin'
+  webTokenStatus: 'none' | 'active' | 'expired'
 }
 
 interface ProviderInfo {
@@ -246,6 +283,8 @@ function addAccount(providerKey: string) {
     enabled: true,
     apiKey: '',
     showKey: false,
+    authMode: 'apikey',
+    webTokenStatus: 'none',
   })
 }
 
@@ -253,6 +292,23 @@ function removeAccount(providerKey: string, index: number) {
   const provider = providerList.value.find(p => p.key === providerKey)
   if (!provider) return
   provider.accounts.splice(index, 1)
+}
+
+async function handleWebLogin(account: AccountInfo) {
+  const result = await window.electronAPI.deepseekWebLogin(account.id)
+  if (result.success) {
+    account.webTokenStatus = 'active'
+    // 重新拉取配置，确保 local state 与主进程同步
+    const freshConfig = await window.electronAPI.getConfig()
+    if (freshConfig) currentConfig.value = freshConfig
+  }
+}
+
+async function handleWebLogout(account: AccountInfo) {
+  await window.electronAPI.deepseekWebLogout(account.id)
+  account.webTokenStatus = 'none'
+  const freshConfig = await window.electronAPI.getConfig()
+  if (freshConfig) currentConfig.value = freshConfig
 }
 
 function scheduleSave() {
@@ -284,6 +340,8 @@ onMounted(async () => {
         apiKey: account.apiKey ?? '',
         showKey: false,
         budget: (account as any).budget ?? undefined,
+        authMode: account.authMode ?? 'apikey',
+        webTokenStatus: account.webToken ? 'active' : 'none',
       }))
     }
   })
@@ -374,6 +432,7 @@ async function saveConfig() {
         enabled: a.enabled,
         apiKey: a.apiKey,
         ...(a.budget != null ? { budget: a.budget } : {}),
+        authMode: a.authMode,
       }))
     }
   }
@@ -557,6 +616,79 @@ async function handleStartDownload() {
   color: var(--text-tertiary);
   text-align: center;
   padding: 8px 0;
+}
+
+.auth-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.mode-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  padding: 3px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mode-option.active {
+  border-color: #3B82F6;
+  color: #3B82F6;
+}
+
+.mode-option input[type="radio"] {
+  margin: 0;
+  accent-color: #3B82F6;
+}
+
+.web-login-section {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.web-login-btn {
+  font-size: 11px;
+  padding: 4px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.web-login-btn:hover {
+  border-color: #3B82F6;
+  color: #3B82F6;
+}
+
+.web-login-btn.active {
+  border-color: #22C55E;
+  color: #22C55E;
+}
+
+.web-logout-btn {
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.web-logout-btn:hover {
+  color: #ef4444;
+  border-color: #ef4444;
 }
 
 .save-status { font-size: 11px; color: #4CAF50; }

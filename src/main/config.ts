@@ -19,9 +19,10 @@ export class ConfigManager extends EventEmitter {
 
   constructor() {
     super();
-    // 配置文件路径：用户数据目录 /config.json
+    // 开发模式（npm run dev）使用独立配置文件，避免影响正式环境
     const userDataPath = app.getPath('userData');
-    this.configPath = path.join(userDataPath, 'config.json');
+    const configFile = app.isPackaged ? 'config.json' : 'config.dev.json';
+    this.configPath = path.join(userDataPath, configFile);
   }
 
   /**
@@ -90,6 +91,9 @@ export class ConfigManager extends EventEmitter {
           if (account.apiKey) {
             account.apiKey = this.encryptApiKey(account.apiKey);
           }
+          if (account.webToken) {
+            account.webToken = this.encryptApiKey(account.webToken);
+          }
         }
       }
     }
@@ -109,6 +113,9 @@ export class ConfigManager extends EventEmitter {
         for (const account of accounts) {
           if (account.apiKey) {
             account.apiKey = this.decryptApiKey(account.apiKey);
+          }
+          if (account.webToken) {
+            account.webToken = this.decryptApiKey(account.webToken);
           }
         }
       } else if ((provider as any).apiKey) {
@@ -240,13 +247,25 @@ export class ConfigManager extends EventEmitter {
       throw new Error('Config not initialized');
     }
 
-    // 深度合并 providers：逐个合并每个 provider 的字段，避免丢失 enabled 等字段
+    // 深度合并 providers：按 account ID 合并，保留 webToken 等字段不被覆盖
     const mergedProviders = { ...this.config.providers };
     if (updates.providers) {
       for (const [key, value] of Object.entries(updates.providers)) {
+        const oldProvider = mergedProviders[key] as ProviderTypeConfig | undefined;
+        const newProvider = value as ProviderTypeConfig | undefined;
+        const oldAccounts = oldProvider?.accounts ?? [];
+        const newAccounts = newProvider?.accounts ?? [];
+
+        // 按 ID 深度合并账户，保留 renderer 未发送的字段（如 webToken）
+        const mergedAccounts = newAccounts.map(newAcc => {
+          const oldAcc = oldAccounts.find(o => o.id === newAcc.id);
+          return oldAcc ? { ...oldAcc, ...newAcc } : { ...newAcc };
+        });
+
         mergedProviders[key] = {
           ...mergedProviders[key],
-          ...value
+          ...value,
+          accounts: mergedAccounts,
         };
       }
     }

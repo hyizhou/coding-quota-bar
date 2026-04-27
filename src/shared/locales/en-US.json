@@ -12,7 +12,9 @@
     "hoursAgo": "Updated {n} hr ago",
     "tokenUsage": "Token Usage",
     "usageStats": "Usage Stats",
-    "tokenStats": "Token Usage",
+    "tokenStats": "Usage Stats",
+    "monthlyUsage": "Monthly Usage",
+    "costStats": "Cost Stats",
     "mcpStats": "MCP Stats",
     "toggleTheme": "Toggle Theme",
     "pinWindow": "Pin window (stay open on click outside)",
@@ -41,7 +43,14 @@
     "perfProMax": "Pro/Max",
     "perfAvgSpeed": "Avg Speed",
     "perfAvgSuccessRate": "Avg Rate",
-    "updateAvailableBanner": "New version v{version} available, click to view"
+    "updateAvailableBanner": "New version v{version} available, click to view",
+    "deepseekTokenExpired": "DeepSeek login expired, please re-login",
+    "reloginBtn": "Re-login",
+    "ttCacheHit": "Cache",
+    "ttCacheMiss": "Input",
+    "ttOutput": "Output",
+    "ttRequests": "Requests",
+    "monthFormat": "{month}/{year}"
   },
   "settings": {
     "title": "Settings",
@@ -98,7 +107,14 @@
     "feedbackScanTip": "Scan QR code to join Feishu feedback group",
     "feedbackClickLink": "Click link to join",
     "autoCheckUpdate": "Auto-check for Updates",
-    "autoCheckUpdateHint": "Periodically check for new versions and notify on the main screen"
+    "autoCheckUpdateHint": "Periodically check for new versions and notify on the main screen",
+    "authModeWeblogin": "Web Login",
+    "authModeApikeyHint": "Balance only, usage and cost details not supported",
+    "authModeWebloginHint": "Query balance, usage and cost details via web API",
+    "webLoginBtn": "Login to DeepSeek",
+    "webLoginActive": "Logged In",
+    "webLogoutBtn": "Log Out",
+    "webTokenExpired": "Login expired, click to re-login"
   },
   "provider": {
     "expired": "Expired",
@@ -118,6 +134,8 @@
     "deepseekTotalBalance": "Total Balance",
     "deepseekGranted": "Granted Balance",
     "deepseekToppedUp": "Topped Up Balance",
+    "deepseekMonthlyUsage": "Monthly Usage",
+    "deepseekMonthlyCost": "Monthly Cost",
     "deepseekApiService": "API Service",
     "deepseekWebService": "Web Chat",
     "statusOperational": "Operational",

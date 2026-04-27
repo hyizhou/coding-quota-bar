@@ -126,5 +126,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeListener('trigger-check-update', callback);
   },
 
-  showFeedback: () => ipcRenderer.send('show-feedback')
+  showFeedback: () => ipcRenderer.send('show-feedback'),
+
+  /**
+   * DeepSeek 网页登录
+   */
+  deepseekWebLogin: (accountId: string) => ipcRenderer.invoke('deepseek-web-login', accountId),
+  deepseekWebLogout: (accountId: string) => ipcRenderer.invoke('deepseek-web-logout', accountId),
+  onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => {
+    ipcRenderer.on('deepseek-web-login-success', (_, accountId) => callback(accountId));
+  },
+  deepseekFetchMonthUsage: (accountId: string, year: number, month: number) =>
+    ipcRenderer.invoke('deepseek-fetch-month-usage', accountId, year, month),
 });

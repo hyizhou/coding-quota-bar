@@ -24,6 +24,7 @@ export interface QuotaItem {
   color: 'green' | 'yellow' | 'red'
   limitType?: string   // 限制类型标识，如 "tokens"、"mcp"
   hideBar?: boolean    // 为 true 时不显示进度条，仅显示文本
+  currency?: string    // ISO 币种代码
 }
 
 export interface UsageRecord {
@@ -42,6 +43,16 @@ export interface ModelTokenRecord {
   date: string
   model: string
   used: number
+  requests?: number
+  cacheHitTokens?: number
+  cacheMissTokens?: number
+  responseTokens?: number
+}
+
+export interface ModelCostRecord {
+  date: string
+  model: string
+  cost: number
 }
 
 export interface PerformanceRecord {
@@ -59,6 +70,7 @@ export interface AccountUsageData {
   id: string
   label?: string
   level?: string
+  currency?: string
   subscription?: SubscriptionInfo
   error?: string
   quotas: QuotaItem[]
@@ -78,6 +90,7 @@ export interface AccountUsageData {
   modelHistory1d: ModelTokenRecord[]
   modelHistory7d: ModelTokenRecord[]
   modelHistory30d: ModelTokenRecord[]
+  modelCostHistory30d: ModelCostRecord[]
   performanceHistory7d: PerformanceRecord[]
   performanceHistory15d: PerformanceRecord[]
   performanceHistory30d: PerformanceRecord[]
@@ -106,6 +119,9 @@ export interface AccountConfig {
   apiKey: string
   label: string
   budget?: number
+  authMode?: 'apikey' | 'weblogin'
+  webToken?: string
+  webUserAgent?: string
 }
 
 export interface ProviderTypeConfig {
@@ -173,6 +189,10 @@ export interface ElectronAPI {
   onWindowPinnedState: (callback: (pinned: boolean) => void) => void
   getAppVersion: () => Promise<string>
   onUpdateAvailableAuto: (callback: (info: { version: string }) => void) => void
+  deepseekWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
+  deepseekWebLogout: (accountId: string) => Promise<void>
+  onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => void
+  deepseekFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<{ tokens: ModelTokenRecord[]; costs: ModelCostRecord[] }>
 }
 
 declare global {
