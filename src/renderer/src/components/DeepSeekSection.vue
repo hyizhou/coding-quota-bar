@@ -35,9 +35,9 @@
     <div class="stats-tabs-row">
       <span class="chart-title">{{ $t('main.tokenStats') }}</span>
       <div class="month-selector">
-        <button class="month-arrow" @click="prevMonth">&lt;</button>
-        <span class="month-label">{{ monthLabel }}</span>
-        <button class="month-arrow" :disabled="isCurrentMonth" @click="nextMonth">&gt;</button>
+        <select class="month-select" :value="monthValue" @change="onMonthChange">
+          <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
+        </select>
       </div>
     </div>
     <div v-if="loading" class="chart-loading">...</div>
@@ -111,28 +111,26 @@ const isCurrentMonth = computed(() => {
   return selectedYear.value === n.getFullYear() && selectedMonth.value === n.getMonth() + 1
 })
 
-const monthLabel = computed(() => {
-  return `${selectedYear.value}年${String(selectedMonth.value).padStart(2, '0')}月`
+const monthValue = computed(() => `${selectedYear.value}-${String(selectedMonth.value).padStart(2, '0')}`)
+
+const monthOptions = computed(() => {
+  const n = new Date()
+  const options: { value: string; label: string }[] = []
+  let y = n.getFullYear(), m = n.getMonth() + 1
+  for (let i = 0; i < 12; i++) {
+    const mm = String(m).padStart(2, '0')
+    options.push({ value: `${y}-${mm}`, label: `${y}年${mm}月` })
+    m--
+    if (m === 0) { m = 12; y-- }
+  }
+  return options
 })
 
-async function prevMonth() {
-  if (selectedMonth.value === 1) {
-    selectedMonth.value = 12
-    selectedYear.value--
-  } else {
-    selectedMonth.value--
-  }
-  await fetchMonthData()
-}
-
-async function nextMonth() {
-  if (isCurrentMonth.value) return
-  if (selectedMonth.value === 12) {
-    selectedMonth.value = 1
-    selectedYear.value++
-  } else {
-    selectedMonth.value++
-  }
+async function onMonthChange(e: Event) {
+  const val = (e.target as HTMLSelectElement).value
+  const [y, m] = val.split('-').map(Number)
+  selectedYear.value = y
+  selectedMonth.value = m
   await fetchMonthData()
 }
 
@@ -698,32 +696,23 @@ async function onBudgetChange(e: Event) {
 .month-selector {
   display: flex;
   align-items: center;
-  gap: 4px;
 }
 
-.month-arrow {
-  background: none;
+.month-select {
+  background: var(--bg-card);
   border: 1px solid var(--border-tab);
   border-radius: 4px;
-  padding: 1px 5px;
-  font-size: 10px;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: all 0.15s;
-  line-height: 1.4;
-}
-
-.month-arrow:hover:not(:disabled) { color: var(--text-secondary); border-color: var(--border-tab-hover); }
-.month-arrow:disabled { opacity: 0.3; cursor: default; }
-
-.month-label {
+  padding: 1px 4px;
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
-  min-width: 70px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  outline: none;
+  line-height: 1.4;
 }
+
+.month-select:hover { border-color: var(--border-tab-hover); }
+.month-select:focus { border-color: var(--border-tab-hover); }
 
 .chart-loading {
   text-align: center;
