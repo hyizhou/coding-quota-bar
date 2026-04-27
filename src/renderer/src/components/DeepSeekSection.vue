@@ -9,31 +9,11 @@
         {{ $t(d.label) }}: {{ d.label.includes('Usage') ? d.amount : '¥' + d.amount }}
       </span>
     </div>
-    <template v-if="hasBudget">
-      <div class="progress-bar">
-        <div class="progress-fill" :class="barColor" :style="{ width: budgetRate + '%' }"></div>
-      </div>
-      <div class="budget-info">
-        <span class="budget-hint">{{ $t('main.budgetRemaining', { n: budgetRemaining.toFixed(2) }) }}</span>
-      </div>
-    </template>
-    <div class="budget-set-row">
-      <span class="budget-set-label">¥</span>
-      <input
-        type="text"
-        inputmode="decimal"
-        class="budget-inline-input"
-        :value="budget"
-        @change="onBudgetChange"
-        @blur="onBudgetChange"
-        placeholder="设置总额度"
-      />
-    </div>
   </div>
   <!-- 网页登录模式：每月用量（费用 + Token） -->
   <div v-if="hasModelHistory" class="usage-stats">
     <div class="stats-tabs-row">
-      <span class="chart-title">{{ $t('main.tokenStats') }}</span>
+      <span class="chart-title">{{ $t('main.monthlyUsage') }}</span>
       <div class="month-selector">
         <select class="month-select" :value="monthValue" @change="onMonthChange">
           <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
@@ -46,6 +26,10 @@
       <div v-if="hasCostData" class="model-chart-card">
         <div class="model-header">
           <span class="model-name">{{ t('main.costStats') }}</span>
+          <span v-if="monthlyCost > 0 || monthlyUsage > 0" class="monthly-stats">
+            <span v-if="monthlyUsage > 0" class="monthly-tokens">{{ formatCount(monthlyUsage) }}</span>
+            <span v-if="monthlyCost > 0" class="monthly-cost">¥ {{ monthlyCost.toFixed(2) }}</span>
+          </span>
         </div>
         <div class="cost-chart-wrapper">
           <Bar :data="costChartData" :options="costChartOpts" />
@@ -422,11 +406,21 @@ const barColor = computed(() => {
 
 const details = computed(() => {
   return props.account.quotas
-    .filter(q => q.label !== 'quota.deepseekTotalBalance')
+    .filter(q => q.label !== 'quota.deepseekTotalBalance' && q.label !== 'quota.deepseekMonthlyCost' && q.label !== 'quota.deepseekMonthlyUsage')
     .map(q => ({ label: q.label, amount: q.total.toFixed(2) }))
 })
 
 const hasDetails = computed(() => details.value.length > 0)
+
+const monthlyCost = computed(() => {
+  const q = props.account.quotas.find(q => q.label === 'quota.deepseekMonthlyCost')
+  return q?.total ?? 0
+})
+
+const monthlyUsage = computed(() => {
+  const q = props.account.quotas.find(q => q.label === 'quota.deepseekMonthlyUsage')
+  return q?.used ?? 0
+})
 
 const hasModelHistory = computed(() =>
   props.account.modelHistory1d.length > 0 ||
@@ -713,6 +707,25 @@ async function onBudgetChange(e: Event) {
 
 .month-select:hover { border-color: var(--border-tab-hover); }
 .month-select:focus { border-color: var(--border-tab-hover); }
+
+.monthly-stats {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.monthly-tokens {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.monthly-cost {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
 
 .chart-loading {
   text-align: center;
