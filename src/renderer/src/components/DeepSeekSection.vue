@@ -561,7 +561,8 @@ async function onBudgetChange(e: Event) {
 
 <style scoped>
 .balance-card {
-  padding: 8px 10px;
+  padding: 12px 10px;
+  margin-bottom: 14px;
   background: var(--bg-card);
   border-radius: 8px;
   box-shadow: var(--shadow-card);
