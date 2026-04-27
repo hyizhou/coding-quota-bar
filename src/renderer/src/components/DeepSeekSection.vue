@@ -43,18 +43,18 @@
     <div v-if="loading" class="chart-loading">...</div>
     <template v-else>
       <!-- 费用统计图表 -->
-      <div v-if="hasCostData" class="cost-chart-wrapper">
-        <Bar :data="costChartData" :options="costChartOpts" />
+      <div v-if="hasCostData" class="model-chart-card">
+        <div class="model-header">
+          <span class="model-name">{{ t('main.costStats') }}</span>
+        </div>
+        <div class="cost-chart-wrapper">
+          <Bar :data="costChartData" :options="costChartOpts" />
+        </div>
       </div>
       <!-- 按模型展示 Token 图表 -->
       <div v-for="mg in modelGroups" :key="mg.name" class="model-chart-card">
         <div class="model-header">
           <span class="model-name">{{ mg.name }}</span>
-          <div class="model-summary">
-            <span class="model-stat">{{ formatCount(mg.totalTokens) }} tokens</span>
-            <span class="model-stat-sep">·</span>
-            <span class="model-stat">{{ mg.totalRequests }} requests</span>
-          </div>
         </div>
         <div class="model-chart-wrapper">
           <Bar :data="mg.chartData" :options="getChartOpts(mg)" />
@@ -505,6 +505,16 @@ const costChartOpts = computed(() => ({
     tooltip: {
       ...baseTooltipOpts(),
       callbacks: {
+        title(items: any) {
+          const year = selectedYear.value
+          const month = selectedMonth.value
+          const lastDay = new Date(year, month, 0).getDate()
+          const monthStr = String(month).padStart(2, '0')
+          const idx = items[0]?.dataIndex
+          if (idx == null) return ''
+          const ds = String(idx + 1).padStart(2, '0')
+          return `${year}-${monthStr}-${ds}`
+        },
         label: (ctx: any) => `${ctx.dataset.label}: ¥${(ctx.raw as number).toFixed(4)}`,
         footer: (items: any[]) => {
           const total = items.reduce((s: number, i: any) => s + (i.raw as number), 0)
