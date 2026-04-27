@@ -253,14 +253,19 @@ const modelGroups = computed(() => {
 
   for (const model of sortedModels) {
     const dayMap = byModel.get(model)!
-    const tokensArr = dayKeys.map(k => dayMap.get(k)?.tokens ?? 0)
+    const cacheHitArr = dayKeys.map(k => dayMap.get(k)?.cacheHit ?? 0)
+    const cacheMissArr = dayKeys.map(k => dayMap.get(k)?.cacheMiss ?? 0)
+    const responseArr = dayKeys.map(k => dayMap.get(k)?.response ?? 0)
     const requestsArr = dayKeys.map(k => dayMap.get(k)?.requests ?? 0)
+    const totalTokens = cacheHitArr.reduce((a, b) => a + b, 0)
+      + cacheMissArr.reduce((a, b) => a + b, 0)
+      + responseArr.reduce((a, b) => a + b, 0)
     const detailMap = new Map<string, DayDetail>()
     for (const [k, v] of dayMap) detailMap.set(k, v)
 
     groups.push({
       name: shortModelName(model),
-      totalTokens: tokensArr.reduce((a, b) => a + b, 0),
+      totalTokens,
       totalRequests: requestsArr.reduce((a, b) => a + b, 0),
       dayDetails: detailMap,
       chartData: {
@@ -268,13 +273,38 @@ const modelGroups = computed(() => {
         datasets: [
           {
             type: 'bar' as const,
-            label: 'Tokens',
-            data: tokensArr,
-            backgroundColor: 'rgba(59, 130, 246, 0.6)',
-            hoverBackgroundColor: 'rgba(59, 130, 246, 0.85)',
+            label: t('main.ttCacheHit'),
+            data: cacheHitArr,
+            backgroundColor: '#A0DCFD',
+            hoverBackgroundColor: '#A0DCFD',
             borderRadius: 2,
             borderSkipped: false,
             yAxisID: 'y',
+            stack: 'tokens',
+            order: 4,
+          },
+          {
+            type: 'bar' as const,
+            label: t('main.ttCacheMiss'),
+            data: cacheMissArr,
+            backgroundColor: '#60B3FE',
+            hoverBackgroundColor: '#60B3FE',
+            borderRadius: 0,
+            borderSkipped: false,
+            yAxisID: 'y',
+            stack: 'tokens',
+            order: 3,
+          },
+          {
+            type: 'bar' as const,
+            label: t('main.ttOutput'),
+            data: responseArr,
+            backgroundColor: '#0C70F3',
+            hoverBackgroundColor: '#0C70F3',
+            borderRadius: 0,
+            borderSkipped: false,
+            yAxisID: 'y',
+            stack: 'tokens',
             order: 2,
           },
           {
@@ -319,29 +349,20 @@ function getChartOpts(group: ModelGroup) {
       legend: { display: false },
       tooltip: {
         ...baseTooltipOpts(),
-        mode: 'index' as const,
-        intersect: false,
         callbacks: {
           title(items: any) {
             const idx = items[0]?.dataIndex
             return idx != null ? dayKeys[idx] : ''
           },
           label(ctx: any) {
-            const idx = ctx.dataIndex
-            const dayKey = dayKeys[idx]
-            const detail = group.dayDetails.get(dayKey)
-            return `Tokens: ${formatCount(detail?.tokens ?? 0)}`
+            if (ctx.dataset.type === 'line') return null
+            return `${ctx.dataset.label}: ${formatCount(ctx.raw)}`
           },
-          afterBody(items: any) {
+          footer(items: any[]) {
             const idx = items[0]?.dataIndex
             const dayKey = idx != null ? dayKeys[idx] : ''
             const detail = group.dayDetails.get(dayKey)
-            return [
-              `${t('main.ttCacheHit')}: ${formatCount(detail?.cacheHit ?? 0)}`,
-              `${t('main.ttCacheMiss')}: ${formatCount(detail?.cacheMiss ?? 0)}`,
-              `${t('main.ttOutput')}: ${formatCount(detail?.response ?? 0)}`,
-              `${t('main.ttRequests')}: ${detail?.requests ?? 0}`,
-            ]
+            return `${t('main.ttRequests')}: ${detail?.requests ?? 0}`
           },
         },
       },
@@ -354,7 +375,7 @@ function getChartOpts(group: ModelGroup) {
       },
       y: {
         position: 'left' as const,
-        stacked: false,
+        stacked: true,
         ticks: { color: isDark.value ? '#666' : '#999', font: { size: 8 }, callback: (v: number) => formatCount(v), maxTicksLimit: 4 },
         grid: { color: isDark.value ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
         border: { display: false },
@@ -732,7 +753,7 @@ async function onBudgetChange(e: Event) {
 }
 
 .model-chart-wrapper {
-  height: 100px;
+  height: 120px;
   width: 100%;
 }
 
