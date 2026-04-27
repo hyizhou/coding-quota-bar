@@ -33,11 +33,11 @@
           <div class="provider-body" v-if="account.enabled">
             <!-- DeepSeek 认证模式选择 -->
             <div v-if="info.key === 'deepseek'" class="auth-mode-row">
-              <label class="mode-option" :class="{ active: account.authMode !== 'weblogin' }">
+              <label class="mode-option" :class="{ active: account.authMode !== 'weblogin' }" :title="$t('settings.authModeApikeyHint')">
                 <input type="radio" :value="'apikey'" v-model="account.authMode" />
                 <span>API Key</span>
               </label>
-              <label class="mode-option" :class="{ active: account.authMode === 'weblogin' }">
+              <label class="mode-option" :class="{ active: account.authMode === 'weblogin' }" :title="$t('settings.authModeWebloginHint')">
                 <input type="radio" :value="'weblogin'" v-model="account.authMode" />
                 <span>{{ $t('settings.authModeWeblogin') }}</span>
               </label>
@@ -620,6 +620,7 @@ async function handleStartDownload() {
 
 .auth-mode-row {
   display: flex;
+  align-items: center;
   gap: 4px;
   margin-bottom: 8px;
 }

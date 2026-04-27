@@ -108,6 +108,8 @@
     "autoCheckUpdate": "Auto-check for Updates",
     "autoCheckUpdateHint": "Periodically check for new versions and notify on the main screen",
     "authModeWeblogin": "Web Login",
+    "authModeApikeyHint": "Balance only, usage and cost details not supported",
+    "authModeWebloginHint": "Query balance, usage and cost details via web API",
     "webLoginBtn": "Login to DeepSeek",
     "webLoginActive": "Logged In",
     "webLogoutBtn": "Log Out",

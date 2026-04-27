@@ -108,6 +108,8 @@
     "autoCheckUpdate": "自动检查更新",
     "autoCheckUpdateHint": "定期检查是否有新版本，发现更新后在主界面提示",
     "authModeWeblogin": "网页登录",
+    "authModeApikeyHint": "仅查询余额，不支持用量和费用明细",
+    "authModeWebloginHint": "通过网页接口查询余额、用量和费用明细",
     "webLoginBtn": "登录 DeepSeek",
     "webLoginActive": "已登录",
     "webLogoutBtn": "退出登录",
