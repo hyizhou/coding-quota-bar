@@ -45,10 +45,10 @@
     "updateAvailableBanner": "发现新版本 v{version}，点击查看",
     "deepseekTokenExpired": "DeepSeek 登录已过期，请重新登录",
     "reloginBtn": "重新登录",
-    "ttCacheHit": "缓存命中",
-    "ttCacheMiss": "缓存未命中",
+    "ttCacheHit": "缓存",
+    "ttCacheMiss": "输入",
     "ttOutput": "输出",
-    "ttRequests": "请求数"
+    "ttRequests": "请求次数"
   },
   "settings": {
     "title": "设置",

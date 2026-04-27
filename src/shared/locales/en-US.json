@@ -45,8 +45,8 @@
     "updateAvailableBanner": "New version v{version} available, click to view",
     "deepseekTokenExpired": "DeepSeek login expired, please re-login",
     "reloginBtn": "Re-login",
-    "ttCacheHit": "Cache Hit",
-    "ttCacheMiss": "Cache Miss",
+    "ttCacheHit": "Cache",
+    "ttCacheMiss": "Input",
     "ttOutput": "Output",
     "ttRequests": "Requests"
   },

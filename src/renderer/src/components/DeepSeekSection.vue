@@ -188,6 +188,7 @@ const baseTooltipOpts = () => ({
   cornerRadius: 4,
   bodyFont: { size: 11 },
   titleFont: { size: 11, weight: 'bold' as const },
+  footerFont: { size: 11, weight: 'bold' as const },
   caretSize: 6,
   caretPadding: 4,
 })
@@ -349,10 +350,15 @@ function getChartOpts(group: ModelGroup) {
       legend: { display: false },
       tooltip: {
         ...baseTooltipOpts(),
+        itemSort: (a: any, b: any) => a.datasetIndex - b.datasetIndex,
         callbacks: {
           title(items: any) {
             const idx = items[0]?.dataIndex
-            return idx != null ? dayKeys[idx] : ''
+            if (idx == null) return ''
+            const dayKey = dayKeys[idx]
+            const detail = group.dayDetails.get(dayKey)
+            const total = (detail?.cacheHit ?? 0) + (detail?.cacheMiss ?? 0) + (detail?.response ?? 0)
+            return `${dayKey}    ${formatCount(total)}`
           },
           label(ctx: any) {
             if (ctx.dataset.type === 'line') return null
