@@ -177,7 +177,7 @@ function formatCount(n: number): string {
 }
 
 function shortModelName(model: string): string {
-  return model.replace(/^deepseek-/, '')
+  return model.replace(/deepseek-/g, '')
 }
 
 const baseTooltipOpts = () => ({
