@@ -484,7 +484,7 @@ export class DeepSeekProvider implements Provider {
         `${baseUrl}/api/v0/usage/cost?month=${month}&year=${year}`, headers
       ),
     ]);
-    if (amountResp.code === 40002) throw new Error(TOKEN_EXPIRED);
+    if (amountResp.code === 40002 || costResp.code === 40002) throw new Error(TOKEN_EXPIRED);
 
     const days = amountResp.data?.biz_data?.days ?? [];
     const costDays = costResp.data?.biz_data?.[0]?.days ?? [];

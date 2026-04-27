@@ -513,10 +513,10 @@ const costChartOpts = computed(() => ({
           const ds = String(idx + 1).padStart(2, '0')
           return `${year}-${monthStr}-${ds}`
         },
-        label: (ctx: any) => `${ctx.dataset.label}: ¥${(ctx.raw as number).toFixed(4)}`,
+        label: (ctx: any) => `${ctx.dataset.label}: ¥${(ctx.raw as number).toFixed(2)}`,
         footer: (items: any[]) => {
           const total = items.reduce((s: number, i: any) => s + (i.raw as number), 0)
-          return `合计: ¥${total.toFixed(4)}`
+          return `${t('main.costTotal')}: ¥${total.toFixed(2)}`
         },
       },
     },
