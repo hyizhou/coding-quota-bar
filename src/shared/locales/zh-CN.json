@@ -49,7 +49,8 @@
     "ttCacheHit": "缓存",
     "ttCacheMiss": "输入",
     "ttOutput": "输出",
-    "ttRequests": "请求次数"
+    "ttRequests": "请求次数",
+    "monthFormat": "{year}年{month}月"
   },
   "settings": {
     "title": "设置",

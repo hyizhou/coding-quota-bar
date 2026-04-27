@@ -103,7 +103,7 @@ const monthOptions = computed(() => {
   let y = n.getFullYear(), m = n.getMonth() + 1
   for (let i = 0; i < 12; i++) {
     const mm = String(m).padStart(2, '0')
-    options.push({ value: `${y}-${mm}`, label: `${y}年${mm}月` })
+    options.push({ value: `${y}-${mm}`, label: t('main.monthFormat', { year: y, month: mm }) })
     m--
     if (m === 0) { m = 12; y-- }
   }
