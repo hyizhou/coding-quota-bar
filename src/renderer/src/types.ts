@@ -139,9 +139,12 @@ export interface DeepSeekServiceComponent {
   uptime: number
 }
 
-export interface UpdateInfo {
-  version: string
-  downloaded: boolean
+export type UpdatePhase = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'noUpdate' | 'error'
+
+export interface UpdateStatus {
+  phase: UpdatePhase
+  version?: string
+  progress?: number
 }
 
 export interface AppConfig {
@@ -163,7 +166,7 @@ export interface AppConfig {
   autoCheckUpdate?: boolean
   autoCheckUpdateInterval?: number
   lastAutoCheckTime?: string | null
-  updateInfo?: UpdateInfo | null
+  updateStatus?: UpdateStatus
 }
 
 export interface ElectronAPI {
@@ -176,10 +179,9 @@ export interface ElectronAPI {
   onShowSettings: (callback: (options?: { checkUpdate?: boolean }) => void) => void
   onUsageDataUpdated: (callback: (data: UsageState) => void) => void
   notifyHoverState: (hovering: boolean) => void
-  checkForUpdate: () => Promise<{ available: boolean; version?: string }>
-  downloadUpdate: () => Promise<boolean>
-  onUpdateDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number }) => void) => void
-  onUpdateDownloaded: (callback: () => void) => void
+  checkForUpdate: () => Promise<void>
+  downloadUpdate: () => Promise<void>
+  onUpdateStatusChanged: (callback: (status: UpdateStatus) => void) => () => void
   quitAndInstall: () => Promise<void>
   onTriggerCheckUpdate: (callback: () => void) => void
   offTriggerCheckUpdate: (callback: () => void) => void
@@ -188,7 +190,6 @@ export interface ElectronAPI {
   setWindowPinned: (pinned: boolean) => void
   onWindowPinnedState: (callback: (pinned: boolean) => void) => void
   getAppVersion: () => Promise<string>
-  onUpdateAvailableAuto: (callback: (info: { version: string }) => void) => void
   deepseekWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
   deepseekWebLogout: (accountId: string) => Promise<void>
   onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => void

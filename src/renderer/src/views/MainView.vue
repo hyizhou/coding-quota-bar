@@ -133,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloatingTooltip from '../components/FloatingTooltip.vue'
 import UpdateBanner from '../components/UpdateBanner.vue'
@@ -158,6 +158,7 @@ const now = ref(Date.now())
 const isPinned = ref(false)
 const showTabs = ref(false)
 let hideTimer: ReturnType<typeof setTimeout> | null = null
+let offUpdateStatus: (() => void) | null = null
 
 function onTabsAreaEnter() {
   if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
@@ -302,16 +303,25 @@ onMounted(async () => {
   window.electronAPI.onWindowPinnedState((pinned) => {
     isPinned.value = pinned
   })
-  // 监听自动更新发现新版本
-  window.electronAPI.onUpdateAvailableAuto?.((info) => {
-    updateNotification.value = info
+  // 监听主进程推送的更新状态
+  offUpdateStatus = window.electronAPI.onUpdateStatusChanged((status) => {
+    if (status.phase === 'available' || status.phase === 'downloading') {
+      updateNotification.value = { version: status.version || '' }
+    } else {
+      updateNotification.value = null
+    }
   })
   // 恢复持久化的更新状态
   const config = await window.electronAPI.getConfig()
   const version = await window.electronAPI.getAppVersion()
-  if (config?.updateInfo?.version && config.updateInfo.version > version && !config.updateInfo.downloaded) {
-    updateNotification.value = { version: config.updateInfo.version }
+  const us = config?.updateStatus
+  if (us && us.version && us.version > version && us.phase !== 'ready') {
+    updateNotification.value = { version: us.version }
   }
+})
+
+onUnmounted(() => {
+  offUpdateStatus?.()
 })
 </script>
 

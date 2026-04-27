@@ -148,6 +148,17 @@ export interface UpdateInfo {
 }
 
 /**
+ * 主进程统一管理的更新状态
+ */
+export type UpdatePhase = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'noUpdate' | 'error';
+
+export interface UpdateStatus {
+  phase: UpdatePhase;
+  version?: string;
+  progress?: number; // 0-100 下载进度
+}
+
+/**
  * 应用配置
  */
 export type TrayDisplayRule = 'lowest' | 'highest' | string; // string = compound key "providerType:accountId"

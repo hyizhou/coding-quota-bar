@@ -9,7 +9,7 @@ import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale, t as i18nT } from './i18n';
 import { autoUpdater } from 'electron-updater';
-import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, UpdateInfo } from '../shared/types';
+import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, UpdateInfo, UpdateStatus } from '../shared/types';
 
 // 加载 .env 文件
 const envPath = path.join(__dirname, '..', '..', '.env');
@@ -37,33 +37,28 @@ if (isDev) {
 
 autoUpdater.on('download-progress', (progress) => {
   console.log(`[Updater] Downloading: ${progress.percent.toFixed(1)}%`);
-  if (popupWindow && !popupWindow.isDestroyed()) {
-    popupWindow.webContents.send('update-download-progress', {
-      percent: Math.round(progress.percent),
-      transferred: progress.transferred,
-      total: progress.total
-    });
-  }
+  setUpdateStatus({ phase: 'downloading', version: updateStatus.version, progress: Math.round(progress.percent) });
 });
 
 autoUpdater.on('update-downloaded', () => {
   console.log('[Updater] Update downloaded');
-  isDownloading = false;
-  if (sessionUpdateInfo) {
-    sessionUpdateInfo = { ...sessionUpdateInfo, downloaded: true };
-  }
-  if (popupWindow && !popupWindow.isDestroyed()) {
-    popupWindow.webContents.send('update-downloaded');
-  }
+  setUpdateStatus({ phase: 'ready', version: updateStatus.version });
 });
 
 autoUpdater.on('update-not-available', () => {
   console.log('[Updater] No update available');
+  if (!isAutoChecking) {
+    setUpdateStatus({ phase: 'noUpdate' });
+  }
 });
 
 autoUpdater.on('error', (error) => {
   console.error('[Updater] Error:', error.message);
-  isDownloading = false;
+  if (updateStatus.phase === 'downloading') {
+    setUpdateStatus({ phase: 'available', version: updateStatus.version });
+  } else if (updateStatus.phase === 'checking') {
+    setUpdateStatus({ phase: 'error' });
+  }
 });
 
 /**
@@ -99,6 +94,7 @@ async function performAutoCheck(): Promise<void> {
 
   isAutoChecking = true;
   console.log('[AutoUpdate] Checking for updates...');
+  setUpdateStatus({ phase: 'checking' });
 
   try {
     // 模拟更新：构造一个比当前版本号更高的假版本
@@ -108,10 +104,7 @@ async function performAutoCheck(): Promise<void> {
       parts[2] = (parts[2] || 0) + 1;
       const mockVersion = parts.join('.');
       console.log(`[AutoUpdate] Mock update: v${mockVersion}`);
-      sessionUpdateInfo = { version: mockVersion, downloaded: false };
-      if (popupWindow && !popupWindow.isDestroyed()) {
-        popupWindow.webContents.send('update-available-auto', { version: mockVersion });
-      }
+      setUpdateStatus({ phase: 'available', version: mockVersion });
       return;
     }
 
@@ -126,17 +119,18 @@ async function performAutoCheck(): Promise<void> {
 
       if (latestVersion > currentVersion) {
         console.log(`[AutoUpdate] Update available: v${latestVersion}`);
-        sessionUpdateInfo = { version: latestVersion, downloaded: false };
-        if (popupWindow && !popupWindow.isDestroyed()) {
-          popupWindow.webContents.send('update-available-auto', { version: latestVersion });
-        }
+        setUpdateStatus({ phase: 'available', version: latestVersion });
       } else {
         console.log('[AutoUpdate] No update available');
-        sessionUpdateInfo = null;
+        // 自动检查不推送 noUpdate 状态，避免干扰用户
+        setUpdateStatus({ phase: 'idle' });
       }
+    } else {
+      setUpdateStatus({ phase: 'error' });
     }
   } catch (error) {
     console.error('[AutoUpdate] Check failed:', error);
+    setUpdateStatus({ phase: 'error' });
     await configManager?.updateConfig({
       lastAutoCheckTime: new Date().toISOString()
     });
@@ -177,8 +171,19 @@ let blurHandler: (() => void) | null = null;
 // 自动更新检查调度
 let autoUpdateTimerId: ReturnType<typeof setTimeout> | null = null;
 let isAutoChecking = false;
-let isDownloading = false;
-let sessionUpdateInfo: UpdateInfo | null = null;
+let updateStatus: UpdateStatus = { phase: 'idle' };
+let statusClearTimer: ReturnType<typeof setTimeout> | null = null;
+
+function setUpdateStatus(status: UpdateStatus): void {
+  updateStatus = status;
+  if (statusClearTimer) { clearTimeout(statusClearTimer); statusClearTimer = null; }
+  if (status.phase === 'noUpdate' || status.phase === 'error') {
+    statusClearTimer = setTimeout(() => setUpdateStatus({ phase: 'idle' }), 5000);
+  }
+  if (popupWindow && !popupWindow.isDestroyed()) {
+    popupWindow.webContents.send('update-status-changed', status);
+  }
+}
 
 // DeepSeek 网页登录窗口
 const loginWindows = new Map<string, BrowserWindow>();
@@ -752,7 +757,7 @@ async function initialize(): Promise<void> {
     const parts = currentVersion.split('.').map(Number);
     parts[2] = (parts[2] || 0) + 1;
     const mockVersion = parts.join('.');
-    sessionUpdateInfo = { version: mockVersion, downloaded: false };
+    setUpdateStatus({ phase: 'available', version: mockVersion });
     console.log(`[AutoUpdate] Mock mode: simulated v${mockVersion}`);
   }
   startAutoUpdateChecker();
@@ -900,7 +905,7 @@ function setupIpcHandlers(): void {
   // 获取配置
   ipcMain.handle('get-config', () => {
     const config = configManager?.getConfig();
-    return config ? { ...config, isPackaged: app.isPackaged, updateInfo: sessionUpdateInfo, isDownloading } : null;
+    return config ? { ...config, isPackaged: app.isPackaged, updateStatus } : null;
   });
 
   // 获取可用的 provider 列表（编译时配置）
@@ -920,42 +925,44 @@ function setupIpcHandlers(): void {
     return app.getVersion();
   });
 
-  // 检查更新（仅检查，不下载）
+  // 检查更新（仅触发，结果通过 update-status-changed 事件推送）
   ipcMain.handle('check-for-update', async () => {
-    if (isDev && !mockUpdate) {
-      return { available: false };
+    if (!app.isPackaged && !mockUpdate) {
+      setUpdateStatus({ phase: 'noUpdate' });
+      return;
     }
     if (mockUpdate) {
       const currentVersion = app.getVersion();
       const parts = currentVersion.split('.').map(Number);
       parts[2] = (parts[2] || 0) + 1;
       const mockVersion = parts.join('.');
-      sessionUpdateInfo = { version: mockVersion, downloaded: false };
-      return { available: true, version: mockVersion };
+      setUpdateStatus({ phase: 'available', version: mockVersion });
+      return;
     }
     if (isAutoChecking) {
-      return { available: false };
+      // 已经在检查中，不重复触发，状态已是 checking
+      return;
     }
     isAutoChecking = true;
+    setUpdateStatus({ phase: 'checking' });
     try {
       const result = await autoUpdater.checkForUpdates();
+      await configManager?.updateConfig({
+        lastAutoCheckTime: new Date().toISOString()
+      });
       if (result?.updateInfo) {
         const latestVersion = result.updateInfo.version;
         const currentVersion = app.getVersion();
-        const available = latestVersion > currentVersion;
-        if (available) {
-          sessionUpdateInfo = { version: latestVersion, downloaded: false };
+        if (latestVersion > currentVersion) {
+          setUpdateStatus({ phase: 'available', version: latestVersion });
         } else {
-          sessionUpdateInfo = null;
+          setUpdateStatus({ phase: 'noUpdate' });
         }
-        await configManager?.updateConfig({
-          lastAutoCheckTime: new Date().toISOString()
-        });
-        return { available, version: latestVersion };
+      } else {
+        setUpdateStatus({ phase: 'error' });
       }
-      return { available: false };
     } catch {
-      return { available: false, error: true };
+      setUpdateStatus({ phase: 'error' });
     } finally {
       isAutoChecking = false;
     }
@@ -963,14 +970,12 @@ function setupIpcHandlers(): void {
 
   // 下载更新
   ipcMain.handle('download-update', async () => {
-    if (isDownloading) return true;
-    isDownloading = true;
+    if (updateStatus.phase === 'downloading') return;
+    setUpdateStatus({ phase: 'downloading', version: updateStatus.version, progress: 0 });
     try {
       await autoUpdater.downloadUpdate();
-      return true;
     } catch {
-      isDownloading = false;
-      return false;
+      setUpdateStatus({ phase: 'available', version: updateStatus.version });
     }
   });
 

@@ -178,17 +178,18 @@
         <button
           class="check-update-btn"
           :class="{
-            'update-ready': updateReady,
-            'has-update': updateAvailable && !downloading && !updateReady
+            'update-ready': updateState.phase === 'ready',
+            'has-update': updateState.phase === 'available'
           }"
-          :disabled="checkingUpdate || downloading"
+          :disabled="updateState.phase === 'checking' || updateState.phase === 'downloading' || updateState.phase === 'noUpdate' || updateState.phase === 'error'"
           @click="handleUpdateClick"
         >
-          <template v-if="checkingUpdate">{{ $t('settings.checkingUpdate') }}</template>
-          <template v-else-if="downloading">{{ $t('settings.downloading', { percent: downloadProgress }) }}</template>
-          <template v-else-if="updateReady">{{ $t('settings.restartToUpdate') }}</template>
-          <template v-else-if="updateAvailable">{{ $t('settings.updateAvailable', { version: availableVersion }) }}</template>
-          <template v-else-if="updateStatus">{{ updateStatus }}</template>
+          <template v-if="updateState.phase === 'checking'">{{ $t('settings.checkingUpdate') }}</template>
+          <template v-else-if="updateState.phase === 'downloading'">{{ $t('settings.downloading', { percent: updateState.progress ?? 0 }) }}</template>
+          <template v-else-if="updateState.phase === 'ready'">{{ $t('settings.restartToUpdate') }}</template>
+          <template v-else-if="updateState.phase === 'available'">{{ $t('settings.updateAvailable', { version: updateState.version }) }}</template>
+          <template v-else-if="updateState.phase === 'noUpdate'">{{ $t('settings.noUpdate') }}</template>
+          <template v-else-if="updateState.phase === 'error'">{{ $t('settings.updateFailed') }}</template>
           <template v-else>{{ $t('settings.checkUpdate') }}</template>
         </button>
       </div>
@@ -204,7 +205,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AppConfig, ProviderTypeConfig, AccountConfig } from '../types'
+import type { AppConfig, ProviderTypeConfig, AccountConfig, UpdateStatus } from '../types'
 import { useTheme } from '../composables/useTheme'
 
 defineEmits<{ 'go-back': [] }>()
@@ -261,13 +262,7 @@ const accountOptions = computed(() => {
   return options
 })
 const appVersion = ref('')
-const checkingUpdate = ref(false)
-const updateStatus = ref('')
-const updateAvailable = ref(false)
-const availableVersion = ref('')
-const downloading = ref(false)
-const downloadProgress = ref(0)
-const updateReady = ref(false)
+const updateState = ref<UpdateStatus>({ phase: 'idle' })
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 function generateId(): string {
@@ -374,49 +369,36 @@ onMounted(async () => {
     setTheme(val)
   })
 
-  // 监听更新下载进度
-  window.electronAPI.onUpdateDownloadProgress((progress) => {
-    downloading.value = true
-    downloadProgress.value = progress.percent
-  })
-
-  // 监听更新下载完成
-  window.electronAPI.onUpdateDownloaded(() => {
-    downloading.value = false
-    updateReady.value = true
-    updateStatus.value = ''
-  })
-
-  // 恢复持久化的更新状态
-  if (config.updateInfo?.version && config.updateInfo.version > appVersion.value) {
-    availableVersion.value = config.updateInfo.version
-    if (config.updateInfo.downloaded) {
-      updateReady.value = true
-    } else if ((config as any).isDownloading) {
-      downloading.value = true
-      downloadProgress.value = 0
-      updateAvailable.value = true
-    } else {
-      updateAvailable.value = true
-    }
+  // 恢复主进程的更新状态
+  if (config.updateStatus) {
+    updateState.value = config.updateStatus
   }
+
+  // 监听主进程推送的更新状态变化
+  const offUpdateStatus = window.electronAPI.onUpdateStatusChanged((status) => {
+    updateState.value = status
+  })
 
   // 监听来自托盘菜单的检查更新事件（兼容旧路径）
   const onTriggerCheckUpdate = () => {
     settingsBodyRef.value?.scrollTo({ top: settingsBodyRef.value.scrollHeight })
-    handleCheckUpdate()
+    if (updateState.value.phase === 'idle' || updateState.value.phase === 'noUpdate' || updateState.value.phase === 'error') {
+      window.electronAPI.checkForUpdate()
+    }
   }
   window.electronAPI.onTriggerCheckUpdate?.(onTriggerCheckUpdate)
   onUnmounted(() => {
     window.electronAPI.offTriggerCheckUpdate?.(onTriggerCheckUpdate)
+    offUpdateStatus()
   })
 
   // 从托盘菜单或更新浮窗进入时，滚到底部；若已有更新信息则不再重复检查
   if (props.autoCheckUpdate) {
     nextTick(() => {
       settingsBodyRef.value?.scrollTo({ top: settingsBodyRef.value.scrollHeight })
-      if (!updateAvailable.value && !updateReady.value && !downloading.value) {
-        handleCheckUpdate()
+      const phase = updateState.value.phase
+      if (phase === 'idle' || phase === 'noUpdate' || phase === 'error') {
+        window.electronAPI.checkForUpdate()
       }
       window.electronAPI.showPopup()
     })
@@ -476,51 +458,13 @@ function openFeedback() {
 }
 
 function handleUpdateClick() {
-  if (updateReady.value) {
+  const phase = updateState.value.phase
+  if (phase === 'ready') {
     window.electronAPI.quitAndInstall()
-  } else if (updateAvailable.value) {
-    handleStartDownload()
-  } else {
-    handleCheckUpdate()
-  }
-}
-
-async function handleCheckUpdate() {
-  checkingUpdate.value = true
-  updateStatus.value = ''
-  updateAvailable.value = false
-  availableVersion.value = ''
-  downloading.value = false
-  downloadProgress.value = 0
-  updateReady.value = false
-  try {
-    const result = await window.electronAPI.checkForUpdate()
-    if (result.available) {
-      availableVersion.value = result.version || ''
-      updateAvailable.value = true
-    } else if ((result as any).error) {
-      updateStatus.value = t('settings.updateFailed')
-      setTimeout(() => { updateStatus.value = '' }, 5000)
-    } else {
-      updateStatus.value = t('settings.noUpdate')
-      setTimeout(() => { updateStatus.value = '' }, 5000)
-    }
-  } catch {
-    updateStatus.value = t('settings.updateFailed')
-    setTimeout(() => { updateStatus.value = '' }, 5000)
-  } finally {
-    checkingUpdate.value = false
-  }
-}
-
-async function handleStartDownload() {
-  downloading.value = true
-  downloadProgress.value = 0
-  const success = await window.electronAPI.downloadUpdate()
-  if (!success) {
-    downloading.value = false
-    updateStatus.value = t('settings.updateFailed')
-    setTimeout(() => { updateStatus.value = '' }, 5000)
+  } else if (phase === 'available') {
+    window.electronAPI.downloadUpdate()
+  } else if (phase === 'idle' || phase === 'noUpdate' || phase === 'error') {
+    window.electronAPI.checkForUpdate()
   }
 }
 </script>

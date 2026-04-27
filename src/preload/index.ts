@@ -56,7 +56,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 
   /**
-   * 检查更新
+   * 检查更新（仅触发，结果通过 onUpdateStatusChanged 推送）
    */
   checkForUpdate: () => ipcRenderer.invoke('check-for-update'),
 
@@ -66,30 +66,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   downloadUpdate: () => ipcRenderer.invoke('download-update'),
 
   /**
-   * 监听更新下载进度
+   * 监听主进程推送的统一更新状态
    */
-  onUpdateDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number }) => void) => {
-    ipcRenderer.on('update-download-progress', (_, progress) => callback(progress));
-  },
-
-  /**
-   * 监听更新下载完成
-   */
-  onUpdateDownloaded: (callback: () => void) => {
-    ipcRenderer.on('update-downloaded', () => callback());
+  onUpdateStatusChanged: (callback: (status: { phase: string; version?: string; progress?: number }) => void) => {
+    const handler = (_: unknown, status: { phase: string; version?: string; progress?: number }) => callback(status);
+    ipcRenderer.on('update-status-changed', handler);
+    return () => ipcRenderer.removeListener('update-status-changed', handler);
   },
 
   /**
    * 重启并安装更新
    */
   quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
-
-  /**
-   * 监听自动更新发现新版本
-   */
-  onUpdateAvailableAuto: (callback: (info: { version: string }) => void) => {
-    ipcRenderer.on('update-available-auto', (_, info) => callback(info));
-  },
 
   /**
    * 通知主进程显示弹窗
