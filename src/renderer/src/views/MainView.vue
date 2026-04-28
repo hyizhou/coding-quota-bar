@@ -111,17 +111,32 @@
           <template v-if="getActiveAccount(activeProvider)">
             <div v-if="getActiveAccount(activeProvider)!.error" class="error-card">
               <span class="error-icon">!</span>
-              <span class="error-text">{{ formatError(getActiveAccount(activeProvider)!.error!) }}</span>
+              <span class="error-text">
+                <template v-if="getActiveAccount(activeProvider)!.error === 'TOKEN_EXPIRED'">
+                  {{ $t('main.deepseekTokenExpired') }}
+                  <button class="relogin-btn" @click="$emit('open-settings')">{{ $t('main.reloginBtn') }}</button>
+                </template>
+                <template v-else>{{ formatError(getActiveAccount(activeProvider)!.error!) }}</template>
+              </span>
             </div>
             <template v-else>
               <ZhipuSection v-if="activeProvider.key === 'zhipu'" :account="getActiveAccount(activeProvider)!" />
               <MiniMaxSection v-else-if="activeProvider.key === 'minimax'" :account="getActiveAccount(activeProvider)!" />
+              <DeepSeekSection v-else-if="activeProvider.key === 'deepseek'" :account="getActiveAccount(activeProvider)!" />
+              <DeepSeekServiceStatus v-if="activeProvider.key === 'deepseek' && !getActiveAccount(activeProvider)!.error" :account="getActiveAccount(activeProvider)!" />
             </template>
           </template>
         </div>
       </template>
       </template>
     </div>
+
+    <UpdateBanner
+      v-if="updateNotification"
+      :version="updateNotification.version"
+      @click="handleUpdateBannerClick"
+      @close="updateNotification = null"
+    />
 
     <footer class="footer">
       <span>{{ lastUpdateText }}</span>
@@ -130,15 +145,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloatingTooltip from '../components/FloatingTooltip.vue'
+import UpdateBanner from '../components/UpdateBanner.vue'
 import ZhipuSection from '../components/ZhipuSection.vue'
 import MiniMaxSection from '../components/MiniMaxSection.vue'
+import DeepSeekSection from '../components/DeepSeekSection.vue'
+import DeepSeekServiceStatus from '../components/DeepSeekServiceStatus.vue'
 import type { ProviderUsageData, AccountUsageData, UsageState } from '../types'
 import { useTheme } from '../composables/useTheme'
 
-defineEmits<{ 'open-settings': []; 'open-concurrency-test': [] }>()
+const emit = defineEmits<{ 'open-settings': [options?: { checkUpdate?: boolean }]; 'open-concurrency-test': [] }>()
 
 const { t, locale } = useI18n()
 const { isDark, toggleTheme } = useTheme()
@@ -147,10 +165,12 @@ const providers = ref<ProviderUsageData[]>([])
 const lastUpdate = ref('')
 const loading = ref(false)
 const initialLoading = ref(true)
+const updateNotification = ref<{ version: string } | null>(null)
 const now = ref(Date.now())
 const isPinned = ref(false)
 const showTabs = ref(false)
 let hideTimer: ReturnType<typeof setTimeout> | null = null
+let offUpdateStatus: (() => void) | null = null
 
 function onTabsAreaEnter() {
   if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
@@ -278,9 +298,14 @@ function onTabsWheel(e: WheelEvent) {
   el.scrollLeft += e.deltaY
 }
 
+function handleUpdateBannerClick() {
+  updateNotification.value = null
+  emit('open-settings', { checkUpdate: true })
+}
+
 setInterval(() => { now.value = Date.now() }, 60000)
 
-onMounted(() => {
+onMounted(async () => {
   fetchData()
   // 监听主进程推送的数据更新
   window.electronAPI.onUsageDataUpdated((data) => {
@@ -290,6 +315,25 @@ onMounted(() => {
   window.electronAPI.onWindowPinnedState((pinned) => {
     isPinned.value = pinned
   })
+  // 监听主进程推送的更新状态
+  offUpdateStatus = window.electronAPI.onUpdateStatusChanged((status) => {
+    if (status.phase === 'available' || status.phase === 'downloading') {
+      updateNotification.value = { version: status.version || '' }
+    } else {
+      updateNotification.value = null
+    }
+  })
+  // 恢复持久化的更新状态
+  const config = await window.electronAPI.getConfig()
+  const version = await window.electronAPI.getAppVersion()
+  const us = config?.updateStatus
+  if (us && us.version && us.version > version && us.phase !== 'ready') {
+    updateNotification.value = { version: us.version }
+  }
+})
+
+onUnmounted(() => {
+  offUpdateStatus?.()
 })
 </script>
 
@@ -548,6 +592,22 @@ onMounted(() => {
   font-size: 12px;
   color: var(--text-error);
   line-height: 1.4;
+}
+
+.relogin-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  margin-left: 6px;
+  border: 1px solid #3B82F6;
+  border-radius: 4px;
+  background: transparent;
+  color: #3B82F6;
+  cursor: pointer;
+}
+
+.relogin-btn:hover {
+  background: #3B82F6;
+  color: #fff;
 }
 
 .skeleton-group {

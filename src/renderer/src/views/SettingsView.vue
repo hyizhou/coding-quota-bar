@@ -31,7 +31,20 @@
             />
           </label>
           <div class="provider-body" v-if="account.enabled">
-            <div class="input-group">
+            <!-- DeepSeek 认证模式选择 -->
+            <div v-if="info.key === 'deepseek'" class="auth-mode-row">
+              <label class="mode-option" :class="{ active: account.authMode !== 'weblogin' }" :title="$t('settings.authModeApikeyHint')">
+                <input type="radio" :value="'apikey'" v-model="account.authMode" />
+                <span>API Key</span>
+              </label>
+              <label class="mode-option" :class="{ active: account.authMode === 'weblogin' }" :title="$t('settings.authModeWebloginHint')">
+                <input type="radio" :value="'weblogin'" v-model="account.authMode" />
+                <span>{{ $t('settings.authModeWeblogin') }}</span>
+              </label>
+            </div>
+
+            <!-- API Key 输入（apikey 模式） -->
+            <div v-if="account.authMode !== 'weblogin'" class="input-group">
               <input
                 :type="account.showKey ? 'text' : 'password'"
                 class="form-input"
@@ -50,6 +63,28 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                 </svg>
+              </button>
+            </div>
+
+            <!-- 网页登录按钮（weblogin 模式，仅 DeepSeek） -->
+            <div v-if="info.key === 'deepseek' && account.authMode === 'weblogin'" class="web-login-section">
+              <button
+                class="web-login-btn"
+                :class="{ active: account.webTokenStatus === 'active' }"
+                @click="handleWebLogin(account)"
+              >
+                {{ account.webTokenStatus === 'active'
+                   ? $t('settings.webLoginActive')
+                   : account.webTokenStatus === 'expired'
+                     ? $t('settings.webTokenExpired')
+                     : $t('settings.webLoginBtn') }}
+              </button>
+              <button
+                v-if="account.webTokenStatus === 'active'"
+                class="web-logout-btn"
+                @click="handleWebLogout(account)"
+              >
+                {{ $t('settings.webLogoutBtn') }}
               </button>
             </div>
           </div>
@@ -124,6 +159,11 @@
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.showEstimatedCost') }}</span>
           </label>
+          <label class="toggle-row" :title="$t('settings.autoCheckUpdateHint')">
+            <input type="checkbox" v-model="autoCheckUpdateEnabled" />
+            <span class="toggle-switch"></span>
+            <span class="toggle-label">{{ $t('settings.autoCheckUpdate') }}</span>
+          </label>
         </div>
       </div>
 
@@ -138,17 +178,18 @@
         <button
           class="check-update-btn"
           :class="{
-            'update-ready': updateReady,
-            'has-update': updateAvailable && !downloading && !updateReady
+            'update-ready': updateState.phase === 'ready',
+            'has-update': updateState.phase === 'available'
           }"
-          :disabled="checkingUpdate || downloading"
+          :disabled="updateState.phase === 'checking' || updateState.phase === 'downloading' || updateState.phase === 'noUpdate' || updateState.phase === 'error'"
           @click="handleUpdateClick"
         >
-          <template v-if="checkingUpdate">{{ $t('settings.checkingUpdate') }}</template>
-          <template v-else-if="downloading">{{ $t('settings.downloading', { percent: downloadProgress }) }}</template>
-          <template v-else-if="updateReady">{{ $t('settings.restartToUpdate') }}</template>
-          <template v-else-if="updateAvailable">{{ $t('settings.updateAvailable', { version: availableVersion }) }}</template>
-          <template v-else-if="updateStatus">{{ updateStatus }}</template>
+          <template v-if="updateState.phase === 'checking'">{{ $t('settings.checkingUpdate') }}</template>
+          <template v-else-if="updateState.phase === 'downloading'">{{ $t('settings.downloading', { percent: updateState.progress ?? 0 }) }}</template>
+          <template v-else-if="updateState.phase === 'ready'">{{ $t('settings.restartToUpdate') }}</template>
+          <template v-else-if="updateState.phase === 'available'">{{ $t('settings.updateAvailable', { version: updateState.version }) }}</template>
+          <template v-else-if="updateState.phase === 'noUpdate'">{{ $t('settings.noUpdate') }}</template>
+          <template v-else-if="updateState.phase === 'error'">{{ $t('settings.updateFailed') }}</template>
           <template v-else>{{ $t('settings.checkUpdate') }}</template>
         </button>
       </div>
@@ -164,7 +205,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AppConfig, ProviderTypeConfig, AccountConfig } from '../types'
+import type { AppConfig, ProviderTypeConfig, AccountConfig, UpdateStatus } from '../types'
 import { useTheme } from '../composables/useTheme'
 
 defineEmits<{ 'go-back': [] }>()
@@ -179,6 +220,9 @@ interface AccountInfo {
   enabled: boolean
   apiKey: string
   showKey: boolean
+  budget?: number
+  authMode: 'apikey' | 'weblogin'
+  webTokenStatus: 'none' | 'active' | 'expired'
 }
 
 interface ProviderInfo {
@@ -196,6 +240,7 @@ const popupTrigger = ref<'hover' | 'click'>('hover')
 const memorySavingMode = ref(false)
 const showEstimatedCost = ref(false)
 const trayDisplayRule = ref<string>('lowest')
+const autoCheckUpdateEnabled = ref(true)
 const saving = ref(false)
 const settingsBodyRef = ref<HTMLElement | null>(null)
 const saveStatus = ref('')
@@ -217,13 +262,7 @@ const accountOptions = computed(() => {
   return options
 })
 const appVersion = ref('')
-const checkingUpdate = ref(false)
-const updateStatus = ref('')
-const updateAvailable = ref(false)
-const availableVersion = ref('')
-const downloading = ref(false)
-const downloadProgress = ref(0)
-const updateReady = ref(false)
+const updateState = ref<UpdateStatus>({ phase: 'idle' })
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 function generateId(): string {
@@ -239,6 +278,8 @@ function addAccount(providerKey: string) {
     enabled: true,
     apiKey: '',
     showKey: false,
+    authMode: 'apikey',
+    webTokenStatus: 'none',
   })
 }
 
@@ -246,6 +287,23 @@ function removeAccount(providerKey: string, index: number) {
   const provider = providerList.value.find(p => p.key === providerKey)
   if (!provider) return
   provider.accounts.splice(index, 1)
+}
+
+async function handleWebLogin(account: AccountInfo) {
+  const result = await window.electronAPI.deepseekWebLogin(account.id)
+  if (result.success) {
+    account.webTokenStatus = 'active'
+    // 重新拉取配置，确保 local state 与主进程同步
+    const freshConfig = await window.electronAPI.getConfig()
+    if (freshConfig) currentConfig.value = freshConfig
+  }
+}
+
+async function handleWebLogout(account: AccountInfo) {
+  await window.electronAPI.deepseekWebLogout(account.id)
+  account.webTokenStatus = 'none'
+  const freshConfig = await window.electronAPI.getConfig()
+  if (freshConfig) currentConfig.value = freshConfig
 }
 
 function scheduleSave() {
@@ -276,6 +334,9 @@ onMounted(async () => {
         enabled: account.enabled ?? false,
         apiKey: account.apiKey ?? '',
         showKey: false,
+        budget: (account as any).budget ?? undefined,
+        authMode: account.authMode ?? 'apikey',
+        webTokenStatus: account.webToken ? 'active' : 'none',
       }))
     }
   })
@@ -287,9 +348,10 @@ onMounted(async () => {
   memorySavingMode.value = config.memorySavingMode ?? false
   showEstimatedCost.value = config.showEstimatedCost ?? false
   trayDisplayRule.value = config.trayDisplayRule ?? 'lowest'
+  autoCheckUpdateEnabled.value = config.autoCheckUpdate ?? true
 
   // 配置加载完后开始监听变化，自动保存
-  watch([providerList, refreshInterval, autoStart, language, popupTrigger, memorySavingMode, showEstimatedCost, trayDisplayRule], () => {
+  watch([providerList, refreshInterval, autoStart, language, popupTrigger, memorySavingMode, showEstimatedCost, trayDisplayRule, autoCheckUpdateEnabled], () => {
     scheduleSave()
   }, { deep: true })
 
@@ -307,44 +369,37 @@ onMounted(async () => {
     setTheme(val)
   })
 
-  // 监听更新下载进度
-  window.electronAPI.onUpdateDownloadProgress((progress) => {
-    downloading.value = true
-    downloadProgress.value = progress.percent
-  })
-
-  // 监听更新下载完成
-  window.electronAPI.onUpdateDownloaded(() => {
-    downloading.value = false
-    updateReady.value = true
-    updateStatus.value = ''
-  })
-
-  // 恢复持久化的更新状态
-  if (config.updateInfo?.version && config.updateInfo.version > appVersion.value) {
-    availableVersion.value = config.updateInfo.version
-    if (config.updateInfo.downloaded) {
-      updateReady.value = true
-    } else {
-      updateAvailable.value = true
-    }
+  // 恢复主进程的更新状态
+  if (config.updateStatus) {
+    updateState.value = config.updateStatus
   }
+
+  // 监听主进程推送的更新状态变化
+  const offUpdateStatus = window.electronAPI.onUpdateStatusChanged((status) => {
+    updateState.value = status
+  })
 
   // 监听来自托盘菜单的检查更新事件（兼容旧路径）
   const onTriggerCheckUpdate = () => {
     settingsBodyRef.value?.scrollTo({ top: settingsBodyRef.value.scrollHeight })
-    handleCheckUpdate()
+    if (updateState.value.phase === 'idle' || updateState.value.phase === 'noUpdate' || updateState.value.phase === 'error') {
+      window.electronAPI.checkForUpdate()
+    }
   }
   window.electronAPI.onTriggerCheckUpdate?.(onTriggerCheckUpdate)
   onUnmounted(() => {
     window.electronAPI.offTriggerCheckUpdate?.(onTriggerCheckUpdate)
+    offUpdateStatus()
   })
 
-  // 从托盘菜单进入时，数据加载完后滚到底部、检查更新、再显示弹窗
+  // 从托盘菜单或更新浮窗进入时，滚到底部；若已有更新信息则不再重复检查
   if (props.autoCheckUpdate) {
     nextTick(() => {
       settingsBodyRef.value?.scrollTo({ top: settingsBodyRef.value.scrollHeight })
-      handleCheckUpdate()
+      const phase = updateState.value.phase
+      if (phase === 'idle' || phase === 'noUpdate' || phase === 'error') {
+        window.electronAPI.checkForUpdate()
+      }
       window.electronAPI.showPopup()
     })
   }
@@ -364,6 +419,8 @@ async function saveConfig() {
         label: a.label,
         enabled: a.enabled,
         apiKey: a.apiKey,
+        ...(a.budget != null ? { budget: a.budget } : {}),
+        authMode: a.authMode,
       }))
     }
   }
@@ -378,6 +435,7 @@ async function saveConfig() {
       showEstimatedCost: showEstimatedCost.value,
       language: language.value,
       trayDisplayRule: trayDisplayRule.value,
+      autoCheckUpdate: autoCheckUpdateEnabled.value,
     })
     locale.value = language.value
     saveStatus.value = t('settings.saved')
@@ -400,51 +458,13 @@ function openFeedback() {
 }
 
 function handleUpdateClick() {
-  if (updateReady.value) {
+  const phase = updateState.value.phase
+  if (phase === 'ready') {
     window.electronAPI.quitAndInstall()
-  } else if (updateAvailable.value) {
-    handleStartDownload()
-  } else {
-    handleCheckUpdate()
-  }
-}
-
-async function handleCheckUpdate() {
-  checkingUpdate.value = true
-  updateStatus.value = ''
-  updateAvailable.value = false
-  availableVersion.value = ''
-  downloading.value = false
-  downloadProgress.value = 0
-  updateReady.value = false
-  try {
-    const result = await window.electronAPI.checkForUpdate()
-    if (result.available) {
-      availableVersion.value = result.version || ''
-      updateAvailable.value = true
-    } else if ((result as any).error) {
-      updateStatus.value = t('settings.updateFailed')
-      setTimeout(() => { updateStatus.value = '' }, 5000)
-    } else {
-      updateStatus.value = t('settings.noUpdate')
-      setTimeout(() => { updateStatus.value = '' }, 5000)
-    }
-  } catch {
-    updateStatus.value = t('settings.updateFailed')
-    setTimeout(() => { updateStatus.value = '' }, 5000)
-  } finally {
-    checkingUpdate.value = false
-  }
-}
-
-async function handleStartDownload() {
-  downloading.value = true
-  downloadProgress.value = 0
-  const success = await window.electronAPI.downloadUpdate()
-  if (!success) {
-    downloading.value = false
-    updateStatus.value = t('settings.updateFailed')
-    setTimeout(() => { updateStatus.value = '' }, 5000)
+  } else if (phase === 'available') {
+    window.electronAPI.downloadUpdate()
+  } else if (phase === 'idle' || phase === 'noUpdate' || phase === 'error') {
+    window.electronAPI.checkForUpdate()
   }
 }
 </script>
@@ -546,6 +566,79 @@ async function handleStartDownload() {
   color: var(--text-tertiary);
   text-align: center;
   padding: 8px 0;
+}
+
+.auth-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.mode-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  padding: 3px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mode-option.active {
+  border-color: #3B82F6;
+  color: #3B82F6;
+}
+
+.mode-option input[type="radio"] {
+  margin: 0;
+  accent-color: #3B82F6;
+}
+
+.web-login-section {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.web-login-btn {
+  font-size: 11px;
+  padding: 4px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.web-login-btn:hover {
+  border-color: #3B82F6;
+  color: #3B82F6;
+}
+
+.web-login-btn.active {
+  border-color: #22C55E;
+  color: #22C55E;
+}
+
+.web-logout-btn {
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.web-logout-btn:hover {
+  color: #ef4444;
+  border-color: #ef4444;
 }
 
 .save-status { font-size: 11px; color: #4CAF50; }

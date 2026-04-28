@@ -56,7 +56,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 
   /**
-   * 检查更新
+   * 检查更新（仅触发，结果通过 onUpdateStatusChanged 推送）
    */
   checkForUpdate: () => ipcRenderer.invoke('check-for-update'),
 
@@ -66,17 +66,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   downloadUpdate: () => ipcRenderer.invoke('download-update'),
 
   /**
-   * 监听更新下载进度
+   * 监听主进程推送的统一更新状态
    */
-  onUpdateDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number }) => void) => {
-    ipcRenderer.on('update-download-progress', (_, progress) => callback(progress));
-  },
-
-  /**
-   * 监听更新下载完成
-   */
-  onUpdateDownloaded: (callback: () => void) => {
-    ipcRenderer.on('update-downloaded', () => callback());
+  onUpdateStatusChanged: (callback: (status: { phase: string; version?: string; progress?: number }) => void) => {
+    const handler = (_: unknown, status: { phase: string; version?: string; progress?: number }) => callback(status);
+    ipcRenderer.on('update-status-changed', handler);
+    return () => ipcRenderer.removeListener('update-status-changed', handler);
   },
 
   /**
@@ -185,5 +180,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   concurrencyTestDelete: (providerKey: string, id: string) => ipcRenderer.invoke('concurrency-test-delete', providerKey, id),
 
-  showFeedback: () => ipcRenderer.send('show-feedback')
+  showFeedback: () => ipcRenderer.send('show-feedback'),
+
+  /**
+   * DeepSeek 网页登录
+   */
+  deepseekWebLogin: (accountId: string) => ipcRenderer.invoke('deepseek-web-login', accountId),
+  deepseekWebLogout: (accountId: string) => ipcRenderer.invoke('deepseek-web-logout', accountId),
+  onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => {
+    ipcRenderer.on('deepseek-web-login-success', (_, accountId) => callback(accountId));
+  },
+  deepseekFetchMonthUsage: (accountId: string, year: number, month: number) =>
+    ipcRenderer.invoke('deepseek-fetch-month-usage', accountId, year, month),
 });

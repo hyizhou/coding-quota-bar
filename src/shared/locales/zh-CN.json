@@ -13,6 +13,8 @@
     "tokenUsage": "Token 用量",
     "usageStats": "使用统计",
     "tokenStats": "使用统计",
+    "monthlyUsage": "每月用量",
+    "costStats": "费用统计",
     "mcpStats": "MCP 统计",
     "toggleTheme": "切换主题",
     "pinWindow": "固定窗口（点击外部不关闭）",
@@ -32,13 +34,23 @@
     "defaultAccountLabel": "账号{n}",
     "performanceStats": "系统健康度",
     "estimatedCost": "≈¥{amount} API 等价",
+    "setBudget": "设置总额度（元），留空则仅显示余额",
+    "budgetRemaining": "剩余 ¥{n}",
     "costTotal": "合计",
     "perfSpeed": "速度",
     "perfRate": "成功率",
     "perfLite": "Lite",
     "perfProMax": "Pro/Max",
     "perfAvgSpeed": "平均速度",
-    "perfAvgSuccessRate": "平均成功率"
+    "perfAvgSuccessRate": "平均成功率",
+    "updateAvailableBanner": "发现新版本 v{version}，点击查看",
+    "deepseekTokenExpired": "DeepSeek 登录已过期，请重新登录",
+    "reloginBtn": "重新登录",
+    "ttCacheHit": "缓存",
+    "ttCacheMiss": "输入",
+    "ttOutput": "输出",
+    "ttRequests": "请求次数",
+    "monthFormat": "{year}年{month}月"
   },
   "settings": {
     "title": "设置",
@@ -93,7 +105,16 @@
     "feedbackGroup": "反馈群聊",
     "feedbackGroupTitle": "加入飞书反馈群",
     "feedbackScanTip": "扫描二维码加入飞书反馈群",
-    "feedbackClickLink": "点击链接加入"
+    "feedbackClickLink": "点击链接加入",
+    "autoCheckUpdate": "自动检查更新",
+    "autoCheckUpdateHint": "定期检查是否有新版本，发现更新后在主界面提示",
+    "authModeWeblogin": "网页登录",
+    "authModeApikeyHint": "仅查询余额，不支持用量和费用明细",
+    "authModeWebloginHint": "通过网页接口查询余额、用量和费用明细",
+    "webLoginBtn": "登录 DeepSeek",
+    "webLoginActive": "已登录",
+    "webLogoutBtn": "退出登录",
+    "webTokenExpired": "登录已过期，点击重新登录"
   },
   "provider": {
     "expired": "已过期",
@@ -109,7 +130,18 @@
     "tokensLimitDaily": "周额度",
     "mcpUsage": "MCP 用量",
     "minimaxDaily": "日额度",
-    "minimaxWeekly": "周额度"
+    "minimaxWeekly": "周额度",
+    "deepseekTotalBalance": "总余额",
+    "deepseekGranted": "赠送余额",
+    "deepseekToppedUp": "充值余额",
+    "deepseekMonthlyUsage": "本月用量",
+    "deepseekMonthlyCost": "本月费用",
+    "deepseekApiService": "API 服务",
+    "deepseekWebService": "网页对话服务",
+    "statusOperational": "运行正常",
+    "statusDegraded": "性能下降",
+    "statusPartialOutage": "部分故障",
+    "statusMajorOutage": "重大故障"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",
@@ -124,7 +156,8 @@
   "providers": {
     "zhipu": "智谱",
     "minimax": "MiniMax",
-    "kimi": "Kimi"
+    "kimi": "Kimi",
+    "deepseek": "DeepSeek"
   },
   "concurrencyTest": {
     "title": "并发测试",

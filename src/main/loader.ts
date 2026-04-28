@@ -2,6 +2,7 @@ import type { Provider, ProviderConfig, ProviderTypeConfig } from '../shared/typ
 import { ZhipuProvider } from '../providers/zhipu';
 import { MiniMaxProvider } from '../providers/minimax';
 import { KimiProvider } from '../providers/kimi';
+import { DeepSeekProvider } from '../providers/deepseek';
 import buildConfig from '../../app.build';
 
 /**
@@ -11,6 +12,7 @@ const PROVIDER_CLASSES = {
   zhipu: ZhipuProvider,
   minimax: MiniMaxProvider,
   kimi: KimiProvider,
+  deepseek: DeepSeekProvider,
 } as const;
 
 /**
@@ -71,8 +73,12 @@ export class ProviderLoader {
           continue;
         }
 
-        // 未配置 API Key 的跳过
-        if (!account.apiKey?.trim()) {
+        // 按认证模式检查必要凭证
+        const authMode = account.authMode || 'apikey';
+        if (authMode === 'apikey' && !account.apiKey?.trim()) {
+          continue;
+        }
+        if (authMode === 'weblogin' && !account.webToken?.trim()) {
           continue;
         }
 
@@ -86,6 +92,11 @@ export class ProviderLoader {
               enabled: true,
               apiKey: account.apiKey,
               _baseUrl: buildEntry?.baseUrl || '',
+              authMode,
+              webToken: account.webToken,
+              webUserAgent: account.webUserAgent,
+              accountId: account.id,
+              ...(account.budget != null ? { budget: account.budget } : {}),
             },
           });
           console.log(`[Loader] Loaded provider: ${instance.name} (${account.label || account.id})`);

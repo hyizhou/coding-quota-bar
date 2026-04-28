@@ -23,6 +23,8 @@ export interface QuotaItem {
   startAt?: string     // 周期开始时间
   color: 'green' | 'yellow' | 'red'
   limitType?: string   // 限制类型标识，如 "tokens"、"mcp"
+  hideBar?: boolean    // 为 true 时不显示进度条，仅显示文本
+  currency?: string    // ISO 币种代码
 }
 
 export interface UsageRecord {
@@ -41,6 +43,16 @@ export interface ModelTokenRecord {
   date: string
   model: string
   used: number
+  requests?: number
+  cacheHitTokens?: number
+  cacheMissTokens?: number
+  responseTokens?: number
+}
+
+export interface ModelCostRecord {
+  date: string
+  model: string
+  cost: number
 }
 
 export interface PerformanceRecord {
@@ -58,6 +70,7 @@ export interface AccountUsageData {
   id: string
   label?: string
   level?: string
+  currency?: string
   subscription?: SubscriptionInfo
   error?: string
   quotas: QuotaItem[]
@@ -77,9 +90,11 @@ export interface AccountUsageData {
   modelHistory1d: ModelTokenRecord[]
   modelHistory7d: ModelTokenRecord[]
   modelHistory30d: ModelTokenRecord[]
+  modelCostHistory30d: ModelCostRecord[]
   performanceHistory7d: PerformanceRecord[]
   performanceHistory15d: PerformanceRecord[]
   performanceHistory30d: PerformanceRecord[]
+  serviceStatus?: DeepSeekServiceComponent[]
 }
 
 /**
@@ -103,15 +118,33 @@ export interface AccountConfig {
   enabled: boolean
   apiKey: string
   label: string
+  budget?: number
+  authMode?: 'apikey' | 'weblogin'
+  webToken?: string
+  webUserAgent?: string
 }
 
 export interface ProviderTypeConfig {
   accounts: AccountConfig[]
 }
 
-export interface UpdateInfo {
-  version: string
-  downloaded: boolean
+export type ComponentStatus = 'operational' | 'degraded_performance' | 'partial_outage' | 'major_outage'
+export type DayStatus = 'operational' | 'degraded' | 'outage' | 'maintenance'
+
+export interface DeepSeekServiceComponent {
+  id: string
+  name: string
+  status: ComponentStatus
+  days: DayStatus[]
+  uptime: number
+}
+
+export type UpdatePhase = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'noUpdate' | 'error'
+
+export interface UpdateStatus {
+  phase: UpdatePhase
+  version?: string
+  progress?: number
 }
 
 export interface AppConfig {
@@ -129,7 +162,11 @@ export interface AppConfig {
   showEstimatedCost?: boolean
   language?: string
   theme?: 'light' | 'dark' | 'auto'
-  updateInfo?: UpdateInfo | null
+  trayDisplayRule?: TrayDisplayRule
+  autoCheckUpdate?: boolean
+  autoCheckUpdateInterval?: number
+  lastAutoCheckTime?: string | null
+  updateStatus?: UpdateStatus
 }
 
 export type ApiFormat = 'openai' | 'anthropic'
@@ -178,10 +215,9 @@ export interface ElectronAPI {
   onShowSettings: (callback: (options?: { checkUpdate?: boolean }) => void) => void
   onUsageDataUpdated: (callback: (data: UsageState) => void) => void
   notifyHoverState: (hovering: boolean) => void
-  checkForUpdate: () => Promise<{ available: boolean; version?: string }>
-  downloadUpdate: () => Promise<boolean>
-  onUpdateDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number }) => void) => void
-  onUpdateDownloaded: (callback: () => void) => void
+  checkForUpdate: () => Promise<void>
+  downloadUpdate: () => Promise<void>
+  onUpdateStatusChanged: (callback: (status: UpdateStatus) => void) => () => void
   quitAndInstall: () => Promise<void>
   onTriggerCheckUpdate: (callback: () => void) => void
   offTriggerCheckUpdate: (callback: () => void) => void
@@ -197,6 +233,10 @@ export interface ElectronAPI {
   offConcurrencyTestProgress: (callback: (progress: { index: number; total: number; success: boolean }) => void) => void
   onConcurrencyTestStream: (callback: (text: string) => void) => void
   offConcurrencyTestStream: (callback: (text: string) => void) => void
+  deepseekWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
+  deepseekWebLogout: (accountId: string) => Promise<void>
+  onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => void
+  deepseekFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<{ tokens: ModelTokenRecord[]; costs: ModelCostRecord[] }>
 }
 
 declare global {

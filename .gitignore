@@ -33,3 +33,4 @@ electron-builder.yml
 CLAUDE.md
 docs/
 scripts/
+.playwright-cli/

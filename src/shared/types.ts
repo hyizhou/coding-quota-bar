@@ -6,6 +6,10 @@ export interface AccountConfig {
   enabled: boolean;
   apiKey: string;
   label: string;    // 用户自定义备注，如 "工作号"
+  budget?: number;  // 用户自定义总额度（元），用于纯余额服务商
+  authMode?: 'apikey' | 'weblogin';  // 认证模式，默认 apikey
+  webToken?: string;                  // 加密的网页 session token（weblogin 模式）
+  webUserAgent?: string;              // 登录时的浏览器 User-Agent，用于 API 请求伪装
 }
 
 /**
@@ -22,6 +26,10 @@ export interface ProviderConfig {
   enabled: boolean;
   apiKey: string;
   _baseUrl?: string;
+  authMode?: 'apikey' | 'weblogin';
+  webToken?: string;
+  webUserAgent?: string;
+  accountId?: string;
   [key: string]: unknown;
 }
 
@@ -37,6 +45,8 @@ export interface QuotaItem {
   resetAt: string;       // 重置时间 ISO 8601
   startAt?: string;      // 周期开始时间 ISO 8601
   limitType?: string;    // 限制类型标识，如 "tokens"、"mcp"
+  hideBar?: boolean;     // 为 true 时不显示进度条，仅显示文本
+  currency?: string;     // ISO 币种代码，如 "CNY"、"USD"
 }
 
 /**
@@ -64,6 +74,19 @@ export interface ModelTokenRecord {
   date: string;
   model: string;
   used: number;
+  requests?: number;
+  cacheHitTokens?: number;
+  cacheMissTokens?: number;
+  responseTokens?: number;
+}
+
+/**
+ * 分模型每日费用记录
+ */
+export interface ModelCostRecord {
+  date: string;
+  model: string;
+  cost: number;
 }
 
 /**
@@ -117,11 +140,22 @@ export interface Provider {
 }
 
 /**
- * 更新检查结果（持久化到配置文件）
+ * 更新检查结果（仅保留在会话内存中）
  */
 export interface UpdateInfo {
   version: string;
   downloaded: boolean;
+}
+
+/**
+ * 主进程统一管理的更新状态
+ */
+export type UpdatePhase = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'noUpdate' | 'error';
+
+export interface UpdateStatus {
+  phase: UpdatePhase;
+  version?: string;
+  progress?: number; // 0-100 下载进度
 }
 
 /**
@@ -145,7 +179,9 @@ export interface AppConfig {
   language?: string;
   theme?: 'light' | 'dark' | 'auto';
   trayDisplayRule?: TrayDisplayRule;
-  updateInfo?: UpdateInfo | null;
+  autoCheckUpdate?: boolean;
+  autoCheckUpdateInterval?: number;
+  lastAutoCheckTime?: string | null;
 }
 
 /**
@@ -211,6 +247,20 @@ export const ZHIPU_CODING_MODELS = [
   'GLM-4.7',
   'GLM-4.5-Air',
 ] as const;
+
+/**
+ * DeepSeek 服务组件当前状态
+ */
+export type ComponentStatus = 'operational' | 'degraded_performance' | 'partial_outage' | 'major_outage';
+export type DayStatus = 'operational' | 'degraded' | 'outage' | 'maintenance';
+
+export interface DeepSeekServiceComponent {
+  id: string;
+  name: string;
+  status: ComponentStatus;
+  days: DayStatus[];
+  uptime: number;  // 90-day uptime percentage, e.g. 99.95
+}
 
 /**
  * 生成账户 ID（8 位随机 hex）
