@@ -1,6 +1,7 @@
 /**
  * Renderer 进程共享类型定义
  */
+import type { TrayDisplayRule } from '../../shared/types'
 
 export interface SubscriptionInfo {
   plan: string
