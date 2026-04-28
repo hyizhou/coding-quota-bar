@@ -324,7 +324,7 @@ function deepseekWebLogin(accountId: string): Promise<{ success: boolean; error?
       return;
     }
 
-    const partition = `deepseek-${accountId}`;
+    const partition = `persist:deepseek-${accountId}`;
 
     const win = new BrowserWindow({
       width: 480,
@@ -389,12 +389,6 @@ function deepseekWebLogin(accountId: string): Promise<{ success: boolean; error?
           }
         }
 
-        // 提取 token 后立即清除 session partition 中的浏览器数据
-        try {
-          const ses = session.fromPartition(partition);
-          await ses.clearStorageData();
-        } catch { /* ignore */ }
-
         win.close();
         loginWindows.delete(accountId);
 
@@ -433,6 +427,67 @@ function deepseekWebLogin(accountId: string): Promise<{ success: boolean; error?
 
     win.loadURL('https://platform.deepseek.com');
   });
+}
+
+/**
+ * 自动刷新 DeepSeek webToken：用隐藏窗口加载页面，利用持久化 cookies 提取新 token
+ */
+async function deepseekRefreshToken(accountId: string): Promise<boolean> {
+  const partition = `persist:deepseek-${accountId}`;
+  const win = new BrowserWindow({
+    width: 480,
+    height: 700,
+    show: false,
+    webPreferences: {
+      partition,
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: true,
+    },
+  });
+
+  try {
+    await win.loadURL('https://platform.deepseek.com');
+
+    // 等待 SPA 设置 localStorage 中的 token（轮询，最多 10 秒）
+    let tokenJson: string | null = null;
+    for (let i = 0; i < 20; i++) {
+      tokenJson = await win.webContents.executeJavaScript(
+        `localStorage.getItem('userToken')`
+      );
+      if (tokenJson) break;
+      await new Promise(r => setTimeout(r, 500));
+    }
+    if (!tokenJson) return false;
+
+    const parsed = JSON.parse(tokenJson);
+    const token = parsed?.value;
+    if (!token) return false;
+
+    if (configManager) {
+      const config = configManager.getConfig();
+      if (config) {
+        const providers = structuredClone(config.providers);
+        const ds = providers.deepseek as ProviderTypeConfig;
+        if (ds?.accounts) {
+          const account = ds.accounts.find(a => a.id === accountId);
+          if (account) {
+            account.webToken = token;
+            account.authMode = 'weblogin';
+            account.webUserAgent = win.webContents.getUserAgent();
+            await configManager.updateConfig({ providers });
+            console.log(`[DeepSeek] Auto-refreshed token for account ${accountId}`);
+          }
+        }
+      }
+    }
+    return true;
+  } catch (e) {
+    console.warn(`[DeepSeek] Auto-refresh token failed for ${accountId}:`, e);
+    return false;
+  } finally {
+    win.destroy();
+  }
 }
 
 /**
@@ -749,9 +804,39 @@ async function initialize(): Promise<void> {
   // 6. 启动定时刷新
   trayManager.startLoading();
 
-  scheduler.on('refreshed', () => {
+  let isAutoRefreshingToken = false;
+
+  scheduler.on('refreshed', async () => {
     // 首次获取到数据后停止加载动画
     trayManager?.stopLoading();
+
+    // 检查是否有 DeepSeek 账户 token 过期，尝试自动刷新（防重入）
+    if (!isAutoRefreshingToken) {
+      const aggregated = scheduler.getAggregatedData();
+      if (aggregated) {
+        const expiredAccounts: string[] = [];
+        for (const [key, result] of aggregated.results) {
+          if (key.startsWith('deepseek:') && result.error === 'TOKEN_EXPIRED') {
+            const accountId = key.split(':')[1];
+            expiredAccounts.push(accountId);
+          }
+        }
+        if (expiredAccounts.length > 0) {
+          isAutoRefreshingToken = true;
+          let anyRefreshed = false;
+          try {
+            for (const accountId of expiredAccounts) {
+              const ok = await deepseekRefreshToken(accountId);
+              if (ok) anyRefreshed = true;
+            }
+          } finally {
+            isAutoRefreshingToken = false;
+          }
+          if (anyRefreshed) return; // 数据由 config changed 触发的 refresh 推送
+        }
+      }
+    }
+
     // 刷新完成后主动推送数据到渲染进程
     const data = buildUsageData();
     if (popupWindow && !popupWindow.isDestroyed()) {
