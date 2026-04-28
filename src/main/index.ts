@@ -323,7 +323,7 @@ function deepseekWebLogin(accountId: string): Promise<{ success: boolean; error?
       return;
     }
 
-    const partition = `persist:deepseek-${accountId}`;
+    const partition = `deepseek-${accountId}`;
 
     const win = new BrowserWindow({
       width: 480,
@@ -340,6 +340,18 @@ function deepseekWebLogin(accountId: string): Promise<{ success: boolean; error?
 
     win.setMenuBarVisibility(false);
     loginWindows.set(accountId, win);
+
+    // 限制导航：只允许 DeepSeek 官方域名
+    const allowedOrigin = 'https://platform.deepseek.com';
+    win.webContents.on('will-navigate', (event, url) => {
+      if (!url.startsWith(allowedOrigin)) {
+        event.preventDefault();
+      }
+    });
+    win.webContents.setWindowOpenHandler(({ url }) => {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    });
 
     let resolved = false;
 
@@ -375,6 +387,12 @@ function deepseekWebLogin(accountId: string): Promise<{ success: boolean; error?
             }
           }
         }
+
+        // 提取 token 后立即清除 session partition 中的浏览器数据
+        try {
+          const ses = session.fromPartition(partition);
+          await ses.clearStorageData();
+        } catch { /* ignore */ }
 
         win.close();
         loginWindows.delete(accountId);
@@ -902,10 +920,26 @@ function setupIpcHandlers(): void {
     return buildUsageData();
   });
 
-  // 获取配置
+  // 获取配置（脱敏：apiKey 只传前4后4，webToken 只传布尔值）
   ipcMain.handle('get-config', () => {
     const config = configManager?.getConfig();
-    return config ? { ...config, isPackaged: app.isPackaged, updateStatus } : null;
+    if (!config) return null;
+    const sanitized = JSON.parse(JSON.stringify(config)) as typeof config;
+    for (const provider of Object.values(sanitized.providers)) {
+      const accounts = (provider as any).accounts;
+      if (!Array.isArray(accounts)) continue;
+      for (const account of accounts) {
+        if (account.apiKey && account.apiKey.length > 8) {
+          account.apiKey = `${account.apiKey.slice(0, 4)}${'*'.repeat(account.apiKey.length - 8)}${account.apiKey.slice(-4)}`;
+        } else if (account.apiKey) {
+          account.apiKey = '*'.repeat(account.apiKey.length);
+        }
+        (account as any).hasWebToken = !!(account as any).webToken;
+        delete (account as any).webToken;
+        delete (account as any).webUserAgent;
+      }
+    }
+    return { ...sanitized, isPackaged: app.isPackaged, updateStatus };
   });
 
   // 获取可用的 provider 列表（编译时配置）

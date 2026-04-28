@@ -120,8 +120,7 @@ export interface AccountConfig {
   label: string
   budget?: number
   authMode?: 'apikey' | 'weblogin'
-  webToken?: string
-  webUserAgent?: string
+  hasWebToken?: boolean
 }
 
 export interface ProviderTypeConfig {

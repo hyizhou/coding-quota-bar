@@ -50,6 +50,7 @@
                 class="form-input"
                 v-model="account.apiKey"
                 placeholder="API Key"
+                @input="account.apiKeyDirty = true"
               />
               <button class="icon-btn eye-btn" @click="account.showKey = !account.showKey">
                 <svg v-if="account.showKey" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -223,6 +224,7 @@ interface AccountInfo {
   budget?: number
   authMode: 'apikey' | 'weblogin'
   webTokenStatus: 'none' | 'active' | 'expired'
+  apiKeyDirty: boolean
 }
 
 interface ProviderInfo {
@@ -280,6 +282,7 @@ function addAccount(providerKey: string) {
     showKey: false,
     authMode: 'apikey',
     webTokenStatus: 'none',
+    apiKeyDirty: false,
   })
 }
 
@@ -336,7 +339,8 @@ onMounted(async () => {
         showKey: false,
         budget: (account as any).budget ?? undefined,
         authMode: account.authMode ?? 'apikey',
-        webTokenStatus: account.webToken ? 'active' : 'none',
+        webTokenStatus: account.hasWebToken ? 'active' : 'none',
+        apiKeyDirty: false,
       }))
     }
   })
@@ -414,14 +418,20 @@ async function saveConfig() {
   const providers: Record<string, ProviderTypeConfig> = {}
   for (const info of providerList.value) {
     providers[info.key] = {
-      accounts: info.accounts.map(a => ({
-        id: a.id,
-        label: a.label,
-        enabled: a.enabled,
-        apiKey: a.apiKey,
-        ...(a.budget != null ? { budget: a.budget } : {}),
-        authMode: a.authMode,
-      }))
+      accounts: info.accounts.map(a => {
+        const update: Record<string, unknown> = {
+          id: a.id,
+          label: a.label,
+          enabled: a.enabled,
+          ...(a.budget != null ? { budget: a.budget } : {}),
+          authMode: a.authMode,
+        }
+        if (a.apiKeyDirty) {
+          update.apiKey = a.apiKey
+          a.apiKeyDirty = false
+        }
+        return update
+      })
     }
   }
 
