@@ -91,9 +91,21 @@
                 {{ acc.label || $t('main.defaultAccountLabel', { n: idx + 1 }) }}
               </button>
             </div>
-            <FloatingTooltip v-if="getActiveAccount(activeProvider)?.level" position="bottom" align="right" :rows="getSubRows(getActiveAccount(activeProvider)!.subscription)">
-              <span class="provider-level">{{ getActiveAccount(activeProvider)!.level }}</span>
-            </FloatingTooltip>
+            <div class="provider-name-actions">
+              <FloatingTooltip v-if="getActiveAccount(activeProvider)?.level" position="bottom" align="right" :rows="getSubRows(getActiveAccount(activeProvider)!.subscription)">
+                <span class="provider-level">{{ getActiveAccount(activeProvider)!.level }}</span>
+              </FloatingTooltip>
+              <button
+                v-if="activeProvider.key === 'zhipu'"
+                class="icon-btn concurrency-btn"
+                :title="$t('concurrencyTest.tooltip')"
+                @click="$emit('open-concurrency-test')"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
           <template v-if="getActiveAccount(activeProvider)">
@@ -144,7 +156,7 @@ import DeepSeekServiceStatus from '../components/DeepSeekServiceStatus.vue'
 import type { ProviderUsageData, AccountUsageData, UsageState } from '../types'
 import { useTheme } from '../composables/useTheme'
 
-const emit = defineEmits<{ 'open-settings': [options?: { checkUpdate?: boolean }] }>()
+const emit = defineEmits<{ 'open-settings': [options?: { checkUpdate?: boolean }]; 'open-concurrency-test': [] }>()
 
 const { t, locale } = useI18n()
 const { isDark, toggleTheme } = useTheme()
@@ -477,6 +489,14 @@ onUnmounted(() => {
   border-color: var(--border-default);
 }
 
+.provider-name-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .provider-level {
   font-size: 10px;
   font-weight: 600;
@@ -494,6 +514,45 @@ onUnmounted(() => {
 .provider-name-row > .ft-wrapper {
   margin-left: auto;
   flex-shrink: 0;
+  line-height: 1;
+}
+
+.concurrency-btn {
+  padding: 2px !important;
+  opacity: 0.5;
+  color: var(--text-secondary);
+}
+.concurrency-btn:hover {
+  opacity: 1;
+  color: var(--color-info, #3B82F6);
+}
+
+.provider-section .quota-row-single .quota-card {
+  margin-bottom: 6px;
+}
+
+.quota-row-pair {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.quota-row-pair .quota-card {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+}
+
+.quota-row-pair .quota-label {
+  font-size: 11px;
+}
+
+.quota-row-pair .quota-percent {
+  font-size: 14px;
+}
+
+.quota-row-pair .reset-text {
+  font-size: 9px;
 }
 
 .empty-state {

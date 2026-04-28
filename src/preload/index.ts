@@ -114,6 +114,72 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeListener('trigger-check-update', callback);
   },
 
+  /**
+   * 并发测试：启动
+   */
+  concurrencyTestStart: (config: unknown) => ipcRenderer.invoke('concurrency-test-start', config),
+
+  /**
+   * 并发测试：获取历史记录
+   */
+  concurrencyTestGetHistory: (providerKey: string) => ipcRenderer.invoke('concurrency-test-history', providerKey),
+
+  /**
+   * 并发测试：监听进度
+   */
+  onConcurrencyTestProgress: (callback: (progress: { index: number; total: number; success: boolean; ttftMs: number; totalMs: number; tokenCount: number; tokensPerSec: number; error?: string }) => void) => {
+    const handler = (_: any, data: any) => callback(data);
+    (callback as any).__ipcHandler = handler;
+    ipcRenderer.on('concurrency-test-progress', handler);
+  },
+
+  /**
+   * 并发测试：取消监听进度
+   */
+  offConcurrencyTestProgress: (callback: (progress: { index: number; total: number; success: boolean }) => void) => {
+    const handler = (callback as any).__ipcHandler;
+    if (handler) ipcRenderer.removeListener('concurrency-test-progress', handler);
+  },
+
+  /**
+   * 并发测试：监听实时文字流
+   */
+  onConcurrencyTestStream: (callback: (info: { index: number; text: string }) => void) => {
+    const handler = (_: any, data: any) => callback(data);
+    (callback as any).__ipcStreamHandler = handler;
+    ipcRenderer.on('concurrency-test-stream', handler);
+  },
+
+  /**
+   * 并发测试：取消监听文字流
+   */
+  offConcurrencyTestStream: (callback: (info: { index: number; text: string }) => void) => {
+    const handler = (callback as any).__ipcStreamHandler;
+    if (handler) ipcRenderer.removeListener('concurrency-test-stream', handler);
+  },
+
+  /**
+   * 并发测试：监听首字到达
+   */
+  onConcurrencyTestFirstContent: (callback: (info: { index: number; total: number }) => void) => {
+    const handler = (_: any, data: any) => callback(data);
+    (callback as any).__ipcFirstContentHandler = handler;
+    ipcRenderer.on('concurrency-test-first-content', handler);
+  },
+
+  /**
+   * 并发测试：取消监听首字到达
+   */
+  offConcurrencyTestFirstContent: (callback: (info: { index: number; total: number }) => void) => {
+    const handler = (callback as any).__ipcFirstContentHandler;
+    if (handler) ipcRenderer.removeListener('concurrency-test-first-content', handler);
+  },
+
+  /**
+   * 并发测试：删除历史记录
+   */
+  concurrencyTestDelete: (providerKey: string, id: string) => ipcRenderer.invoke('concurrency-test-delete', providerKey, id),
+
   showFeedback: () => ipcRenderer.send('show-feedback'),
 
   /**
