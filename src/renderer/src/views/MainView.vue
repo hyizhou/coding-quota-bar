@@ -46,6 +46,13 @@
           <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
         </svg>
       </div>
+      <div
+        v-if="providers.length > 1"
+        class="provider-arrow-hit"
+        :class="{ 'arrow-hidden': showTabs }"
+        @mouseenter="onTabsAreaEnter"
+        @mouseleave="onTabsAreaLeave"
+      ></div>
     </header>
     <div v-if="providers.length > 1" class="provider-tabs" :class="{ expanded: showTabs }" @mouseenter="onTabsAreaEnter" @mouseleave="onTabsAreaLeave" @wheel.passive="onTabsWheel">
       <button
@@ -373,6 +380,20 @@ onUnmounted(() => {
 
 .provider-arrow.arrow-hidden {
   opacity: 0 !important;
+  pointer-events: none;
+}
+
+.provider-arrow-hit {
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 180px;
+  height: 14px;
+  z-index: 19;
+}
+
+.provider-arrow-hit.arrow-hidden {
   pointer-events: none;
 }
 
