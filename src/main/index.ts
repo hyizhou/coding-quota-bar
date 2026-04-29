@@ -143,19 +143,46 @@ async function initialize(): Promise<void> {
   scheduler.on('refreshed', async () => {
     trayManager?.stopLoading();
 
-    // 自动刷新 DeepSeek token；MiMo 已由 Provider 内部处理，此处仅标记过期
+    // 自动刷新 DeepSeek token；同步 MiMo 登录状态
     if (!isAutoRefreshingToken) {
       const aggregated = scheduler!.getAggregatedData();
       if (aggregated) {
         const expiredAccounts: Array<{ provider: string; accountId: string }> = [];
+        const mimoSuccessAccounts: string[] = [];
         for (const [key, result] of aggregated.results) {
+          const [provider, accountId] = key.split(':');
           if (result.error === 'TOKEN_EXPIRED') {
-            const [provider, accountId] = key.split(':');
             if (provider === 'deepseek' || provider === 'mimo') {
               expiredAccounts.push({ provider, accountId });
             }
+          } else if (provider === 'mimo' && !result.error) {
+            // MiMo 成功获取数据，记录需要同步登录状态的账户
+            mimoSuccessAccounts.push(accountId);
           }
         }
+
+        // MiMo 成功获取数据时同步 mimoLoggedIn 状态
+        if (mimoSuccessAccounts.length > 0) {
+          const cfg = configManager?.getConfig();
+          if (cfg) {
+            const providers = structuredClone(cfg.providers);
+            const mimo = providers.mimo as import('../shared/types').ProviderTypeConfig;
+            if (mimo?.accounts) {
+              let needSave = false;
+              for (const accountId of mimoSuccessAccounts) {
+                const account = mimo.accounts.find(a => a.id === accountId);
+                if (account && !account.mimoLoggedIn) {
+                  account.mimoLoggedIn = true;
+                  needSave = true;
+                }
+              }
+              if (needSave) {
+                await configManager!.updateConfig({ providers });
+              }
+            }
+          }
+        }
+
         if (expiredAccounts.length > 0) {
           isAutoRefreshingToken = true;
           let anyRefreshed = false;
