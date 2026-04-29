@@ -45,6 +45,7 @@
     "perfAvgSuccessRate": "Avg Rate",
     "updateAvailableBanner": "New version v{version} available, click to view",
     "deepseekTokenExpired": "DeepSeek login expired, please re-login",
+    "mimoTokenExpired": "MiMo login expired, please re-login",
     "reloginBtn": "Re-login",
     "ttCacheHit": "Cache",
     "ttCacheMiss": "Input",
@@ -112,6 +113,7 @@
     "authModeApikeyHint": "Balance only, usage and cost details not supported",
     "authModeWebloginHint": "Query balance, usage and cost details via web API",
     "webLoginBtn": "Login to DeepSeek",
+    "mimoLoginBtn": "Login to MiMo",
     "webLoginActive": "Logged In",
     "webLogoutBtn": "Log Out",
     "webTokenExpired": "Login expired, click to re-login"
@@ -141,7 +143,10 @@
     "statusOperational": "Operational",
     "statusDegraded": "Degraded",
     "statusPartialOutage": "Partial Outage",
-    "statusMajorOutage": "Major Outage"
+    "statusMajorOutage": "Major Outage",
+    "mimoTotalUsage": "Plan Total Usage",
+    "mimoMonthlyUsage": "Monthly Usage",
+    "mimoCompensation": "Compensation"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",
@@ -157,7 +162,8 @@
     "zhipu": "Z AI",
     "minimax": "MiniMax",
     "kimi": "Kimi",
-    "deepseek": "DeepSeek"
+    "deepseek": "DeepSeek",
+    "mimo": "MiMo"
   },
   "concurrencyTest": {
     "title": "Concurrency Test",

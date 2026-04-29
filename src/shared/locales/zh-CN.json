@@ -45,6 +45,7 @@
     "perfAvgSuccessRate": "平均成功率",
     "updateAvailableBanner": "发现新版本 v{version}，点击查看",
     "deepseekTokenExpired": "DeepSeek 登录已过期，请重新登录",
+    "mimoTokenExpired": "MiMo 登录已过期，请重新登录",
     "reloginBtn": "重新登录",
     "ttCacheHit": "缓存",
     "ttCacheMiss": "输入",
@@ -112,6 +113,7 @@
     "authModeApikeyHint": "仅查询余额，不支持用量和费用明细",
     "authModeWebloginHint": "通过网页接口查询余额、用量和费用明细",
     "webLoginBtn": "登录 DeepSeek",
+    "mimoLoginBtn": "登录 MiMo 平台",
     "webLoginActive": "已登录",
     "webLogoutBtn": "退出登录",
     "webTokenExpired": "登录已过期，点击重新登录"
@@ -141,7 +143,10 @@
     "statusOperational": "运行正常",
     "statusDegraded": "性能下降",
     "statusPartialOutage": "部分故障",
-    "statusMajorOutage": "重大故障"
+    "statusMajorOutage": "重大故障",
+    "mimoTotalUsage": "套餐总用量",
+    "mimoMonthlyUsage": "本月用量",
+    "mimoCompensation": "补偿额度"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",
@@ -157,7 +162,8 @@
     "zhipu": "智谱",
     "minimax": "MiniMax",
     "kimi": "Kimi",
-    "deepseek": "DeepSeek"
+    "deepseek": "DeepSeek",
+    "mimo": "MiMo"
   },
   "concurrencyTest": {
     "title": "并发测试",

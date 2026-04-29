@@ -91,11 +91,15 @@ export function setDataTransformDeps(deps: {
 function hasEnabledProviders(): boolean {
   const config = _getConfigManager()?.getConfig();
   if (!config) return false;
-  return Object.values(config.providers).some(p => {
+  return Object.entries(config.providers).some(([type, p]) => {
     const accounts = (p as ProviderTypeConfig).accounts;
     return Array.isArray(accounts) && accounts.some(a => {
       if (!a.enabled) return false;
-      if (a.authMode === 'weblogin') return !!a.webToken?.trim();
+      if (a.authMode === 'weblogin') {
+        // MiMo 使用 Cookie 认证，不需要 webToken
+        if (type === 'mimo') return true;
+        return !!a.webToken?.trim();
+      }
       return !!a.apiKey?.trim();
     });
   });

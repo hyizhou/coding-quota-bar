@@ -19,6 +19,7 @@ import {
   showFeedbackWindow,
 } from './popup-manager';
 import { deepseekWebLogin, deepseekWebLogout } from './deepseek-auth';
+import { mimoWebLogin, mimoWebLogout } from './mimo-auth';
 import { checkForUpdate, downloadUpdate, getUpdateStatus } from './update-manager';
 
 let _getConfigManager: () => ConfigManager | null = () => null;
@@ -203,5 +204,15 @@ export function setupIpcHandlers(): void {
       console.warn('[DeepSeek] Failed to fetch month usage:', e);
       return empty;
     }
+  });
+
+  // MiMo 网页登录
+  ipcMain.handle('mimo-web-login', async (_, accountId: string) => {
+    return await mimoWebLogin(accountId);
+  });
+
+  // MiMo 网页登出
+  ipcMain.handle('mimo-web-logout', async (_, accountId: string) => {
+    await mimoWebLogout(accountId);
   });
 }

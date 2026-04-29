@@ -3,6 +3,7 @@ import { ZhipuProvider } from '../providers/zhipu';
 import { MiniMaxProvider } from '../providers/minimax';
 import { KimiProvider } from '../providers/kimi';
 import { DeepSeekProvider } from '../providers/deepseek';
+import { MiMoProvider } from '../providers/mimo';
 import buildConfig from '../../app.build';
 
 /**
@@ -13,6 +14,7 @@ const PROVIDER_CLASSES = {
   minimax: MiniMaxProvider,
   kimi: KimiProvider,
   deepseek: DeepSeekProvider,
+  mimo: MiMoProvider,
 } as const;
 
 /**
@@ -78,7 +80,8 @@ export class ProviderLoader {
         if (authMode === 'apikey' && !account.apiKey?.trim()) {
           continue;
         }
-        if (authMode === 'weblogin' && !account.webToken?.trim()) {
+        // MiMo 使用 Cookie 认证，不需要 webToken
+        if (authMode === 'weblogin' && type !== 'mimo' && !account.webToken?.trim()) {
           continue;
         }
 

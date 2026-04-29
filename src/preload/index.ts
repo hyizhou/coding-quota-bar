@@ -192,4 +192,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   deepseekFetchMonthUsage: (accountId: string, year: number, month: number) =>
     ipcRenderer.invoke('deepseek-fetch-month-usage', accountId, year, month),
+
+  /**
+   * MiMo 网页登录
+   */
+  mimoWebLogin: (accountId: string) => ipcRenderer.invoke('mimo-web-login', accountId),
+  mimoWebLogout: (accountId: string) => ipcRenderer.invoke('mimo-web-logout', accountId),
+  onMimoWebLoginSuccess: (callback: (accountId: string) => void) => {
+    ipcRenderer.on('mimo-web-login-success', (_, accountId) => callback(accountId));
+  },
 });

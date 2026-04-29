@@ -10,6 +10,7 @@ export interface AccountConfig {
   authMode?: 'apikey' | 'weblogin';  // 认证模式，默认 apikey
   webToken?: string;                  // 加密的网页 session token（weblogin 模式）
   webUserAgent?: string;              // 登录时的浏览器 User-Agent，用于 API 请求伪装
+  mimoLoggedIn?: boolean;             // MiMo 网页登录状态（Cookie 认证，无需 webToken）
 }
 
 /**

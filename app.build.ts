@@ -9,5 +9,6 @@ export default {
     { key: 'minimax', available: true, envVar: 'MINIMAX_API_KEY', baseUrl: 'https://www.minimaxi.com', websiteUrl: 'https://www.minimaxi.com/' },
     { key: 'deepseek', available: true, envVar: 'DEEPSEEK_API_KEY', baseUrl: 'https://api.deepseek.com', websiteUrl: 'https://platform.deepseek.com/' },
     { key: 'kimi', available: false, envVar: 'KIMI_API_KEY', baseUrl: '', websiteUrl: '' },
+    { key: 'mimo', available: true, envVar: '', baseUrl: 'https://platform.xiaomimimo.com', websiteUrl: 'https://platform.xiaomimimo.com/' },
   ],
 } as const;

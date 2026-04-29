@@ -29,6 +29,9 @@ import {
   deepseekRefreshToken,
 } from './deepseek-auth';
 import {
+  setMimoAuthDeps,
+} from './mimo-auth';
+import {
   setDataTransformDeps,
   buildUsageData,
 } from './data-transform';
@@ -81,6 +84,7 @@ async function initialize(): Promise<void> {
   setPopupManagerDeps({ getTrayManager, getConfigManager });
   setUpdateManagerDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setDeepseekAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
+  setMimoAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setDataTransformDeps({ getConfigManager, getScheduler });
   setIpcHandlersDeps({ getConfigManager, getScheduler });
 
@@ -139,24 +143,40 @@ async function initialize(): Promise<void> {
   scheduler.on('refreshed', async () => {
     trayManager?.stopLoading();
 
-    // 自动刷新 DeepSeek token
+    // 自动刷新 DeepSeek token；MiMo 已由 Provider 内部处理，此处仅标记过期
     if (!isAutoRefreshingToken) {
       const aggregated = scheduler!.getAggregatedData();
       if (aggregated) {
-        const expiredAccounts: string[] = [];
+        const expiredAccounts: Array<{ provider: string; accountId: string }> = [];
         for (const [key, result] of aggregated.results) {
-          if (key.startsWith('deepseek:') && result.error === 'TOKEN_EXPIRED') {
-            const accountId = key.split(':')[1];
-            expiredAccounts.push(accountId);
+          if (result.error === 'TOKEN_EXPIRED') {
+            const [provider, accountId] = key.split(':');
+            if (provider === 'deepseek' || provider === 'mimo') {
+              expiredAccounts.push({ provider, accountId });
+            }
           }
         }
         if (expiredAccounts.length > 0) {
           isAutoRefreshingToken = true;
           let anyRefreshed = false;
           try {
-            for (const accountId of expiredAccounts) {
-              const ok = await deepseekRefreshToken(accountId);
-              if (ok) anyRefreshed = true;
+            for (const { provider, accountId } of expiredAccounts) {
+              if (provider === 'deepseek') {
+                const ok = await deepseekRefreshToken(accountId);
+                if (ok) anyRefreshed = true;
+              } else if (provider === 'mimo') {
+                // Provider 内部已尝试刷新页面重试，仍 TOKEN_EXPIRED 说明 session 真过期
+                const cfg = configManager?.getConfig();
+                if (cfg) {
+                  const providers = structuredClone(cfg.providers);
+                  const mimo = providers.mimo as import('../shared/types').ProviderTypeConfig;
+                  const account = mimo?.accounts?.find(a => a.id === accountId);
+                  if (account) {
+                    account.mimoLoggedIn = false;
+                    await configManager!.updateConfig({ providers });
+                  }
+                }
+              }
             }
           } finally {
             isAutoRefreshingToken = false;
