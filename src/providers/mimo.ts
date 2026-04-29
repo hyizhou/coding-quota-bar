@@ -133,12 +133,11 @@ export class MiMoProvider implements Provider {
     const planLevel = PLAN_LEVEL_MAP[detail.planCode] || detail.planName;
     const quotas: QuotaItem[] = [];
 
-    if (planItem) {
-      quotas.push({ label: 'quota.mimoTotalUsage', used: planItem.used, total: planItem.limit, usageRate: planItem.percent * 100, resetAt: detail.currentPeriodEnd });
-    }
+    // 本月用量（主指标）
     if (monthItem) {
       quotas.push({ label: 'quota.mimoMonthlyUsage', used: monthItem.used, total: monthItem.limit, usageRate: monthItem.percent * 100, resetAt: detail.currentPeriodEnd });
     }
+    // 补偿额度（如果有）
     const compItem = usage.usage.items.find(i => i.name === 'compensation_total_token');
     if (compItem && compItem.limit > 0) {
       quotas.push({ label: 'quota.mimoCompensation', used: compItem.used, total: compItem.limit, usageRate: compItem.percent * 100, resetAt: detail.currentPeriodEnd });
