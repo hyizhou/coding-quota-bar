@@ -172,7 +172,7 @@
     "model": "模型",
     "concurrency": "并发数",
     "start": "开始测试",
-    "running": "测试中... ({completed}/{total} 已返回)",
+    "running": "测试中... ({completed}/{total} 已完成)",
     "results": "测试结果",
     "success": "成功",
     "fail": "失败",

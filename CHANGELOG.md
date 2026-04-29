@@ -1,10 +1,16 @@
 # Changelog
+## [1.4.0] - 2026-04-29
+### Added
+- 添加 XiaoMi MiMo 平台支持
+
+### Fixed
+- 修复并发测试中 token 计算错误的问题
+
 ## [1.3.2] - 2026-04-28
 ### Fixed
 - 安全修复：
   - 渲染器不再能获得完整key，增强安全性
   - 登录窗口添加导航白名单限制，仅允许 platform.deepseek.com
-  - Session partition 改为内存模式，提取 token 后立即清除浏览器数据
 
 ### Added
 - 添加智谱Coding Plan接口并发测试功能，终于可以知道官方到底给了几个并发

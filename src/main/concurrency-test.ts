@@ -8,19 +8,22 @@ import type { ApiFormat, ConcurrencyTestConfig, ConcurrencyTestResult, RequestMe
  * 累计统计
  */
 interface StreamStats {
-  firstChunkTime: number;
+  firstTokenTime: number;
+  hasReceivedFirstToken: boolean;
   hasReceivedContent: boolean;
   estimatedTokens: number;
+  apiCompletionTokens?: number;
 }
 
 function newStats(): StreamStats {
-  return { firstChunkTime: 0, hasReceivedContent: false, estimatedTokens: 0 };
+  return { firstTokenTime: 0, hasReceivedFirstToken: false, hasReceivedContent: false, estimatedTokens: 0 };
 }
 
-function markFirstContent(stats: StreamStats): void {
-  if (!stats.hasReceivedContent) {
-    stats.firstChunkTime = performance.now();
-    stats.hasReceivedContent = true;
+/** 标记首 token（思维链或正文，谁先到算谁） */
+function markFirstToken(stats: StreamStats): void {
+  if (!stats.hasReceivedFirstToken) {
+    stats.firstTokenTime = performance.now();
+    stats.hasReceivedFirstToken = true;
   }
 }
 
@@ -71,20 +74,9 @@ interface OpenAIStreamChunk {
 }
 
 /**
- * Anthropic 格式的 SSE event
+ * Anthropic 格式的 SSE event（通用结构，按需取字段）
  */
-interface AnthropicContentDelta {
-  type: 'content_block_delta';
-  delta?: { type?: string; text?: string };
-}
-
-interface AnthropicMessageDelta {
-  type: 'message_delta';
-  delta?: { stop_reason?: string };
-  usage?: { output_tokens?: number };
-}
-
-type AnthropicSSEEvent = AnthropicContentDelta | { type: string };
+type AnthropicSSEEvent = { type: string; [key: string]: any };
 
 /**
  * 单次流式请求结果
@@ -274,7 +266,7 @@ function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text:
     const body = JSON.stringify({
       model,
       messages: buildMessages(),
-      max_tokens: 512,
+      max_tokens: 4096,
       stream: true,
       stream_options: { include_usage: true },
     });
@@ -323,21 +315,51 @@ function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text:
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
+        let currentEventType = '';
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed || trimmed === 'data: [DONE]') continue;
+
+          if (trimmed.startsWith('event: ')) {
+            currentEventType = trimmed.slice(7).trim();
+            continue;
+          }
+
           if (!trimmed.startsWith('data: ')) continue;
 
           try {
             const parsed: OpenAIStreamChunk = JSON.parse(trimmed.slice(6));
-            const delta = parsed.choices?.[0]?.delta;
-            if (delta?.content) {
+
+            // SSE error 事件：直接透传原始内容
+            if (currentEventType === 'error') {
+              safeResolve(makeError(startTime, trimmed.slice(6)));
+              return;
+            }
+
+            const delta = parsed.choices?.[0]?.delta as Record<string, any> | undefined;
+            // 思维链 token（reasoning_content / reasoning），实时输出
+            const reasoningText = delta?.reasoning_content || delta?.reasoning;
+            if (reasoningText) {
+              markFirstToken(stats);
               if (!stats.hasReceivedContent) {
-                markFirstContent(stats);
+                stats.hasReceivedContent = true;
+                onFirstContent?.();
+              }
+              onTextChunk?.(reasoningText);
+            }
+            // 正文 token
+            if (delta?.content) {
+              markFirstToken(stats);
+              if (!stats.hasReceivedContent) {
+                stats.hasReceivedContent = true;
                 onFirstContent?.();
               }
               stats.estimatedTokens += estimateTokens(delta.content);
               onTextChunk?.(delta.content);
+            }
+            // API 返回的真实 token 统计
+            if (parsed.usage?.completion_tokens != null) {
+              stats.apiCompletionTokens = parsed.usage.completion_tokens;
             }
           } catch {
             // 忽略解析错误
@@ -392,10 +414,10 @@ function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (te
 
     const body = JSON.stringify({
       model,
-      max_tokens: 512,
+      max_tokens: 4096,
       stream: true,
       messages: buildMessages(),
-      thinking: { type: 'disabled' },
+      thinking: { type: 'enabled', budget_tokens: 1024 },
     });
 
     const url = new URL(`${API_BASE_ANTHROPIC}/v1/messages`);
@@ -445,29 +467,61 @@ function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (te
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
+        let currentEventType = '';
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed) continue;
 
           if (trimmed.startsWith('event: ')) {
+            currentEventType = trimmed.slice(7).trim();
             continue;
           }
 
           if (!trimmed.startsWith('data: ')) continue;
 
+          // SSE error 事件：直接透传原始内容
+          if (currentEventType === 'error') {
+            safeResolve(makeError(startTime, trimmed.slice(6)));
+            return;
+          }
+
+          if (trimmed === 'data: [DONE]') continue;
+
           try {
             const parsed: AnthropicSSEEvent = JSON.parse(trimmed.slice(6));
 
             if (parsed.type === 'content_block_delta') {
-              const text = (parsed as AnthropicContentDelta).delta?.text;
-              if (text) {
+              const delta = parsed.delta as Record<string, any> | undefined;
+              // 思维链
+              const thinkingText = delta?.thinking;
+              if (thinkingText) {
+                markFirstToken(stats);
                 if (!stats.hasReceivedContent) {
-                  markFirstContent(stats);
+                  stats.hasReceivedContent = true;
+                  onFirstContent?.();
+                }
+                onTextChunk?.(thinkingText);
+              }
+              // 正文
+              const text = delta?.text;
+              if (text) {
+                markFirstToken(stats);
+                if (!stats.hasReceivedContent) {
+                  stats.hasReceivedContent = true;
                   onFirstContent?.();
                 }
                 stats.estimatedTokens += estimateTokens(text);
                 onTextChunk?.(text);
               }
+            }
+            if (parsed.type === 'message_delta') {
+              const usage = parsed.usage as { output_tokens?: number } | undefined;
+              if (usage?.output_tokens != null) {
+                stats.apiCompletionTokens = (stats.apiCompletionTokens ?? 0) + usage.output_tokens;
+              }
+            }
+            if (parsed.type === 'message_start') {
+              // message_start 用于获取 input_tokens，此处不需要处理
             }
           } catch {
             // 忽略解析错误
@@ -506,13 +560,13 @@ function makeStreamResult(
   stats: StreamStats,
 ): StreamResult {
   const totalMs = performance.now() - startTime;
-  if (!stats.hasReceivedContent) {
+  if (!stats.hasReceivedFirstToken) {
     return { success: false, ttftMs: 0, totalMs: Math.round(totalMs), tokenCount: 0, tokensPerSec: 0, error: 'No content received (possibly rate limited)' };
   }
-  const ttftMs = stats.firstChunkTime - startTime;
-  const outputMs = totalMs - ttftMs;
-  const tokenCount = finalTokenCount(stats);
-  const tokensPerSec = outputMs > 0 ? (tokenCount / outputMs) * 1000 : 0;
+  const ttftMs = stats.firstTokenTime - startTime;
+  const streamMs = totalMs - ttftMs;
+  const tokenCount = stats.apiCompletionTokens ?? finalTokenCount(stats);
+  const tokensPerSec = streamMs > 0 ? (tokenCount / streamMs) * 1000 : 0;
   return {
     success: true,
     ttftMs: Math.round(ttftMs),

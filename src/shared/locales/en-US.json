@@ -172,7 +172,7 @@
     "model": "Model",
     "concurrency": "Concurrency",
     "start": "Start Test",
-    "running": "Testing... ({completed}/{total} returned)",
+    "running": "Testing... ({completed}/{total} completed)",
     "results": "Results",
     "success": "Success",
     "fail": "Fail",
