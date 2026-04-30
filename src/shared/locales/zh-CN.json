@@ -150,7 +150,11 @@
     "mimoTokenUsage": "Token 用量",
     "mimoInputToken": "输入",
     "mimoOutputToken": "输出",
-    "mimoCacheToken": "缓存"
+    "mimoCacheToken": "缓存",
+    "mimoBalance": "账户余额",
+    "mimoGiftBalance": "赠送",
+    "mimoCashBalance": "现金",
+    "mimoFrozenBalance": "冻结"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",

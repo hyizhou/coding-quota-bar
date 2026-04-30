@@ -53,6 +53,7 @@ export interface AccountDisplayData {
   performanceHistory15d: SharedPerformanceRecord[];
   performanceHistory30d: SharedPerformanceRecord[];
   serviceStatus?: import('../shared/types').DeepSeekServiceComponent[];
+  balance?: { total: string; gift: string; cash: string; frozen: string; currency: string };
 }
 
 /**
@@ -204,6 +205,7 @@ function convertAccountData(
     performanceHistory15d: mapPerformanceHistory('performanceHistory15d'),
     performanceHistory30d: mapPerformanceHistory('performanceHistory30d'),
     serviceStatus: (result.details?.serviceStatus as import('../shared/types').DeepSeekServiceComponent[]) ?? undefined,
+    balance: (result.details?.balance as { total: string; gift: string; cash: string; frozen: string; currency: string }) ?? undefined,
   };
 }
 

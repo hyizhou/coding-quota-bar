@@ -37,6 +37,16 @@ interface MiMoUsageDailyItem {
   currency: string;
 }
 
+interface MiMoBalanceData {
+  balance: string;
+  frozenBalance: string;
+  currency: string;
+  overdraftLimit: string;
+  remainingOverdraftLimit: string;
+  giftBalance: string;
+  cashBalance: string;
+}
+
 interface MiMoApiResponse<T> {
   code: number;
   message: string;
@@ -94,6 +104,18 @@ async function createLoadedWindow(accountId: string): Promise<BrowserWindow> {
     webPreferences: { partition, contextIsolation: true, nodeIntegration: false, webSecurity: true },
   });
 
+  // 屏蔽无关请求（小米统计等），避免 SSL 错误噪音输出到主进程控制台
+  win.webContents.session.webRequest.onBeforeRequest((details, callback) => {
+    if (details.url.includes('tracking.miui.com')) {
+      callback({ cancel: true });
+    } else {
+      callback({});
+    }
+  });
+
+  // 屏蔽页面 JS 的 console 输出
+  win.webContents.on('console-message', () => {});
+
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Page load timeout')), 15000);
     const onClosed = () => { clearTimeout(timer); reject(new Error('Window destroyed')); };
@@ -150,16 +172,17 @@ export class MiMoProvider implements Provider {
     if (win.isDestroyed()) return null;
     try {
       const now = new Date();
-      const [detailResp, usageResp, dailyResp] = await Promise.all([
+      const [detailResp, usageResp, dailyResp, balanceResp] = await Promise.all([
         fetchApiInPage<MiMoDetailData>(win, '/api/v1/tokenPlan/detail'),
         fetchApiInPage<MiMoUsageData>(win, '/api/v1/tokenPlan/usage'),
         postApiInPage<MiMoUsageDailyItem[]>(win, '/api/v1/usage/detail/list', {
           year: now.getFullYear(),
           month: now.getMonth() + 1,
         }).catch(() => null),
+        fetchApiInPage<MiMoBalanceData>(win, '/api/v1/balance').catch(() => null),
       ]);
       if (detailResp.code !== 0 || usageResp.code !== 0) return null;
-      return this.transformResult(detailResp.data, usageResp.data, dailyResp?.data);
+      return this.transformResult(detailResp.data, usageResp.data, dailyResp?.data, balanceResp?.data);
     } catch {
       return null;
     }
@@ -169,6 +192,7 @@ export class MiMoProvider implements Provider {
     detail: MiMoDetailData,
     usage: MiMoUsageData,
     dailyItems?: MiMoUsageDailyItem[],
+    balanceData?: MiMoBalanceData,
   ): UsageResult {
     const planItem = usage.usage.items[0];
     const monthItem = usage.monthUsage.items[0];
@@ -211,25 +235,37 @@ export class MiMoProvider implements Provider {
         responseTokens: d.output,
       }));
 
+    const details: Record<string, unknown> = {
+      quotas,
+      subscription: {
+        plan: planLevel,
+        status: detail.expired ? 'EXPIRED' : 'VALID',
+        currentRenewTime: '',
+        nextRenewTime: detail.currentPeriodEnd,
+        autoRenew: detail.enableAutoRenew,
+        actualPrice: 0,
+        renewPrice: 0,
+        billingCycle: '',
+      },
+      modelHistory30d,
+    };
+
+    if (balanceData) {
+      details.balance = {
+        total: balanceData.balance,
+        gift: balanceData.giftBalance,
+        cash: balanceData.cashBalance,
+        frozen: balanceData.frozenBalance,
+        currency: balanceData.currency,
+      };
+    }
+
     return {
       used: planItem?.used ?? 0,
       total: planItem?.limit ?? 0,
       expiresAt: detail.currentPeriodEnd,
       level: planLevel,
-      details: {
-        quotas,
-        subscription: {
-          plan: planLevel,
-          status: detail.expired ? 'EXPIRED' : 'VALID',
-          currentRenewTime: '',
-          nextRenewTime: detail.currentPeriodEnd,
-          autoRenew: detail.enableAutoRenew,
-          actualPrice: 0,
-          renewPrice: 0,
-          billingCycle: '',
-        },
-        modelHistory30d,
-      },
+      details,
     };
   }
 }

@@ -150,7 +150,11 @@
     "mimoTokenUsage": "Token Usage",
     "mimoInputToken": "Input",
     "mimoOutputToken": "Output",
-    "mimoCacheToken": "Cache"
+    "mimoCacheToken": "Cache",
+    "mimoBalance": "Account Balance",
+    "mimoGiftBalance": "Gift",
+    "mimoCashBalance": "Cash",
+    "mimoFrozenBalance": "Frozen"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",

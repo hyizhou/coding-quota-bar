@@ -15,6 +15,25 @@
     </div>
   </div>
 
+  <!-- 账户余额 -->
+  <div class="balance-card card" v-if="account.balance">
+    <div class="balance-header">
+      <span class="balance-label">{{ t('quota.mimoBalance') }}</span>
+      <span class="balance-value">{{ currencySymbol }}{{ account.balance.total }}</span>
+    </div>
+    <div class="balance-detail" v-if="hasBalanceDetail">
+      <span v-if="parseFloat(account.balance.gift) > 0" class="balance-item">
+        {{ t('quota.mimoGiftBalance') }} {{ currencySymbol }}{{ account.balance.gift }}
+      </span>
+      <span v-if="parseFloat(account.balance.cash) > 0" class="balance-item">
+        {{ t('quota.mimoCashBalance') }} {{ currencySymbol }}{{ account.balance.cash }}
+      </span>
+      <span v-if="parseFloat(account.balance.frozen) > 0" class="balance-item frozen">
+        {{ t('quota.mimoFrozenBalance') }} {{ currencySymbol }}{{ account.balance.frozen }}
+      </span>
+    </div>
+  </div>
+
   <!-- 本月用量（主指标） -->
   <div class="credits-card" v-if="monthlyQuota">
     <div class="credits-top">
@@ -88,6 +107,17 @@ const compensationQuotas = computed(() =>
 )
 
 const hasModelHistory = computed(() => props.account.modelHistory30d.length > 0)
+
+const currencySymbol = computed(() => {
+  const c = props.account.balance?.currency ?? props.account.currency
+  return c === 'CNY' ? '¥' : '$'
+})
+
+const hasBalanceDetail = computed(() => {
+  const b = props.account.balance
+  if (!b) return false
+  return parseFloat(b.gift) > 0 || parseFloat(b.cash) > 0 || parseFloat(b.frozen) > 0
+})
 
 function formatCredits(n: number): string {
   return n.toLocaleString()
@@ -330,6 +360,45 @@ const chartOpts = computed(() => ({
   background: rgba(156, 163, 175, 0.1);
   color: var(--text-tertiary);
   border: 1px solid rgba(156, 163, 175, 0.2);
+}
+
+.balance-card {
+  margin-bottom: 6px;
+}
+
+.balance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.balance-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.balance-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.balance-detail {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.balance-item {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.balance-item.frozen {
+  color: var(--text-tertiary);
 }
 
 .credits-card {
