@@ -40,16 +40,44 @@
       :color="q.color"
     />
   </div>
+
+  <!-- 按月 Token 用量图表 -->
+  <div v-if="hasModelHistory" class="usage-stats">
+    <div class="stats-tabs-row">
+      <span class="chart-title">{{ t('quota.mimoTokenUsage') }}</span>
+    </div>
+    <div class="model-chart-card">
+      <div class="model-chart-wrapper">
+        <Bar :data="chartData" :options="chartOpts" />
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Bar } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Tooltip,
+  Filler
+} from 'chart.js'
 import QuotaCard from './QuotaCard.vue'
-import type { AccountUsageData, QuotaItem } from '../types'
+import type { AccountUsageData, ModelTokenRecord } from '../types'
+import { useTheme } from '../composables/useTheme'
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Filler)
+
+const { t, locale } = useI18n()
+const { isDark } = useTheme()
 
 const props = defineProps<{ account: AccountUsageData }>()
-const { t, locale } = useI18n()
 
 const monthlyQuota = computed(() =>
   props.account.quotas.find(q => q.label === 'quota.mimoMonthlyUsage')
@@ -59,8 +87,16 @@ const compensationQuotas = computed(() =>
   props.account.quotas.filter(q => q.label === 'quota.mimoCompensation')
 )
 
+const hasModelHistory = computed(() => props.account.modelHistory30d.length > 0)
+
 function formatCredits(n: number): string {
   return n.toLocaleString()
+}
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return `${n}`
 }
 
 function formatDate(iso: string): string {
@@ -84,6 +120,167 @@ function formatReset(iso: string): string {
     return d.toLocaleDateString(locale.value, { month: 'short', day: 'numeric' })
   } catch { return '' }
 }
+
+// 按月图表：每天一根堆叠柱子（Cache Hit / Cache Miss / Output）+ Requests 折线
+interface DayDetail {
+  cacheHit: number
+  cacheMiss: number
+  output: number
+  requests: number
+}
+
+const now = new Date()
+const year = now.getFullYear()
+const month = now.getMonth() + 1
+const lastDay = now.getDate()
+
+const dayLabels: string[] = []
+const dayKeys: string[] = []
+const monthStr = String(month).padStart(2, '0')
+for (let d = 1; d <= lastDay; d++) {
+  const ds = String(d).padStart(2, '0')
+  dayKeys.push(`${year}-${monthStr}-${ds}`)
+  dayLabels.push(ds)
+}
+
+const dayMap = computed(() => {
+  const map = new Map<string, DayDetail>()
+  for (const r of props.account.modelHistory30d) {
+    const day = r.date.slice(0, 10)
+    const existing = map.get(day) || { cacheHit: 0, cacheMiss: 0, output: 0, requests: 0 }
+    existing.cacheHit += r.cacheHitTokens ?? 0
+    existing.cacheMiss += r.cacheMissTokens ?? 0
+    existing.output += r.responseTokens ?? 0
+    existing.requests += r.requests ?? 0
+    map.set(day, existing)
+  }
+  return map
+})
+
+const cacheHitArr = computed(() => dayKeys.map(k => dayMap.value.get(k)?.cacheHit ?? 0))
+const cacheMissArr = computed(() => dayKeys.map(k => dayMap.value.get(k)?.cacheMiss ?? 0))
+const outputArr = computed(() => dayKeys.map(k => dayMap.value.get(k)?.output ?? 0))
+const requestsArr = computed(() => dayKeys.map(k => dayMap.value.get(k)?.requests ?? 0))
+
+const chartData = computed(() => ({
+  labels: dayLabels,
+  datasets: [
+    {
+      type: 'bar' as const,
+      label: t('main.ttCacheHit'),
+      data: cacheHitArr.value,
+      backgroundColor: '#A0DCFD',
+      hoverBackgroundColor: '#A0DCFD',
+      borderRadius: 2,
+      borderSkipped: false,
+      yAxisID: 'y',
+      stack: 'tokens',
+      order: 4,
+    },
+    {
+      type: 'bar' as const,
+      label: t('main.ttCacheMiss'),
+      data: cacheMissArr.value,
+      backgroundColor: '#60B3FE',
+      hoverBackgroundColor: '#60B3FE',
+      borderRadius: 0,
+      borderSkipped: false,
+      yAxisID: 'y',
+      stack: 'tokens',
+      order: 3,
+    },
+    {
+      type: 'bar' as const,
+      label: t('main.ttOutput'),
+      data: outputArr.value,
+      backgroundColor: '#0C70F3',
+      hoverBackgroundColor: '#0C70F3',
+      borderRadius: 0,
+      borderSkipped: false,
+      yAxisID: 'y',
+      stack: 'tokens',
+      order: 2,
+    },
+    {
+      type: 'line' as const,
+      label: 'Requests',
+      data: requestsArr.value,
+      borderColor: 'rgba(16, 185, 129, 0.45)',
+      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      borderWidth: 1.5,
+      borderDash: [4, 3],
+      tension: 0.3,
+      fill: false,
+      yAxisID: 'y1',
+      order: 1,
+    },
+  ],
+}))
+
+const chartOpts = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: { mode: 'index' as const, intersect: false },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: isDark.value ? 'rgba(40,40,40,0.92)' : 'rgba(0,0,0,0.8)',
+      titleColor: isDark.value ? '#e0e0e0' : '#fff',
+      bodyColor: isDark.value ? '#ccc' : '#fff',
+      padding: 8,
+      cornerRadius: 4,
+      bodyFont: { size: 11 },
+      titleFont: { size: 11, weight: 'bold' as const },
+      footerFont: { size: 11, weight: 'bold' as const },
+      caretSize: 6,
+      caretPadding: 4,
+      itemSort: (a: any, b: any) => a.datasetIndex - b.datasetIndex,
+      callbacks: {
+        title(items: any) {
+          const idx = items[0]?.dataIndex
+          if (idx == null) return ''
+          const dayKey = dayKeys[idx]
+          const detail = dayMap.value.get(dayKey)
+          const total = (detail?.cacheHit ?? 0) + (detail?.cacheMiss ?? 0) + (detail?.output ?? 0)
+          return `${dayKey}    ${formatCount(total)}`
+        },
+        label(ctx: any) {
+          if (ctx.dataset.type === 'line') return null
+          return `${ctx.dataset.label}: ${formatCount(ctx.raw)}`
+        },
+        footer(items: any[]) {
+          const idx = items[0]?.dataIndex
+          const dayKey = idx != null ? dayKeys[idx] : ''
+          const detail = dayMap.value.get(dayKey)
+          return `${t('main.ttRequests')}: ${detail?.requests ?? 0}`
+        },
+      },
+    },
+  },
+  scales: {
+    x: {
+      ticks: { color: isDark.value ? '#666' : '#999', font: { size: 8 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
+      grid: { display: false },
+      border: { display: false },
+    },
+    y: {
+      position: 'left' as const,
+      stacked: true,
+      ticks: { color: isDark.value ? '#666' : '#999', font: { size: 8 }, callback: (v: number) => formatCount(v), maxTicksLimit: 4 },
+      grid: { color: isDark.value ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
+      border: { display: false },
+    },
+    y1: {
+      display: false,
+      position: 'right' as const,
+      grid: { display: false },
+      border: { display: false },
+    },
+  },
+  layout: { padding: { top: 2, bottom: 0, left: 0, right: 0 } },
+}))
 </script>
 
 <style scoped>
@@ -202,5 +399,31 @@ function formatReset(iso: string): string {
 .credits-reset {
   font-size: 10px;
   color: var(--text-tertiary);
+}
+
+.usage-stats {
+  margin-top: 8px;
+}
+
+.stats-tabs-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.chart-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.model-chart-card {
+  padding: 6px 0;
+}
+
+.model-chart-wrapper {
+  height: 120px;
+  width: 100%;
 }
 </style>

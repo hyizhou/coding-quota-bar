@@ -146,7 +146,11 @@
     "statusMajorOutage": "重大故障",
     "mimoTotalUsage": "套餐总用量",
     "mimoMonthlyUsage": "本月用量",
-    "mimoCompensation": "补偿额度"
+    "mimoCompensation": "补偿额度",
+    "mimoTokenUsage": "Token 用量",
+    "mimoInputToken": "输入",
+    "mimoOutputToken": "输出",
+    "mimoCacheToken": "缓存"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",

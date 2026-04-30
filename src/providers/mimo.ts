@@ -25,6 +25,18 @@ interface MiMoUsageData {
   usage: { percent: number; items: MiMoUsageItem[] };
 }
 
+interface MiMoUsageDailyItem {
+  date: string;            // 'YYYY-MM-DD'
+  model: string;
+  totalToken: number;
+  inputHitToken: number;
+  inputMissToken: number;
+  outputToken: number;
+  requestCount: number;
+  consumedAmount: string;
+  currency: string;
+}
+
 interface MiMoApiResponse<T> {
   code: number;
   message: string;
@@ -45,6 +57,27 @@ async function fetchApiInPage<T>(win: BrowserWindow, path: string): Promise<MiMo
   const json = await win.webContents.executeJavaScript(`
     fetch('${path}', { credentials: 'include' })
       .then(r => r.json())
+  `);
+  return json as MiMoApiResponse<T>;
+}
+
+/**
+ * 通过页面内 POST fetch 调用 MiMo API（自动从 cookie 读取 api-platform_ph 签名）
+ */
+async function postApiInPage<T>(win: BrowserWindow, path: string, body: Record<string, unknown>): Promise<MiMoApiResponse<T>> {
+  const json = await win.webContents.executeJavaScript(`
+    (function() {
+      var cookies = document.cookie.split(';').map(function(c) { return c.trim(); });
+      var phCookie = cookies.find(function(c) { return c.startsWith('api-platform_ph='); });
+      var phValue = phCookie ? phCookie.split('=').slice(1).join('=').replace(/^"|"$/g, '') : '';
+      var url = '${path}' + (phValue ? '?api-platform_ph=' + encodeURIComponent(phValue) : '');
+      return fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(${JSON.stringify(body)})
+      }).then(function(r) { return r.json(); });
+    })()
   `);
   return json as MiMoApiResponse<T>;
 }
@@ -116,18 +149,27 @@ export class MiMoProvider implements Provider {
   private async tryFetch(win: BrowserWindow): Promise<UsageResult | null> {
     if (win.isDestroyed()) return null;
     try {
-      const [detailResp, usageResp] = await Promise.all([
+      const now = new Date();
+      const [detailResp, usageResp, dailyResp] = await Promise.all([
         fetchApiInPage<MiMoDetailData>(win, '/api/v1/tokenPlan/detail'),
         fetchApiInPage<MiMoUsageData>(win, '/api/v1/tokenPlan/usage'),
+        postApiInPage<MiMoUsageDailyItem[]>(win, '/api/v1/usage/detail/list', {
+          year: now.getFullYear(),
+          month: now.getMonth() + 1,
+        }).catch(() => null),
       ]);
       if (detailResp.code !== 0 || usageResp.code !== 0) return null;
-      return this.transformResult(detailResp.data, usageResp.data);
+      return this.transformResult(detailResp.data, usageResp.data, dailyResp?.data);
     } catch {
       return null;
     }
   }
 
-  private transformResult(detail: MiMoDetailData, usage: MiMoUsageData): UsageResult {
+  private transformResult(
+    detail: MiMoDetailData,
+    usage: MiMoUsageData,
+    dailyItems?: MiMoUsageDailyItem[],
+  ): UsageResult {
     const planItem = usage.usage.items[0];
     const monthItem = usage.monthUsage.items[0];
     const planLevel = PLAN_LEVEL_MAP[detail.planCode] || detail.planName;
@@ -142,6 +184,32 @@ export class MiMoProvider implements Provider {
     if (compItem && compItem.limit > 0) {
       quotas.push({ label: 'quota.mimoCompensation', used: compItem.used, total: compItem.limit, usageRate: compItem.percent * 100, resetAt: detail.currentPeriodEnd });
     }
+
+    // 按天聚合每日用量（可能有多个 model 的记录）
+    const dailyMap = new Map<string, { cacheHit: number; cacheMiss: number; output: number; requests: number }>();
+    if (dailyItems && Array.isArray(dailyItems)) {
+      for (const item of dailyItems) {
+        const existing = dailyMap.get(item.date) || { cacheHit: 0, cacheMiss: 0, output: 0, requests: 0 };
+        existing.cacheHit += item.inputHitToken;
+        existing.cacheMiss += item.inputMissToken;
+        existing.output += item.outputToken;
+        existing.requests += item.requestCount;
+        dailyMap.set(item.date, existing);
+      }
+    }
+
+    // 转为 ModelTokenRecord 格式（复用渲染端的图表逻辑）
+    const modelHistory30d = Array.from(dailyMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, d]) => ({
+        date,
+        model: 'MiMo',
+        used: d.cacheHit + d.cacheMiss + d.output,
+        requests: d.requests,
+        cacheHitTokens: d.cacheHit,
+        cacheMissTokens: d.cacheMiss,
+        responseTokens: d.output,
+      }));
 
     return {
       used: planItem?.used ?? 0,
@@ -160,6 +228,7 @@ export class MiMoProvider implements Provider {
           renewPrice: 0,
           billingCycle: '',
         },
+        modelHistory30d,
       },
     };
   }

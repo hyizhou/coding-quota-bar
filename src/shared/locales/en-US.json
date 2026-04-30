@@ -146,7 +146,11 @@
     "statusMajorOutage": "Major Outage",
     "mimoTotalUsage": "Plan Total Usage",
     "mimoMonthlyUsage": "Monthly Usage",
-    "mimoCompensation": "Compensation"
+    "mimoCompensation": "Compensation",
+    "mimoTokenUsage": "Token Usage",
+    "mimoInputToken": "Input",
+    "mimoOutputToken": "Output",
+    "mimoCacheToken": "Cache"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",
