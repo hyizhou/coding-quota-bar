@@ -2,11 +2,12 @@
 ## [1.4.0] - 2026-04-30
 ### Added
 - 添加 XiaoMi MiMo 平台支持
+- 余额显示、会员级别显示
 - MiMo 按月每日 Token 用量图表（Cache Hit / Cache Miss / Output 堆叠柱状图 + Requests 折线）
-
 
 ### Fixed
 - 修复并发测试中 token 计算错误的问题
+- 修改minimax显示逻辑，总额度为0的额度项目不显示
 
 ## [1.3.2] - 2026-04-28
 ### Fixed
