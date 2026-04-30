@@ -292,14 +292,15 @@ function togglePin() {
 
 function getSubRows(sub: AccountUsageData['subscription']) {
   if (!sub) return []
-  return [
+  const rows: { label: string; value: string }[] = [
     { label: t('subscription.plan'), value: sub.plan },
-    { label: t('subscription.subDate'), value: sub.currentRenewTime },
-    { label: t('subscription.nextRenew'), value: sub.nextRenewTime },
-    { label: t('subscription.autoRenew'), value: sub.autoRenew ? t('subscription.yes') : t('subscription.no') },
-    { label: t('subscription.actualPrice'), value: String(sub.actualPrice) },
-    { label: t('subscription.renewPrice'), value: String(sub.renewPrice) },
   ]
+  if (sub.currentRenewTime) rows.push({ label: t('subscription.subDate'), value: sub.currentRenewTime })
+  if (sub.nextRenewTime) rows.push({ label: t('subscription.nextRenew'), value: sub.nextRenewTime })
+  rows.push({ label: t('subscription.autoRenew'), value: sub.autoRenew ? t('subscription.yes') : t('subscription.no') })
+  if (sub.actualPrice) rows.push({ label: t('subscription.actualPrice'), value: String(sub.actualPrice) })
+  if (sub.renewPrice) rows.push({ label: t('subscription.renewPrice'), value: String(sub.renewPrice) })
+  return rows
 }
 
 function onTabsWheel(e: WheelEvent) {

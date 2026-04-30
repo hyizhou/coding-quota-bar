@@ -1,20 +1,4 @@
 <template>
-  <!-- 订阅信息卡片 -->
-  <div class="subscription-card card" v-if="account.subscription">
-    <div class="sub-header">
-      <span class="sub-plan">{{ account.subscription.plan }}</span>
-      <span class="sub-status" v-if="account.subscription.status === 'EXPIRED'" style="color: #ef4444">{{ t('provider.expired') }}</span>
-    </div>
-    <div class="sub-detail">
-      <span v-if="account.subscription.nextRenewTime">
-        {{ t('subscription.nextRenew') }} {{ formatDate(account.subscription.nextRenewTime) }}
-      </span>
-      <span :class="account.subscription.autoRenew ? 'auto-renew-on' : 'auto-renew-off'">
-        {{ t('subscription.autoRenew') }}: {{ account.subscription.autoRenew ? t('subscription.yes') : t('subscription.no') }}
-      </span>
-    </div>
-  </div>
-
   <!-- 账户余额 -->
   <div class="balance-card card" v-if="account.balance">
     <div class="balance-header">
@@ -314,54 +298,6 @@ const chartOpts = computed(() => ({
 </script>
 
 <style scoped>
-.subscription-card {
-  margin-bottom: 6px;
-}
-
-.sub-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-
-.sub-plan {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-heading);
-}
-
-.sub-status {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.sub-detail {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--text-tertiary);
-}
-
-.auto-renew-on {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.2);
-}
-
-.auto-renew-off {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: rgba(156, 163, 175, 0.1);
-  color: var(--text-tertiary);
-  border: 1px solid rgba(156, 163, 175, 0.2);
-}
-
 .balance-card {
   margin-bottom: 6px;
 }
