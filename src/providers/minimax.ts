@@ -60,7 +60,7 @@ export class MiniMaxProvider implements Provider {
     // 找主指标模型（MiniMax-M*），找不到则用第一个
     const mainModel = models.find(m => m.model_name === 'MiniMax-M*') || models[0];
 
-    // 构建 quotas：每个模型的日额度 + 周额度（>0 时）
+    // 构建 quotas：每个模型的日额度（>0 时）+ 周额度（>0 时）
     const quotas: QuotaItem[] = [];
     for (const m of models) {
       const name = m.model_name;
@@ -68,15 +68,17 @@ export class MiniMaxProvider implements Provider {
       // 日额度
       const dailyUsed = m.current_interval_usage_count;
       const dailyTotal = m.current_interval_total_count;
-      quotas.push({
-        label: 'quota.minimaxDaily',
-        used: dailyUsed,
-        total: dailyTotal,
-        usageRate: dailyTotal > 0 ? Math.round((dailyUsed / dailyTotal) * 100) : 0,
-        resetAt: toISODate(m.end_time),
-        startAt: toISODate(m.start_time),
-        limitType: name,
-      });
+      if (dailyTotal > 0) {
+        quotas.push({
+          label: 'quota.minimaxDaily',
+          used: dailyUsed,
+          total: dailyTotal,
+          usageRate: Math.round((dailyUsed / dailyTotal) * 100),
+          resetAt: toISODate(m.end_time),
+          startAt: toISODate(m.start_time),
+          limitType: name,
+        });
+      }
 
       // 周额度（>0 时才显示）
       if (m.current_weekly_total_count > 0) {
@@ -86,7 +88,7 @@ export class MiniMaxProvider implements Provider {
           label: 'quota.minimaxWeekly',
           used: weeklyUsed,
           total: weeklyTotal,
-          usageRate: weeklyTotal > 0 ? Math.round((weeklyUsed / weeklyTotal) * 100) : 0,
+          usageRate: Math.round((weeklyUsed / weeklyTotal) * 100),
           resetAt: toISODate(m.weekly_end_time),
           startAt: toISODate(m.weekly_start_time),
           limitType: name,
