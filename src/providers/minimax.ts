@@ -2,37 +2,76 @@ import type { Provider, ProviderConfig, QuotaItem, UsageResult } from '../shared
 import { HttpClientWithRetry } from '../main/http';
 
 interface MiniMaxModelRemains {
-  start_time: number;
-  end_time: number;
-  remains_time: number;
-  current_interval_total_count: number;
-  current_interval_usage_count: number;
-  model_name: string;
-  current_interval_status: number;
-  current_interval_remaining_percent: number;
-  current_weekly_total_count: number;
-  current_weekly_usage_count: number;
-  current_weekly_status: number;
-  current_weekly_remaining_percent: number;
-  weekly_start_time: number;
-  weekly_end_time: number;
-  weekly_remains_time: number;
-  interval_boost_permille: number;
-  weekly_boost_permille: number;
+  start_time?: number;
+  end_time?: number;
+  remains_time?: number;
+  current_interval_total_count?: number;
+  current_interval_usage_count?: number;
+  model_name?: string;
+  current_interval_status?: number;
+  current_interval_remaining_percent?: number;
+  current_weekly_total_count?: number;
+  current_weekly_usage_count?: number;
+  current_weekly_status?: number;
+  current_weekly_remaining_percent?: number;
+  weekly_start_time?: number;
+  weekly_end_time?: number;
+  weekly_remains_time?: number;
+  interval_boost_permille?: number;
+  weekly_boost_permille?: number;
 }
 
 interface MiniMaxRemainsResponse {
-  model_remains: MiniMaxModelRemains[];
-  base_resp: {
-    status_code: number;
-    status_msg: string;
+  model_remains?: MiniMaxModelRemains[];
+  base_resp?: {
+    status_code?: number;
+    status_msg?: string;
   };
 }
 
-function toISODate(ts: number): string {
-  if (!Number.isFinite(ts)) return '';
-  const d = new Date(ts);
+const DEFAULT_BASE_URL = 'https://www.minimaxi.com';
+const REMAINS_PATH = '/v1/token_plan/remains';
+
+function toNumber(value: unknown, fallback = 0): number {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function toCount(value: unknown): number {
+  return Math.max(0, Math.round(toNumber(value, 0)));
+}
+
+function clampPercent(value: unknown, fallback = 0): number {
+  return Math.max(0, Math.min(100, toNumber(value, fallback)));
+}
+
+function toISODate(ts: unknown): string {
+  const n = toNumber(ts, NaN);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  const ms = n < 1_000_000_000_000 ? n * 1000 : n;
+  const d = new Date(ms);
   return isNaN(d.getTime()) ? '' : d.toISOString();
+}
+
+function buildRemainsUrl(baseUrl: unknown): string {
+  const raw = String(baseUrl || DEFAULT_BASE_URL).trim() || DEFAULT_BASE_URL;
+  const url = new URL(raw);
+  const path = url.pathname.replace(/\/+$/, '');
+  if (path.endsWith(REMAINS_PATH)) {
+    url.search = '';
+    url.hash = '';
+    return url.toString();
+  }
+
+  // API 调用地址可能配置成 /v1 或 /anthropic/v1；用量接口固定挂在 /v1/token_plan/remains。
+  const rootPath = path
+    .replace(/\/anthropic\/v1$/i, '')
+    .replace(/\/anthropic$/i, '')
+    .replace(/\/v1$/i, '');
+  url.pathname = `${rootPath}${REMAINS_PATH}`.replace(/\/{2,}/g, '/');
+  url.search = '';
+  url.hash = '';
+  return url.toString();
 }
 
 const MODEL_DISPLAY: Record<string, string> = {
@@ -51,19 +90,18 @@ export class MiniMaxProvider implements Provider {
       throw new Error('[MiniMax] API Key is required');
     }
 
-    const baseUrl = (config._baseUrl as string) || 'https://www.minimaxi.com';
-    const url = `${baseUrl}/v1/token_plan/remains`;
+    const url = buildRemainsUrl(config._baseUrl);
 
     const resp = await this.httpClient.getJson<MiniMaxRemainsResponse>(url, {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     });
 
-    if (resp.base_resp?.status_code !== 0) {
+    if (typeof resp.base_resp?.status_code === 'number' && resp.base_resp.status_code !== 0) {
       throw new Error(`[MiniMax] API error: ${resp.base_resp?.status_msg || 'Unknown error'}`);
     }
 
-    const models = resp.model_remains;
+    const models = resp.model_remains ?? [];
     if (!models?.length) {
       throw new Error('[MiniMax] No model data returned');
     }
@@ -72,27 +110,29 @@ export class MiniMaxProvider implements Provider {
 
     const quotas: QuotaItem[] = [];
     for (const m of models) {
-      const limitType = MODEL_DISPLAY[m.model_name] || m.model_name;
+      const modelName = m.model_name || 'unknown';
+      const limitType = MODEL_DISPLAY[modelName] || modelName;
 
       quotas.push(this.buildQuota(
-        m.current_interval_total_count, m.current_interval_usage_count,
-        m.current_interval_remaining_percent, m.current_interval_status,
-        m.interval_boost_permille,
+        toCount(m.current_interval_total_count), toCount(m.current_interval_usage_count),
+        clampPercent(m.current_interval_remaining_percent), toCount(m.current_interval_status),
+        toCount(m.interval_boost_permille),
         'quota.minimaxDaily', 'quota.minimaxDailyUnlimited',
         toISODate(m.end_time), toISODate(m.start_time), limitType,
       ));
 
       quotas.push(this.buildQuota(
-        m.current_weekly_total_count, m.current_weekly_usage_count,
-        m.current_weekly_remaining_percent, m.current_weekly_status,
-        m.weekly_boost_permille,
+        toCount(m.current_weekly_total_count), toCount(m.current_weekly_usage_count),
+        clampPercent(m.current_weekly_remaining_percent), toCount(m.current_weekly_status),
+        toCount(m.weekly_boost_permille),
         'quota.minimaxWeekly', 'quota.minimaxWeeklyUnlimited',
         toISODate(m.weekly_end_time), toISODate(m.weekly_start_time), limitType,
       ));
     }
 
-    // 百分制：tray calcPercent 用 (total-used)/total，这里 total=100, used=已用百分比
-    const used = 100 - mainModel.current_interval_remaining_percent;
+    // 托盘只显示一个百分比，取 main model 区间/周额度里更紧张的非无限额度。
+    const displayRemaining = this.getDisplayRemainingPercent(mainModel);
+    const used = 100 - displayRemaining;
 
     return {
       used,
@@ -110,28 +150,33 @@ export class MiniMaxProvider implements Provider {
     resetAt: string, startAt: string, limitType: string,
   ): QuotaItem {
     const isUnlimited = status === 3;
-    const usedPercent = Math.max(0, Math.min(100, 100 - remainingPercent));
+    const usedPercent = clampPercent(100 - remainingPercent);
 
     if (total > 0) {
-      // 有具体计数（如 video 0/3），不加成
+      // 有具体计数（如 video 0/3），不加成。MiniMax 的 usage_count 在部分返回里实际表示剩余次数。
+      const usedCount = this.deriveUsedCount(total, usageCount, remainingPercent);
       return {
         label: normalLabel,
-        used: usageCount,
+        used: usedCount,
         total,
         usageRate: usedPercent,
         resetAt, startAt, limitType,
+        displayUnit: 'count',
       };
     }
 
     if (!isUnlimited) {
-      const boostMultiplier = boostPermille / 1000;
+      // boost 字段缺失/为 0 时按 1x（1000‰）处理，避免换算出 0 或 NaN 额度
+      const effectiveBoost = boostPermille || 1000;
+      const boostMultiplier = effectiveBoost / 1000;
       return {
         label: normalLabel,
-        labelParams: { boostPermille: String(boostPermille) },
+        labelParams: { boostPermille: String(effectiveBoost) },
         used: Math.round(usedPercent * boostMultiplier),
         total: Math.round(100 * boostMultiplier),
         usageRate: usedPercent,
         resetAt, startAt, limitType,
+        displayUnit: 'percent',
       };
     }
 
@@ -143,6 +188,28 @@ export class MiniMaxProvider implements Provider {
       usageRate: 0,
       resetAt, startAt, limitType,
       hideBar: true,
+      displayUnit: 'percent',
     };
+  }
+
+  private deriveUsedCount(total: number, usageOrRemainingCount: number, remainingPercent: number): number {
+    if (total <= 0) return usageOrRemainingCount;
+    const count = Math.max(0, Math.min(total, usageOrRemainingCount));
+    const countPercent = (count / total) * 100;
+    const usedPercent = clampPercent(100 - remainingPercent);
+    const usedDelta = Math.abs(countPercent - usedPercent);
+    const remainingDelta = Math.abs(countPercent - remainingPercent);
+    return remainingDelta + 0.1 < usedDelta ? total - count : count;
+  }
+
+  private getDisplayRemainingPercent(model: MiniMaxModelRemains): number {
+    const candidates: number[] = [];
+    if (toCount(model.current_interval_status) !== 3) {
+      candidates.push(clampPercent(model.current_interval_remaining_percent, 100));
+    }
+    if (toCount(model.current_weekly_status) !== 3) {
+      candidates.push(clampPercent(model.current_weekly_remaining_percent, 100));
+    }
+    return candidates.length ? Math.min(...candidates) : 100;
   }
 }

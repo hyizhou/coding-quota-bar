@@ -214,7 +214,7 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
     },
 
     minimax: {
-      used: 2,
+      used: 0,
       total: 100,
       expiresAt: new Date(now + 4 * HOUR).toISOString(),
       details: {
@@ -224,6 +224,7 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
             resetAt: new Date(now + 4 * HOUR).toISOString(),
             startAt: new Date(now - 0 * HOUR).toISOString(),
             hideBar: true,
+            displayUnit: 'percent',
             limitType: 'MiniMax',
           },
           {
@@ -231,18 +232,21 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
             resetAt: new Date(now + 5 * DAY).toISOString(),
             startAt: new Date(now - 2 * DAY).toISOString(),
             hideBar: true,
+            displayUnit: 'percent',
             limitType: 'MiniMax',
           },
           {
             label: 'quota.minimaxDaily', used: 0, total: 3, usageRate: 0,
             resetAt: new Date(now + 12 * HOUR).toISOString(),
             startAt: new Date(now - 12 * HOUR).toISOString(),
+            displayUnit: 'count',
             limitType: 'Video',
           },
           {
             label: 'quota.minimaxWeekly', used: 0, total: 21, usageRate: 0,
             resetAt: new Date(now + 5 * DAY).toISOString(),
             startAt: new Date(now - 2 * DAY).toISOString(),
+            displayUnit: 'count',
             limitType: 'Video',
           },
         ],

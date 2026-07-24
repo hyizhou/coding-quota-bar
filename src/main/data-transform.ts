@@ -18,6 +18,8 @@ export interface QuotaDisplayItem {
   startAt?: string;
   color: 'green' | 'yellow' | 'red';
   limitType?: string;
+  hideBar?: boolean;
+  displayUnit?: 'percent' | 'count';
   currency?: string;
 }
 
@@ -156,6 +158,7 @@ function convertAccountData(
     color: getColorByPercent(Math.max(0, 100 - q.usageRate), thresholds) as 'green' | 'yellow' | 'red',
     limitType: q.limitType,
     hideBar: (q as any).hideBar,
+    displayUnit: (q as any).displayUnit,
     currency: (q as any).currency,
   }));
 
