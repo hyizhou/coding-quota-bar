@@ -60,14 +60,30 @@ const PLAN_LEVEL_MAP: Record<string, string> = {
   max: 'Max',
 };
 
+/** 页内 fetch 超时时间：防止 executeJavaScript 永久挂起导致窗口无法销毁 */
+const PAGE_FETCH_TIMEOUT = 15000;
+
+/**
+ * 为 Promise 加超时保护
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number = PAGE_FETCH_TIMEOUT): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Page fetch timeout')), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  }) as Promise<T>;
+}
+
 /**
  * 通过页面内 fetch 调用 MiMo API（Cookie 天然携带）
  */
 async function fetchApiInPage<T>(win: BrowserWindow, path: string): Promise<MiMoApiResponse<T>> {
-  const json = await win.webContents.executeJavaScript(`
+  const json = await withTimeout(win.webContents.executeJavaScript(`
     fetch('${path}', { credentials: 'include' })
       .then(r => r.json())
-  `);
+  `));
   return json as MiMoApiResponse<T>;
 }
 
@@ -75,7 +91,7 @@ async function fetchApiInPage<T>(win: BrowserWindow, path: string): Promise<MiMo
  * 通过页面内 POST fetch 调用 MiMo API（自动从 cookie 读取 api-platform_ph 签名）
  */
 async function postApiInPage<T>(win: BrowserWindow, path: string, body: Record<string, unknown>): Promise<MiMoApiResponse<T>> {
-  const json = await win.webContents.executeJavaScript(`
+  const json = await withTimeout(win.webContents.executeJavaScript(`
     (function() {
       var cookies = document.cookie.split(';').map(function(c) { return c.trim(); });
       var phCookie = cookies.find(function(c) { return c.startsWith('api-platform_ph='); });
@@ -88,7 +104,7 @@ async function postApiInPage<T>(win: BrowserWindow, path: string, body: Record<s
         body: JSON.stringify(${JSON.stringify(body)})
       }).then(function(r) { return r.json(); });
     })()
-  `);
+  `));
   return json as MiMoApiResponse<T>;
 }
 
@@ -117,7 +133,11 @@ async function createLoadedWindow(accountId: string): Promise<BrowserWindow> {
   win.webContents.on('console-message', () => {});
 
   await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Page load timeout')), 15000);
+    const timer = setTimeout(() => {
+      // 超时前先销毁窗口，避免 reject 后窗口残留
+      if (!win.isDestroyed()) win.destroy();
+      reject(new Error('Page load timeout'));
+    }, 15000);
     const onClosed = () => { clearTimeout(timer); reject(new Error('Window destroyed')); };
     win.once('closed', onClosed);
     win.webContents.once('did-finish-load', () => {
@@ -125,7 +145,8 @@ async function createLoadedWindow(accountId: string): Promise<BrowserWindow> {
       win.removeListener('closed', onClosed);
       resolve();
     });
-    win.loadURL('https://platform.xiaomimimo.com/console/balance');
+    // 加载结果由 did-finish-load / closed / 超时 Promise 管理，吞掉 loadURL 自身的 rejection
+    win.loadURL('https://platform.xiaomimimo.com/console/balance').catch(() => {});
   });
 
   // 等待页面 JS 初始化

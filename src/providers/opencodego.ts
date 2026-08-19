@@ -3,6 +3,22 @@ import type { Provider, ProviderConfig, QuotaItem, UsageResult } from '../shared
 
 const TOKEN_EXPIRED = 'TOKEN_EXPIRED';
 
+/** 页内执行超时时间：防止 executeJavaScript 永久挂起导致窗口无法销毁 */
+const PAGE_EXEC_TIMEOUT = 15000;
+
+/**
+ * 为 Promise 加超时保护
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number = PAGE_EXEC_TIMEOUT): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Page exec timeout')), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  }) as Promise<T>;
+}
+
 interface UsageWindow {
   status: string;
   usagePercent: number;
@@ -54,7 +70,11 @@ async function createLoadedWindow(accountId: string, url: string, timeout = 1500
   win.webContents.on('console-message', () => {});
 
   await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Page load timeout')), timeout);
+    const timer = setTimeout(() => {
+      // 超时前先销毁窗口，避免 reject 后窗口残留
+      if (!win.isDestroyed()) win.destroy();
+      reject(new Error('Page load timeout'));
+    }, timeout);
     const onClosed = () => { clearTimeout(timer); reject(new Error('Window destroyed')); };
     win.once('closed', onClosed);
     win.webContents.once('did-finish-load', () => {
@@ -62,7 +82,8 @@ async function createLoadedWindow(accountId: string, url: string, timeout = 1500
       win.removeListener('closed', onClosed);
       resolve();
     });
-    win.loadURL(url);
+    // 加载结果由 did-finish-load / closed / 超时 Promise 管理，吞掉 loadURL 自身的 rejection
+    win.loadURL(url).catch(() => {});
   });
 
   // 等待页面 JS 初始化
@@ -90,7 +111,7 @@ async function getWorkspaceId(win: BrowserWindow): Promise<string | null> {
 
   // 2. 从页面内容中提取
   try {
-    const html = await win.webContents.executeJavaScript(`document.documentElement.outerHTML`);
+    const html = await withTimeout(win.webContents.executeJavaScript(`document.documentElement.outerHTML`));
     const ids: string[] = [];
     let m;
     const regex = new RegExp(WORKSPACE_ID_REGEX.source, 'g');
@@ -222,7 +243,7 @@ export class OpenCodeGoProvider implements Provider {
       win.destroy();
       win = await createLoadedWindow(accountId, `https://opencode.ai/workspace/${workspaceId}/go`);
 
-      const usageHtml = await win.webContents.executeJavaScript(`document.documentElement.outerHTML`);
+      const usageHtml = await withTimeout(win.webContents.executeJavaScript(`document.documentElement.outerHTML`));
 
       if (isAuthFailure(usageHtml)) {
         return { used: 0, total: 0, expiresAt: '', error: TOKEN_EXPIRED, details: { quotas: [] } };
@@ -234,9 +255,12 @@ export class OpenCodeGoProvider implements Provider {
       let zenBalance: number | null = null;
       try {
         const balanceWin = await createLoadedWindow(accountId, `https://opencode.ai/workspace/${workspaceId}`, 10000);
-        const balanceHtml = await balanceWin.webContents.executeJavaScript(`document.documentElement.outerHTML`);
-        zenBalance = parseZenBalance(balanceHtml);
-        balanceWin.destroy();
+        try {
+          const balanceHtml = await withTimeout(balanceWin.webContents.executeJavaScript(`document.documentElement.outerHTML`));
+          zenBalance = parseZenBalance(balanceHtml);
+        } finally {
+          if (!balanceWin.isDestroyed()) balanceWin.destroy();
+        }
       } catch (e) {
         console.warn('[OpenCodeGo] Failed to fetch Zen balance:', e);
       }
