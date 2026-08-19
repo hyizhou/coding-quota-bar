@@ -241,40 +241,36 @@ export interface ElectronAPI {
   getConfig: () => Promise<AppConfig | null>
   updateConfig: (updates: unknown) => Promise<AppConfig | null>
   getAvailableProviders: () => Promise<string[]>
-  onShowSettings: (callback: (options?: { checkUpdate?: boolean }) => void) => void
-  onUsageDataUpdated: (callback: (data: UsageState) => void) => void
+  onShowSettings: (callback: (options?: { checkUpdate?: boolean }) => void) => () => void
+  onUsageDataUpdated: (callback: (data: UsageState) => void) => () => void
   notifyHoverState: (hovering: boolean) => void
   checkForUpdate: () => Promise<void>
   downloadUpdate: () => Promise<void>
   onUpdateStatusChanged: (callback: (status: UpdateStatus) => void) => () => void
   quitAndInstall: () => Promise<void>
-  onTriggerCheckUpdate: (callback: () => void) => void
-  offTriggerCheckUpdate: (callback: () => void) => void
+  onTriggerCheckUpdate: (callback: () => void) => () => void
   openExternal: (url: string) => Promise<void>
   showPopup: () => void
   setWindowPinned: (mode: WindowPinMode) => void
-  onWindowPinnedState: (callback: (mode: WindowPinMode) => void) => void
+  onWindowPinnedState: (callback: (mode: WindowPinMode) => void) => () => void
   getAppVersion: () => Promise<string>
   concurrencyTestStart: (config: ConcurrencyTestConfig) => Promise<ConcurrencyTestResult>
   concurrencyTestGetHistory: (providerKey: string) => Promise<ConcurrencyTestResult[]>
   concurrencyTestDelete: (providerKey: string, id: string) => Promise<void>
-  onConcurrencyTestProgress: (callback: (progress: ConcurrencyTestProgress) => void) => void
-  offConcurrencyTestProgress: (callback: (progress: ConcurrencyTestProgress) => void) => void
-  onConcurrencyTestStream: (callback: (info: ConcurrencyTestStreamInfo) => void) => void
-  offConcurrencyTestStream: (callback: (info: ConcurrencyTestStreamInfo) => void) => void
-  onConcurrencyTestFirstContent: (callback: (info: ConcurrencyTestFirstContentInfo) => void) => void
-  offConcurrencyTestFirstContent: (callback: (info: ConcurrencyTestFirstContentInfo) => void) => void
+  onConcurrencyTestProgress: (callback: (progress: ConcurrencyTestProgress) => void) => () => void
+  onConcurrencyTestStream: (callback: (info: ConcurrencyTestStreamInfo) => void) => () => void
+  onConcurrencyTestFirstContent: (callback: (info: ConcurrencyTestFirstContentInfo) => void) => () => void
   deepseekWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
   deepseekWebLogout: (accountId: string) => Promise<void>
-  onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => void
+  onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => () => void
   deepseekFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<{ tokens: ModelTokenRecord[]; costs: ModelCostRecord[] }>
   mimoWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
   mimoWebLogout: (accountId: string) => Promise<void>
-  onMimoWebLoginSuccess: (callback: (accountId: string) => void) => void
+  onMimoWebLoginSuccess: (callback: (accountId: string) => void) => () => void
   mimoFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<ModelTokenRecord[]>
   opencodegoWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
   opencodegoWebLogout: (accountId: string) => Promise<void>
-  onOpencodegoWebLoginSuccess: (callback: (accountId: string) => void) => void
+  onOpencodegoWebLoginSuccess: (callback: (accountId: string) => void) => () => void
   showFeedback: () => void
 }
 

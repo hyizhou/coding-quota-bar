@@ -191,6 +191,9 @@ const pinMode = ref<WindowPinMode>('unpinned')
 const showTabs = ref(false)
 let hideTimer: ReturnType<typeof setTimeout> | null = null
 let offUpdateStatus: (() => void) | null = null
+let offUsageDataUpdated: (() => void) | null = null
+let offWindowPinnedState: (() => void) | null = null
+let nowTimer: ReturnType<typeof setInterval> | null = null
 
 function onTabsAreaEnter() {
   if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
@@ -332,16 +335,16 @@ function handleUpdateBannerClick() {
   emit('open-settings', { checkUpdate: true })
 }
 
-setInterval(() => { now.value = Date.now() }, 60000)
+nowTimer = setInterval(() => { now.value = Date.now() }, 60000)
 
 onMounted(async () => {
   fetchData()
   // 监听主进程推送的数据更新
-  window.electronAPI.onUsageDataUpdated((data) => {
+  offUsageDataUpdated = window.electronAPI.onUsageDataUpdated((data) => {
     if (data) applyState(data)
   })
   // 监听窗口固定状态
-  window.electronAPI.onWindowPinnedState((mode) => {
+  offWindowPinnedState = window.electronAPI.onWindowPinnedState((mode) => {
     pinMode.value = mode
   })
   // 监听主进程推送的更新状态
@@ -362,7 +365,24 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  if (nowTimer) {
+    clearInterval(nowTimer)
+    nowTimer = null
+  }
+
+  if (hideTimer) {
+    clearTimeout(hideTimer)
+    hideTimer = null
+  }
+
+  offUsageDataUpdated?.()
+  offUsageDataUpdated = null
+
+  offWindowPinnedState?.()
+  offWindowPinnedState = null
+
   offUpdateStatus?.()
+  offUpdateStatus = null
 })
 </script>
 

@@ -413,14 +413,24 @@ function scheduleSave() {
   }, 500)
 }
 
+// 监听与 watch 的清理句柄：必须在 setup 顶层声明并清理；
+// onMounted 内 await 之后注册的 onUnmounted/watch 不会绑定到组件实例，会导致泄漏
+let offUpdateStatus: (() => void) | null = null
+let offTriggerCheckUpdate: (() => void) | null = null
+const stopWatches: Array<() => void> = []
+// 卸载标记：防止 async onMounted 在组件卸载后继续注册 watch/listener
+let disposed = false
+
 onMounted(async () => {
   appVersion.value = await window.electronAPI.getAppVersion()
+  if (disposed) return
   const config = await window.electronAPI.getConfig()
-  if (!config) return
+  if (disposed || !config) return
   currentConfig.value = config
 
   // 从主进程获取可用的 provider 列表
   const availableKeys: string[] = await window.electronAPI.getAvailableProviders()
+  if (disposed) return
 
   providerList.value = availableKeys.map(key => {
     const providerConfig = config.providers[key] as ProviderTypeConfig | undefined
@@ -474,23 +484,23 @@ onMounted(async () => {
   autoCheckUpdateEnabled.value = config.autoCheckUpdate ?? true
 
   // 配置加载完后开始监听变化，自动保存
-  watch([providerList, refreshInterval, autoStart, language, popupTrigger, memorySavingMode, rememberPopupPosition, showEstimatedCost, trayDisplayRule, autoCheckUpdateEnabled], () => {
+  stopWatches.push(watch([providerList, refreshInterval, autoStart, language, popupTrigger, memorySavingMode, rememberPopupPosition, showEstimatedCost, trayDisplayRule, autoCheckUpdateEnabled], () => {
     scheduleSave()
-  }, { deep: true })
+  }, { deep: true }))
 
   // 选中的账户被删除时，回退到最低额度
-  watch(accountOptions, (opts) => {
+  stopWatches.push(watch(accountOptions, (opts) => {
     if (trayDisplayRule.value !== 'lowest' && trayDisplayRule.value !== 'highest') {
       if (!opts.some(o => o.value === trayDisplayRule.value)) {
         trayDisplayRule.value = 'lowest'
       }
     }
-  })
+  }))
 
   // 主题切换由 useTheme 自行持久化，不经过 scheduleSave
-  watch(themePreference, (val) => {
+  stopWatches.push(watch(themePreference, (val) => {
     setTheme(val)
-  })
+  }))
 
   // 恢复主进程的更新状态
   if (config.updateStatus) {
@@ -498,7 +508,7 @@ onMounted(async () => {
   }
 
   // 监听主进程推送的更新状态变化
-  const offUpdateStatus = window.electronAPI.onUpdateStatusChanged((status) => {
+  offUpdateStatus = window.electronAPI.onUpdateStatusChanged((status) => {
     updateState.value = status
   })
 
@@ -509,15 +519,12 @@ onMounted(async () => {
       window.electronAPI.checkForUpdate()
     }
   }
-  window.electronAPI.onTriggerCheckUpdate?.(onTriggerCheckUpdate)
-  onUnmounted(() => {
-    window.electronAPI.offTriggerCheckUpdate?.(onTriggerCheckUpdate)
-    offUpdateStatus()
-  })
+  offTriggerCheckUpdate = window.electronAPI.onTriggerCheckUpdate(onTriggerCheckUpdate)
 
   // 从托盘菜单或更新浮窗进入时，滚到底部；若已有更新信息则不再重复检查
   if (props.autoCheckUpdate) {
     nextTick(() => {
+      if (disposed) return
       settingsBodyRef.value?.scrollTo({ top: settingsBodyRef.value.scrollHeight })
       const phase = updateState.value.phase
       if (phase === 'idle' || phase === 'noUpdate' || phase === 'error') {
@@ -526,6 +533,18 @@ onMounted(async () => {
       window.electronAPI.showPopup()
     })
   }
+})
+
+onUnmounted(() => {
+  disposed = true
+
+  offTriggerCheckUpdate?.()
+  offTriggerCheckUpdate = null
+
+  offUpdateStatus?.()
+  offUpdateStatus = null
+
+  stopWatches.splice(0).forEach(stop => stop())
 })
 
 async function saveConfig() {

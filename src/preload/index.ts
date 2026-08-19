@@ -1,6 +1,17 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { WindowPinMode } from '../shared/types';
 
+type Unsubscribe = () => void;
+
+/**
+ * 统一的 IPC 订阅封装：注册监听并返回取消函数
+ */
+function subscribe<T>(channel: string, callback: (payload: T) => void): Unsubscribe {
+  const handler = (_event: unknown, payload: T) => callback(payload);
+  ipcRenderer.on(channel, handler);
+  return () => ipcRenderer.removeListener(channel, handler);
+}
+
 /**
  * 暴露给 renderer 进程的 API
  */
@@ -33,16 +44,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /**
    * 监听主进程的"显示设置"事件
    */
-  onShowSettings: (callback: (options?: { checkUpdate?: boolean }) => void) => {
-    ipcRenderer.on('show-settings', (_, options) => callback(options));
-  },
+  onShowSettings: (callback: (options?: { checkUpdate?: boolean }) => void) =>
+    subscribe('show-settings', callback),
 
   /**
    * 监听主进程推送的用量数据更新
    */
-  onUsageDataUpdated: (callback: (data: unknown) => void) => {
-    ipcRenderer.on('usage-data-updated', (_, data) => callback(data));
-  },
+  onUsageDataUpdated: (callback: (data: unknown) => void) =>
+    subscribe('usage-data-updated', callback),
 
   /**
    * 通知主进程鼠标进入/离开窗口
@@ -67,13 +76,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   downloadUpdate: () => ipcRenderer.invoke('download-update'),
 
   /**
-   * 监听主进程推送的统一更新状态
+   * 监听主进程推送的更新状态
    */
-  onUpdateStatusChanged: (callback: (status: { phase: string; version?: string; progress?: number }) => void) => {
-    const handler = (_: unknown, status: { phase: string; version?: string; progress?: number }) => callback(status);
-    ipcRenderer.on('update-status-changed', handler);
-    return () => ipcRenderer.removeListener('update-status-changed', handler);
-  },
+  onUpdateStatusChanged: (callback: (status: { phase: string; version?: string; progress?: number }) => void) =>
+    subscribe('update-status-changed', callback),
 
   /**
    * 重启并安装更新
@@ -86,7 +92,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showPopup: () => ipcRenderer.send('show-popup'),
 
   /**
-   * 设置窗口固定状态（不固定 / 固定置顶 / 固定不置顶）
+   * 设置窗口固定状态（不固定/固定置顶/固定不置顶）
    */
   setWindowPinned: (mode: WindowPinMode) => {
     ipcRenderer.send('set-window-pinned', mode);
@@ -95,25 +101,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /**
    * 监听窗口固定状态变化
    */
-  onWindowPinnedState: (callback: (mode: WindowPinMode) => void) => {
-    ipcRenderer.on('window-pinned-state', (_, mode) => callback(mode));
-  },
+  onWindowPinnedState: (callback: (mode: WindowPinMode) => void) =>
+    subscribe('window-pinned-state', callback),
 
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
 
   /**
    * 监听来自托盘菜单的检查更新触发事件
    */
-  onTriggerCheckUpdate: (callback: () => void) => {
-    ipcRenderer.on('trigger-check-update', () => callback());
-  },
-
-  /**
-   * 取消监听检查更新触发事件
-   */
-  offTriggerCheckUpdate: (callback: () => void) => {
-    ipcRenderer.removeListener('trigger-check-update', callback);
-  },
+  onTriggerCheckUpdate: (callback: () => void) =>
+    subscribe('trigger-check-update', callback),
 
   /**
    * 并发测试：启动
@@ -128,53 +125,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /**
    * 并发测试：监听进度
    */
-  onConcurrencyTestProgress: (callback: (progress: { index: number; total: number; success: boolean; ttftMs: number; totalMs: number; tokenCount: number; tokensPerSec: number; error?: string }) => void) => {
-    const handler = (_: any, data: any) => callback(data);
-    (callback as any).__ipcHandler = handler;
-    ipcRenderer.on('concurrency-test-progress', handler);
-  },
-
-  /**
-   * 并发测试：取消监听进度
-   */
-  offConcurrencyTestProgress: (callback: (progress: { index: number; total: number; success: boolean }) => void) => {
-    const handler = (callback as any).__ipcHandler;
-    if (handler) ipcRenderer.removeListener('concurrency-test-progress', handler);
-  },
+  onConcurrencyTestProgress: (callback: (progress: { index: number; total: number; success: boolean; ttftMs: number; totalMs: number; tokenCount: number; tokensPerSec: number; error?: string }) => void) =>
+    subscribe('concurrency-test-progress', callback),
 
   /**
    * 并发测试：监听实时文字流
    */
-  onConcurrencyTestStream: (callback: (info: { index: number; text: string }) => void) => {
-    const handler = (_: any, data: any) => callback(data);
-    (callback as any).__ipcStreamHandler = handler;
-    ipcRenderer.on('concurrency-test-stream', handler);
-  },
-
-  /**
-   * 并发测试：取消监听文字流
-   */
-  offConcurrencyTestStream: (callback: (info: { index: number; text: string }) => void) => {
-    const handler = (callback as any).__ipcStreamHandler;
-    if (handler) ipcRenderer.removeListener('concurrency-test-stream', handler);
-  },
+  onConcurrencyTestStream: (callback: (info: { index: number; text: string }) => void) =>
+    subscribe('concurrency-test-stream', callback),
 
   /**
    * 并发测试：监听首字到达
    */
-  onConcurrencyTestFirstContent: (callback: (info: { index: number; total: number }) => void) => {
-    const handler = (_: any, data: any) => callback(data);
-    (callback as any).__ipcFirstContentHandler = handler;
-    ipcRenderer.on('concurrency-test-first-content', handler);
-  },
-
-  /**
-   * 并发测试：取消监听首字到达
-   */
-  offConcurrencyTestFirstContent: (callback: (info: { index: number; total: number }) => void) => {
-    const handler = (callback as any).__ipcFirstContentHandler;
-    if (handler) ipcRenderer.removeListener('concurrency-test-first-content', handler);
-  },
+  onConcurrencyTestFirstContent: (callback: (info: { index: number; total: number }) => void) =>
+    subscribe('concurrency-test-first-content', callback),
 
   /**
    * 并发测试：删除历史记录
@@ -188,9 +152,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   deepseekWebLogin: (accountId: string) => ipcRenderer.invoke('deepseek-web-login', accountId),
   deepseekWebLogout: (accountId: string) => ipcRenderer.invoke('deepseek-web-logout', accountId),
-  onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => {
-    ipcRenderer.on('deepseek-web-login-success', (_, accountId) => callback(accountId));
-  },
+  onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) =>
+    subscribe('deepseek-web-login-success', callback),
   deepseekFetchMonthUsage: (accountId: string, year: number, month: number) =>
     ipcRenderer.invoke('deepseek-fetch-month-usage', accountId, year, month),
 
@@ -199,9 +162,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   mimoWebLogin: (accountId: string) => ipcRenderer.invoke('mimo-web-login', accountId),
   mimoWebLogout: (accountId: string) => ipcRenderer.invoke('mimo-web-logout', accountId),
-  onMimoWebLoginSuccess: (callback: (accountId: string) => void) => {
-    ipcRenderer.on('mimo-web-login-success', (_, accountId) => callback(accountId));
-  },
+  onMimoWebLoginSuccess: (callback: (accountId: string) => void) =>
+    subscribe('mimo-web-login-success', callback),
 
   /**
    * MiMo 按月获取模型历史数据
@@ -214,7 +176,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   opencodegoWebLogin: (accountId: string) => ipcRenderer.invoke('opencodego-web-login', accountId),
   opencodegoWebLogout: (accountId: string) => ipcRenderer.invoke('opencodego-web-logout', accountId),
-  onOpencodegoWebLoginSuccess: (callback: (accountId: string) => void) => {
-    ipcRenderer.on('opencodego-web-login-success', (_, accountId) => callback(accountId));
-  },
+  onOpencodegoWebLoginSuccess: (callback: (accountId: string) => void) =>
+    subscribe('opencodego-web-login-success', callback),
 });

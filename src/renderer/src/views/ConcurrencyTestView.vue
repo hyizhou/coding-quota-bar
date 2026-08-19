@@ -163,6 +163,9 @@ const hoveredIndex = ref(-1)
 const testStartTime = ref(0)
 const now = ref(Date.now())
 let timerHandle: ReturnType<typeof setInterval> | undefined
+let offProgress: (() => void) | null = null
+let offStreamText: (() => void) | null = null
+let offFirstContent: (() => void) | null = null
 
 const runningText = computed(() => {
   return t('concurrencyTest.running', {
@@ -292,15 +295,22 @@ function formatTimestamp(iso: string): string {
 
 onMounted(() => {
   loadHistory()
-  window.electronAPI.onConcurrencyTestProgress(onProgress)
-  window.electronAPI.onConcurrencyTestStream(onStreamText)
-  window.electronAPI.onConcurrencyTestFirstContent(onFirstContent)
+
+  offProgress = window.electronAPI.onConcurrencyTestProgress(onProgress)
+  offStreamText = window.electronAPI.onConcurrencyTestStream(onStreamText)
+  offFirstContent = window.electronAPI.onConcurrencyTestFirstContent(onFirstContent)
 })
 
 onUnmounted(() => {
-  window.electronAPI.offConcurrencyTestProgress(onProgress)
-  window.electronAPI.offConcurrencyTestStream(onStreamText)
-  window.electronAPI.offConcurrencyTestFirstContent(onFirstContent)
+  offProgress?.()
+  offProgress = null
+
+  offStreamText?.()
+  offStreamText = null
+
+  offFirstContent?.()
+  offFirstContent = null
+
   if (timerHandle) clearInterval(timerHandle)
 })
 </script>

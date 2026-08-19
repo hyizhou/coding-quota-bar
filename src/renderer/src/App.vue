@@ -21,6 +21,7 @@ const currentView = ref<'main' | 'settings' | 'concurrency-test'>('main')
 const transitionName = ref('slide-left')
 const pendingCheckUpdate = ref(false)
 const settingsKey = ref(0)
+let offShowSettings: (() => void) | null = null
 
 function goSettings(options?: { checkUpdate?: boolean }) {
   transitionName.value = 'slide-left'
@@ -56,7 +57,7 @@ onMounted(async () => {
   if (config?.language) {
     locale.value = config.language
   }
-  window.electronAPI.onShowSettings((options) => {
+  offShowSettings = window.electronAPI.onShowSettings((options) => {
     goSettings(options)
   })
 
@@ -66,6 +67,9 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  offShowSettings?.()
+  offShowSettings = null
+
   document.body.removeEventListener('pointerenter', onMouseEnter)
   document.body.removeEventListener('pointerleave', onMouseLeave)
 })
