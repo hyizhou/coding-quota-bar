@@ -24,6 +24,9 @@ export class Scheduler extends EventEmitter {
   private providers: LoadedProvider[] = [];
   private timerId: NodeJS.Timeout | null = null;
   private running = false;
+  private refreshPromise: Promise<void> | null = null;
+  private pendingProviderSwap = false;
+  private scheduleGeneration = 0;
   private refreshInterval: number;
   private thresholds: ColorThresholds;
   private displayRule: TrayDisplayRule = 'lowest';
@@ -47,6 +50,19 @@ export class Scheduler extends EventEmitter {
    */
   setProviders(providers: LoadedProvider[]): void {
     this.providers = providers;
+    // 配置变更发生在刷新进行中时，在途刷新仍基于旧列表；
+    // 标记待补刷新，待其完成后立即用新列表再刷一次，避免新配置被推迟到下个周期
+    if (this.refreshPromise && !this.pendingProviderSwap) {
+      this.pendingProviderSwap = true;
+      this.refreshPromise.finally(() => {
+        if (!this.pendingProviderSwap) return;
+        this.pendingProviderSwap = false;
+        if (!this.running) return;
+        this.refresh().catch(() => {});
+      }).catch(() => {
+        // 在途刷新失败不影响补刷新；错误已由原调用方处理
+      });
+    }
   }
 
   /**
@@ -111,9 +127,13 @@ export class Scheduler extends EventEmitter {
    * 递归调度：刷新完成后等待 interval 再触发下一次
    */
   private scheduleNext(): void {
+    // 代数标记：只允许最新一条调度链排下一个 timer，
+    // 防止刷新进行中 stop/start（如修改刷新间隔）产生重复调度链
+    const generation = ++this.scheduleGeneration;
     this.refresh().catch((error) => {
       console.error('[Scheduler] Refresh failed:', error);
     }).finally(() => {
+      if (generation !== this.scheduleGeneration) return;
       if (!this.running) return;
       this.timerId = setTimeout(() => this.scheduleNext(), this.refreshInterval);
     });
@@ -124,6 +144,7 @@ export class Scheduler extends EventEmitter {
    */
   stop(): void {
     this.running = false;
+    this.scheduleGeneration++;
     if (this.timerId) {
       clearTimeout(this.timerId);
       this.timerId = null;
@@ -143,7 +164,17 @@ export class Scheduler extends EventEmitter {
   /**
    * 手动触发刷新（外部可调用）
    */
-  async refresh(): Promise<void> {
+  refresh(): Promise<void> {
+    // in-flight 互斥：刷新进行中时，手动刷新与定时刷新复用同一个 Promise，
+    // 避免并发触发多套 Provider 隐藏窗口
+    if (this.refreshPromise) return this.refreshPromise;
+    this.refreshPromise = this.doRefresh().finally(() => {
+      this.refreshPromise = null;
+    });
+    return this.refreshPromise;
+  }
+
+  private async doRefresh(): Promise<void> {
     if (this.providers.length === 0) {
       // 无 Provider 时清空数据并通知
       this.aggregator.clear();
