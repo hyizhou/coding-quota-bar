@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "chcp 65001 >nul && electron-vite dev",
     "build": "electron-vite build",
+    "typecheck": "vue-tsc -p tsconfig.node.json --noEmit && vue-tsc -p tsconfig.web.json --noEmit",
     "preview": "electron-vite preview",
     "package": "npm run build && electron-builder",
     "package:dir": "npm run build && electron-builder --dir",
