@@ -1,7 +1,12 @@
+/**
+ * Codex Provider：只读 ~/.codex/auth.json 凭证查询用量；
+ * token 过期时自行刷新并写入应用自管缓存，绝不修改用户的配置文件
+ */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { HttpClient } from '../main/http';
+import { app, safeStorage } from 'electron';
+import { netFetch } from '../main/net-http';
 import type { Provider, ProviderConfig, QuotaItem, UsageResult } from '../shared/types';
 
 const TOKEN_EXPIRED = 'TOKEN_EXPIRED';
@@ -45,6 +50,15 @@ interface CodexWindowInfo {
 /** Token 刷新响应 */
 interface TokenRefreshResponse {
   access_token: string;
+  refresh_token?: string;  // 当前 OpenAI 不返回此字段；一旦出现即说明切换为轮换制
+}
+
+/** 应用自管的 Codex token 缓存（绝不写用户的 ~/.codex/auth.json） */
+interface CodexTokenCache {
+  token: string;      // 'enc:base64'（safeStorage 加密）或明文（safeStorage 不可用时降级）
+  expiresAt: number;  // 毫秒时间戳，来自 JWT exp
+  lastRefresh: string;
+  rotationDetected?: boolean;  // 检测到 refresh_token 轮换制后永久停用自刷新
 }
 
 /**
@@ -78,6 +92,60 @@ function isTokenExpired(accessToken: string): boolean {
   const exp = claims.exp as number | undefined;
   if (!exp) return true;
   return Date.now() / 1000 > exp - 60;
+}
+
+function getCodexCachePath(): string {
+  return path.join(app.getPath('userData'), 'codex-auth-cache.json');
+}
+
+/**
+ * 读取应用自管 token 缓存；损坏/解密失败按无缓存处理
+ */
+function readCodexTokenCache(): { accessToken: string | null; rotationDetected: boolean } | null {
+  try {
+    const raw = fs.readFileSync(getCodexCachePath(), 'utf-8');
+    const cache = JSON.parse(raw) as CodexTokenCache;
+    if (!cache) return null;
+    let accessToken: string | null = null;
+    if (cache.token) {
+      let stored = cache.token;
+      if (stored.startsWith('enc:')) {
+        stored = safeStorage.decryptString(Buffer.from(stored.slice(4), 'base64'));
+      }
+      accessToken = stored || null;
+    }
+    return { accessToken, rotationDetected: cache.rotationDetected === true };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 将刷新后的 access_token 写入应用自管缓存（临时文件 + rename 原子替换）；
+ * 只存 access_token，refresh_token 永远从用户文件现读
+ */
+function writeCodexTokenCache(accessToken: string, rotationDetected: boolean = false): void {
+  try {
+    const claims = decodeJWTPayload(accessToken);
+    const expSec = (claims?.exp as number | undefined) ?? 0;
+    let token = accessToken;
+    if (safeStorage.isEncryptionAvailable()) {
+      token = 'enc:' + safeStorage.encryptString(accessToken).toString('base64');
+    }
+    const cache: CodexTokenCache = {
+      token,
+      expiresAt: expSec * 1000,
+      lastRefresh: new Date().toISOString(),
+      rotationDetected,
+    };
+    const cachePath = getCodexCachePath();
+    const tmpPath = cachePath + '.tmp';
+    fs.writeFileSync(tmpPath, JSON.stringify(cache, null, 2), 'utf-8');
+    fs.renameSync(tmpPath, cachePath);
+  } catch (e) {
+    // 写缓存失败不中断本次查询（token 已在内存中），仅开发模式提示
+    console.warn('[Codex] Failed to write app token cache:', e);
+  }
 }
 
 interface UserInfo {
@@ -140,35 +208,45 @@ export class CodexProvider implements Provider {
     let accessToken = tokens.access_token;
     const accountId = tokens.account_id;
 
-    // 2. 检查并刷新 token
-    if (isTokenExpired(accessToken) && tokens.refresh_token) {
-      try {
-        const refreshResp = await HttpClient.post(
-          'https://auth.openai.com/oauth/token',
-          JSON.stringify({
-            grant_type: 'refresh_token',
-            refresh_token: tokens.refresh_token,
-            client_id: 'app_EMoamEEZ73f0CkXaXp7hrann',
-          }),
-        );
-        if (refreshResp.status >= 200 && refreshResp.status < 300) {
-          const refreshData = JSON.parse(refreshResp.body) as TokenRefreshResponse;
-          accessToken = refreshData.access_token;
-          console.log('[Codex] Token refreshed successfully');
+    // 2. token 过期时：用户文件绝对只读，优先用应用自管缓存，其次刷新并写入应用缓存
+    if (isTokenExpired(accessToken)) {
+      const cached = readCodexTokenCache();
+      if (cached?.accessToken && !isTokenExpired(cached.accessToken)) {
+        accessToken = cached.accessToken;
+      } else if (tokens.refresh_token && !cached?.rotationDetected) {
+        try {
+          const refreshResp = await netFetch(
+            'https://auth.openai.com/oauth/token',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+              grant_type: 'refresh_token',
+              refresh_token: tokens.refresh_token,
+              client_id: 'app_EMoamEEZ73f0CkXaXp7hrann',
+              }),
+            },
+          );
+          if (refreshResp.status >= 200 && refreshResp.status < 300) {
+            const refreshData = JSON.parse(refreshResp.body) as TokenRefreshResponse;
+            accessToken = refreshData.access_token;
+            console.log('[Codex] Token refreshed successfully');
 
-          // 写回 auth.json，避免重复刷新
-          try {
-            authFile.tokens!.access_token = refreshData.access_token;
-            authFile.last_refresh = new Date().toISOString();
-            fs.writeFileSync(authFilePath, JSON.stringify(authFile, null, 2), 'utf-8');
-          } catch (writeErr) {
-            console.warn('[Codex] Failed to write refreshed token to auth file:', writeErr);
+            // 轮换检测：响应一旦出现 refresh_token 字段，说明 OpenAI 切换为轮换制，
+            // 永久停用自刷新，避免消费轮换式 refresh_token 弄坏 Codex CLI 的登录态
+            const rotationDetected = typeof refreshData.refresh_token === 'string' && refreshData.refresh_token.length > 0;
+            if (rotationDetected) {
+              console.warn('[Codex] Refresh token rotation detected, self-refresh disabled');
+            }
+
+            // 刷新结果只写入应用自己的缓存文件，绝不写 ~/.codex/auth.json
+            writeCodexTokenCache(refreshData.access_token, rotationDetected);
+          } else {
+            console.warn(`[Codex] Token refresh failed: HTTP ${refreshResp.status}`);
           }
-        } else {
-          console.warn(`[Codex] Token refresh failed: HTTP ${refreshResp.status}`);
+        } catch (e) {
+          console.warn('[Codex] Token refresh error:', e);
         }
-      } catch (e) {
-        console.warn('[Codex] Token refresh error:', e);
       }
     }
 
@@ -184,7 +262,7 @@ export class CodexProvider implements Provider {
 
     let resp;
     try {
-      resp = await HttpClient.get('https://chatgpt.com/backend-api/wham/usage', headers);
+      resp = await netFetch('https://chatgpt.com/backend-api/wham/usage', { headers });
     } catch (e) {
       return {
         used: 0, total: 0, expiresAt: '',

@@ -1,6 +1,6 @@
 import type { Provider, ProviderConfig, QuotaItem, UsageResult, DeepSeekServiceComponent, DayStatus, ModelCostRecord } from '../shared/types';
 import { HttpClientWithRetry } from '../main/http';
-import { net } from 'electron';
+import { netFetch } from '../main/net-http';
 
 interface BalanceInfo {
   currency: string;
@@ -22,37 +22,19 @@ const STATUS_DAYS = 90;
 const TOKEN_EXPIRED = 'TOKEN_EXPIRED';
 
 /**
- * 使用 Electron net 模块请求 JSON（走 Chromium 网络栈，兼容性更好）
+ * 使用 Electron net 模块请求 JSON（走 Chromium 网络栈，自动遵循系统代理，兼容性更好）
  * Node 的 https 模块在 Electron 中使用 BoringSSL，部分 CDN 会拒绝其 TLS 握手
  */
-function netGetJson<T>(url: string, headers?: Record<string, string>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const request = net.request(url);
-    if (headers) {
-      for (const [key, value] of Object.entries(headers)) {
-        request.setHeader(key, value);
-      }
-    }
-    request.on('response', (response) => {
-      const chunks: Buffer[] = [];
-      response.on('data', (chunk: Buffer) => chunks.push(chunk));
-      response.on('end', () => {
-        const body = Buffer.concat(chunks).toString('utf-8');
-        if (response.statusCode >= 400) {
-          reject(new Error(`HTTP ${response.statusCode}: ${body}`));
-          return;
-        }
-        try {
-          resolve(JSON.parse(body) as T);
-        } catch (e) {
-          reject(new Error(`Failed to parse JSON: ${e}`));
-        }
-      });
-      response.on('error', reject);
-    });
-    request.on('error', reject);
-    request.end();
-  });
+async function netGetJson<T>(url: string, headers?: Record<string, string>): Promise<T> {
+  const resp = await netFetch(url, { headers });
+  if (resp.status >= 400) {
+    throw new Error(`HTTP ${resp.status}: ${resp.body}`);
+  }
+  try {
+    return JSON.parse(resp.body) as T;
+  } catch (e) {
+    throw new Error(`Failed to parse JSON: ${e}`);
+  }
 }
 
 function parseModelRecords(days: UsageAmountDayEntry[]): import('../shared/types').ModelTokenRecord[] {
