@@ -137,18 +137,21 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
+import zhipuPricing from '../../../providers/zai-pricing.json'
 import type { ApiFormat, ConcurrencyTestResult } from '../types'
 
 defineEmits<{ 'go-back': [] }>()
 
-const ZHIPU_CODING_MODELS = ['GLM-5.2', 'GLM-5-Turbo', 'GLM-5v-Turbo', 'GLM-4.7', 'GLM-4.5-Air'] as const
+/** 模型清单统一维护在 zai-pricing.json（与智谱 Provider 共用），新增/下线模型只需更新该文件 */
+const ZHIPU_CODING_MODELS = Object.keys(zhipuPricing.models)
 
 const { t } = useI18n()
 
 const models = ZHIPU_CODING_MODELS
 const concurrencyOptions = [1, 3, 5, 10, 15, 20, 30, 50]
 
-const selectedModel = ref<string>('GLM-5.2')
+/** 清单按"最新在前"约定排序，默认选中第一个即最新模型 */
+const selectedModel = ref<string>(ZHIPU_CODING_MODELS[0] ?? '')
 const concurrency = ref(10)
 const apiFormat = ref<ApiFormat>('openai')
 const testing = ref(false)
