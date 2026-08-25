@@ -57,7 +57,7 @@
         @mouseleave="onTabsAreaLeave"
       ></div>
     </header>
-    <div v-if="providers.length > 1" class="provider-tabs" :class="{ expanded: showTabs }" @mouseenter="onTabsAreaEnter" @mouseleave="onTabsAreaLeave" @wheel.passive="onTabsWheel">
+    <div v-if="providers.length > 1" class="provider-tabs" :class="{ expanded: showTabs }" @mouseenter="onTabsAreaEnter" @mouseleave="onTabsAreaLeave" @wheel="onTabsWheel">
       <button
         class="provider-tab"
         :class="{ active: showOverview }"
@@ -100,7 +100,7 @@
           <div class="provider-name-row">
             <span class="provider-name" :class="{ clickable: !!activeProvider.websiteUrl }" @click="openProviderWebsite(activeProvider.websiteUrl)">{{ activeProvider.name }}</span>
             <!-- 账户切换按钮：仅当 2 个及以上账户时显示 -->
-            <div v-if="activeProvider.accounts.length > 1" class="account-tabs" @wheel.passive="onTabsWheel">
+            <div v-if="activeProvider.accounts.length > 1" class="account-tabs" @wheel="onTabsWheel">
               <button
                 v-for="(acc, idx) in activeProvider.accounts"
                 :key="acc.id"
@@ -353,9 +353,33 @@ function getSubRows(sub: AccountUsageData['subscription']) {
   return rows
 }
 
+// tabs 滚轮平滑滚动：每个滚动容器独立维护目标位置，rAF 插值逼近
+const tabScrollAnims = new WeakMap<HTMLElement, { target: number; raf: number | null }>()
+
 function onTabsWheel(e: WheelEvent) {
   const el = e.currentTarget as HTMLElement
-  el.scrollLeft += e.deltaY
+  // 取绝对值更大的轴向：滚轮纵向滚动转横向，触摸板横向手势保持原方向
+  const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+  const max = el.scrollWidth - el.clientWidth
+  if (max <= 0) return
+  const anim = tabScrollAnims.get(el) ?? { target: el.scrollLeft, raf: null }
+  anim.target = Math.max(0, Math.min(max, anim.target + delta))
+  tabScrollAnims.set(el, anim)
+  if (anim.raf == null) anim.raf = requestAnimationFrame(() => stepTabScroll(el))
+  e.preventDefault()
+}
+
+function stepTabScroll(el: HTMLElement) {
+  const anim = tabScrollAnims.get(el)
+  if (!anim) return
+  const diff = anim.target - el.scrollLeft
+  if (Math.abs(diff) < 1) {
+    el.scrollLeft = anim.target
+    anim.raf = null
+    return
+  }
+  el.scrollLeft += diff * 0.25
+  anim.raf = requestAnimationFrame(() => stepTabScroll(el))
 }
 
 function handleUpdateBannerClick() {
@@ -483,7 +507,8 @@ onUnmounted(() => {
 
 .provider-tabs {
   display: flex;
-  justify-content: center;
+  /* safe center：不溢出时居中；溢出时回退起始对齐，保证所有 tab 都可滚动到 */
+  justify-content: safe center;
   gap: 2px;
   background: var(--bg-tab-bar);
   border-radius: 8px;
