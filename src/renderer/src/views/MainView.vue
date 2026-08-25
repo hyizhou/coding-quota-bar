@@ -59,6 +59,13 @@
     </header>
     <div v-if="providers.length > 1" class="provider-tabs" :class="{ expanded: showTabs }" @mouseenter="onTabsAreaEnter" @mouseleave="onTabsAreaLeave" @wheel.passive="onTabsWheel">
       <button
+        class="provider-tab"
+        :class="{ active: showOverview }"
+        @click="setActiveProvider(OVERVIEW_KEY)"
+      >
+        {{ $t('main.overview') }}
+      </button>
+      <button
         v-for="p in providers"
         :key="p.key"
         class="provider-tab"
@@ -85,7 +92,10 @@
       </template>
 
       <template v-else>
-        <template v-if="activeProvider">
+        <template v-if="showOverview">
+          <ProviderOverview :providers="providers" :active-accounts="activeAccounts" @select-provider="setActiveProvider" />
+        </template>
+        <template v-else-if="activeProvider">
         <div class="provider-section">
           <div class="provider-name-row">
             <span class="provider-name" :class="{ clickable: !!activeProvider.websiteUrl }" @click="openProviderWebsite(activeProvider.websiteUrl)">{{ activeProvider.name }}</span>
@@ -166,6 +176,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloatingTooltip from '../components/FloatingTooltip.vue'
 import UpdateBanner from '../components/UpdateBanner.vue'
+import ProviderOverview from '../components/ProviderOverview.vue'
 import ZhipuSection from '../components/ZhipuSection.vue'
 import MiniMaxSection from '../components/MiniMaxSection.vue'
 import DeepSeekSection from '../components/DeepSeekSection.vue'
@@ -205,6 +216,7 @@ function onTabsAreaLeave() {
 }
 
 // Provider Tab 状态
+const OVERVIEW_KEY = '__overview'
 const STORAGE_KEY_ACCOUNTS = 'active-accounts'
 const STORAGE_KEY_PROVIDER = 'active-provider'
 const activeAccounts = ref<Record<string, string>>({})
@@ -234,11 +246,16 @@ function setActiveProvider(key: string) {
 }
 
 const activeProvider = computed(() => {
+  if (showOverview.value) return undefined
   if (providers.value.length === 0) return undefined
   if (providers.value.length === 1) return providers.value[0]
   const key = activeProviderKey.value || providers.value[0]?.key
   return providers.value.find(p => p.key === key) || providers.value[0]
 })
+
+const showOverview = computed(() =>
+  providers.value.length > 1 && (!activeProviderKey.value || activeProviderKey.value === OVERVIEW_KEY)
+)
 
 function getActiveAccountId(p: ProviderUsageData): string {
   return activeAccounts.value[p.key] || (p.accounts[0]?.id ?? '')
