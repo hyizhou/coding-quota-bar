@@ -35,3 +35,4 @@ AGENTS.md
 docs/
 scripts/
 .playwright-cli/
+.worktrees/

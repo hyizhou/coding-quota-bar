@@ -1,4 +1,4 @@
-<!-- 自研月历网格：周一起始 7 列布局，用于智谱用量图表选择自定义时间范围的起始日期 -->
+<!-- 自研月历网格：周一起始 7 列布局-->
 <template>
   <div class="calendar-panel">
     <div class="cal-header">
