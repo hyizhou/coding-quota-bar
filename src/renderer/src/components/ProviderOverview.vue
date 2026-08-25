@@ -2,11 +2,11 @@
   <div class="overview">
     <button
       v-for="card in cards"
-      :key="card.provider.key"
+      :key="`${card.provider.key}:${card.account.id}`"
       type="button"
       class="overview-card"
       :class="{ 'has-error': !!card.account.error }"
-      @click="$emit('select-provider', card.provider.key)"
+      @click="$emit('select-provider', card.provider.key, card.account.id)"
     >
       <div class="card-head">
         <div class="provider-title">
@@ -45,11 +45,10 @@ import type { AccountUsageData, ProviderUsageData, QuotaItem } from '../types'
 
 const props = defineProps<{
   providers: ProviderUsageData[]
-  activeAccounts: Record<string, string>
 }>()
 
 defineEmits<{
-  'select-provider': [key: string]
+  'select-provider': [key: string, accountId?: string]
 }>()
 
 const { t, locale } = useI18n()
@@ -82,8 +81,7 @@ interface OverviewCard {
 
 const cards = computed(() => {
   return props.providers
-    .map(provider => buildCard(provider))
-    .filter((card): card is OverviewCard => !!card)
+    .flatMap(provider => provider.accounts.map(account => buildCard(provider, account)))
     .sort((a, b) => {
       if (a.account.error && !b.account.error) return -1
       if (!a.account.error && b.account.error) return 1
@@ -91,9 +89,7 @@ const cards = computed(() => {
     })
 })
 
-function buildCard(provider: ProviderUsageData): OverviewCard | undefined {
-  const account = getAccount(provider)
-  if (!account) return undefined
+function buildCard(provider: ProviderUsageData, account: AccountUsageData): OverviewCard {
   const primary = selectPrimaryMetric(provider.key, account)
   const secondary = selectSecondaryMetrics(provider.key, account)
   const sortValue = account.error ? -1 : metricRemaining(primary)
@@ -105,11 +101,6 @@ function buildCard(provider: ProviderUsageData): OverviewCard | undefined {
     secondary,
     sortValue,
   }
-}
-
-function getAccount(provider: ProviderUsageData): AccountUsageData | undefined {
-  const activeId = props.activeAccounts[provider.key]
-  return provider.accounts.find(a => a.id === activeId) || provider.accounts[0]
 }
 
 function selectPrimaryMetric(providerKey: string, account: AccountUsageData): OverviewMetric {

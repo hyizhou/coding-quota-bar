@@ -93,7 +93,7 @@
 
       <template v-else>
         <template v-if="showOverview">
-          <ProviderOverview :providers="providers" :active-accounts="activeAccounts" @select-provider="setActiveProvider" />
+          <ProviderOverview :providers="providers" @select-provider="handleOverviewSelect" />
         </template>
         <template v-else-if="activeProvider">
         <div class="provider-section">
@@ -276,6 +276,14 @@ function isPlanExpired(p: ProviderUsageData): boolean {
 function setActiveAccount(p: ProviderUsageData, accountId: string): void {
   activeAccounts.value[p.key] = accountId
   saveActiveAccounts()
+}
+
+// 总览卡片点击：跳转服务商并联动选中对应账户
+function handleOverviewSelect(key: string, accountId?: string): void {
+  setActiveProvider(key)
+  if (!accountId) return
+  const provider = providers.value.find(p => p.key === key)
+  if (provider) setActiveAccount(provider, accountId)
 }
 
 const lastUpdateText = computed(() => {
