@@ -18,6 +18,8 @@ export interface QuotaDisplayItem {
   startAt?: string;
   color: 'green' | 'yellow' | 'red';
   limitType?: string;
+  hideBar?: boolean;
+  displayUnit?: 'percent' | 'count';
   currency?: string;
 }
 
@@ -28,6 +30,7 @@ export interface AccountDisplayData {
   id: string;
   label?: string;
   level?: string;
+  authMode?: 'apikey' | 'weblogin';
   subscription?: import('../shared/types').SubscriptionInfo;
   error?: string;
   currency?: string;
@@ -100,7 +103,7 @@ function hasEnabledProviders(): boolean {
       if (!a.enabled) return false;
       if (a.authMode === 'weblogin') {
         // MiMo 使用 Cookie 认证，OpenCode Go 使用 Cookie 认证，Codex 读取本地 auth 文件，均不需要 webToken
-        if (type === 'mimo' || type === 'opencodego' || type === 'codex') return true;
+        if (type === 'mimo' || type === 'codex') return true;
         return !!a.webToken?.trim();
       }
       return !!a.apiKey?.trim();
@@ -126,6 +129,16 @@ function getAccountLabel(type: string, accountId: string): string {
   if (!providerConfig?.accounts) return '';
   const account = providerConfig.accounts.find(a => a.id === accountId);
   return account?.label ?? '';
+}
+
+/**
+ * 获取账户认证模式
+ */
+function getAccountAuthMode(type: string, accountId: string): 'apikey' | 'weblogin' | undefined {
+  const config = _getConfigManager()?.getConfig();
+  const providerConfig = config?.providers[type] as ProviderTypeConfig | undefined;
+  const account = providerConfig?.accounts.find(a => a.id === accountId);
+  return account?.authMode;
 }
 
 /**
@@ -155,6 +168,7 @@ function convertAccountData(
     color: getColorByPercent(Math.max(0, 100 - q.usageRate), thresholds) as 'green' | 'yellow' | 'red',
     limitType: q.limitType,
     hideBar: (q as any).hideBar,
+    displayUnit: (q as any).displayUnit,
     currency: (q as any).currency,
   }));
 
@@ -182,6 +196,7 @@ function convertAccountData(
     id: accountId,
     label: getAccountLabel(type, accountId) || undefined,
     level: result.level,
+    authMode: getAccountAuthMode(type, accountId),
     subscription: result.details?.subscription as import('../shared/types').SubscriptionInfo | undefined,
     error: result.error,
     currency: (result.details?.currency as string) || undefined,

@@ -1,62 +1,19 @@
 {
   "name": "coding-quota-bar",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "Coding Plan usage monitor - system tray resident display",
   "main": "./out/main/index.js",
   "author": "hyizhou",
   "license": "MIT",
   "scripts": {
-    "dev": "chcp 65001 >nul && electron-vite dev",
+    "dev": "electron-vite dev",
     "build": "electron-vite build",
-    "preview": "electron-vite preview",
-    "package": "npm run build && electron-builder",
-    "package:dir": "npm run build && electron-builder --dir",
-    "package:win": "npm run build && electron-builder --win"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.2",
-    "@vitejs/plugin-vue": "^6.0.5",
-    "electron": "^34.0.0",
-    "electron-builder": "^25.1.8",
-    "electron-vite": "^5.0.0",
-    "typescript": "^5.7.2",
-    "vite": "^7.3.1",
-    "vue-tsc": "^3.2.6"
-  },
-  "build": {
-    "appId": "top.hyizhou.codingquotabar",
-    "productName": "Coding Quota Bar",
-    "copyright": "Copyright © 2026 hyizhou",
-    "electronLanguages": [
-      "zh-CN",
-      "en-US"
-    ],
-    "directories": {
-      "output": "release",
-      "buildResources": "assets"
-    },
-    "files": [
-      "out/**/*",
-      "package.json"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "assets/icon.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Coding Quota Bar"
-    }
+    "start": "electron-vite preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "pack": "electron-builder --win --dir",
+    "dist": "electron-builder --win"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
@@ -64,5 +21,15 @@
     "vue": "^3.5.32",
     "vue-chartjs": "^5.3.3",
     "vue-i18n": "^11.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "@vitejs/plugin-vue": "^6.0.0",
+    "electron": "^34.5.0",
+    "electron-builder": "^25.1.0",
+    "electron-vite": "^5.0.0",
+    "tsx": "^4.23.0",
+    "typescript": "^7.0.0",
+    "vite": "^8.0.0"
   }
 }

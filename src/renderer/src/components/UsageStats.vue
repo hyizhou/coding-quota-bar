@@ -41,11 +41,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
-import TokenChart from './TokenChart.vue'
-import McpChart from './McpChart.vue'
 import type { ModelTokenRecord, McpUsageRecord } from '../types'
+
+// chart.js + vue-chartjs 加起来 ~610KB，按需加载
+// 首屏不下载，用户点开图表 tab 时才加载
+const TokenChart = defineAsyncComponent(() => import('./TokenChart.vue'))
+const McpChart = defineAsyncComponent(() => import('./McpChart.vue'))
 
 const { t } = useI18n()
 

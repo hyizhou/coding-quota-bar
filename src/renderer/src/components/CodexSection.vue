@@ -85,7 +85,7 @@ function formatDate(iso: string): string {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #ef4444;
+  background: var(--cqb-red);
   color: #fff;
   font-size: 12px;
   font-weight: 700;

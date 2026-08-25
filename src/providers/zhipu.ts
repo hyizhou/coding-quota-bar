@@ -153,15 +153,33 @@ interface ModelPricing {
   note?: string;
 }
 
-const { models: MODEL_PRICING, tokenRatio: TOKEN_RATIO } = pricingConfig as {
+const { models: RAW_MODEL_PRICING, tokenRatio: TOKEN_RATIO, fallbackModel: FALLBACK_MODEL } = pricingConfig as {
   models: Record<string, ModelPricing>;
   tokenRatio: { cache: number; input: number; output: number };
+  fallbackModel?: string;
 };
 
-/** 模型名统一转小写后匹配，兼容 API 返回 "GLM-5.2-HighSpeed" / "glm-5.2-highspeed" 等写法 */
-const MODEL_PRICING_LOWER = new Map(
-  Object.entries(MODEL_PRICING).map(([name, pricing]) => [name.toLowerCase(), pricing])
-);
+// 大小写不敏感的 pricing lookup：API 返回 "glm-5.2" 或 "GLM-5.2" 都能匹配
+const MODEL_PRICING_LOOKUP: Map<string, ModelPricing> = (() => {
+  const map = new Map<string, ModelPricing>();
+  for (const [key, value] of Object.entries(RAW_MODEL_PRICING)) {
+    map.set(key.toLowerCase(), value);
+  }
+  return map;
+})();
+
+function getPricing(modelName: string): ModelPricing | undefined {
+  if (!modelName) return undefined;
+  const direct = RAW_MODEL_PRICING[modelName];
+  if (direct) return direct;
+  const caseInsensitive = MODEL_PRICING_LOOKUP.get(modelName.toLowerCase());
+  if (caseInsensitive) return caseInsensitive;
+  // 未知模型兜底到 fallbackModel（默认 GLM-5.1）
+  if (FALLBACK_MODEL) {
+    return RAW_MODEL_PRICING[FALLBACK_MODEL] ?? MODEL_PRICING_LOOKUP.get(FALLBACK_MODEL.toLowerCase());
+  }
+  return undefined;
+}
 
 /**
  * 根据 modelDataList 估算 API 调用费用
@@ -170,7 +188,7 @@ function calcEstimatedCost(resp: ZhipuModelUsageResponse | null): number {
   if (!resp?.data?.modelDataList) return 0;
   let total = 0;
   for (const model of resp.data.modelDataList) {
-    const pricing = MODEL_PRICING_LOWER.get(model.modelName.toLowerCase());
+    const pricing = getPricing(model.modelName);
     if (!pricing) continue;
     const mTokens = model.totalTokens / 1_000_000;
     total += mTokens * (
@@ -183,21 +201,53 @@ function calcEstimatedCost(resp: ZhipuModelUsageResponse | null): number {
 }
 
 /**
- * 计算每模型的等效单价（元/百万token），按 96/3/1 比例加权
+ * 按 tokenRatio 加权 cache/input/output 三档价格，得到每模型等效单价（元/百万token）
  */
-function calcModelRates(): Record<string, number> {
+function calcRate(p: ModelPricing): number {
+  return Math.round((
+    TOKEN_RATIO.cache * p.cache +
+    TOKEN_RATIO.input * p.input +
+    TOKEN_RATIO.output * p.output
+  ) * 100) / 100;
+}
+
+/**
+ * 静态 modelRates：仅包含 JSON 里的已知模型。
+ * 主要给 UI 渲染「定价参考表」用，渲染进程可遍历。
+ */
+const STATIC_MODEL_RATES: Record<string, number> = (() => {
   const rates: Record<string, number> = {};
-  for (const [name, p] of Object.entries(MODEL_PRICING)) {
-    rates[name] = Math.round((
-      TOKEN_RATIO.cache * p.cache +
-      TOKEN_RATIO.input * p.input +
-      TOKEN_RATIO.output * p.output
-    ) * 100) / 100;
+  for (const [name, p] of Object.entries(RAW_MODEL_PRICING)) {
+    rates[name] = calcRate(p);
+  }
+  return rates;
+})();
+
+/**
+ * 运行时 modelRates：基于本次 API 返回的 modelDataList 构建。
+ * 已知模型用 JSON 里的精确价；未知模型（包括未来 GLM-5.4、6.0 等）走 fallbackModel 兜底。
+ *
+ * 为什么需要这个：STATIC_MODEL_RATES 只含 JSON 里的模型，如果智谱上线新模型后 API 返回
+ * modelDataList 里出现该模型名，TokenChart 的「分模型费用明细」会查不到 rate，导致那行
+ * 显示空、但总费用里又用 calcEstimatedCost() 走了兜底算上了——数据对不上，用户会困惑。
+ * 这里把分模型明细也用同样的兜底策略，保证「总费用 = 明细相加」。
+ */
+function buildRuntimeModelRates(
+  modelDataLists: Array<NonNullable<ZhipuModelUsageResponse['data']>['modelDataList'] | undefined>
+): Record<string, number> {
+  const rates: Record<string, number> = { ...STATIC_MODEL_RATES };
+  for (const list of modelDataLists) {
+    if (!list) continue;
+    for (const m of list) {
+      if (rates[m.modelName] !== undefined) continue;  // 已存在（含大小写匹配）就跳过
+      // getPricing() 已含大小写不敏感 + fallbackModel 兜底
+      const pricing = getPricing(m.modelName);
+      if (!pricing) continue;
+      rates[m.modelName] = calcRate(pricing);
+    }
   }
   return rates;
 }
-
-const MODEL_RATES = calcModelRates();
 
 /**
  * 智谱 Coding Plan Provider
@@ -206,6 +256,8 @@ export class ZhipuProvider implements Provider {
   name = '智谱';
 
   private httpClient = new HttpClientWithRetry(3, 1000);
+  // 关键请求（quota/limit）：重试更多次、退避更长，避免一次间歇性网络错误就让整个面板无数据
+  private criticalClient = new HttpClientWithRetry(5, 1200);
 
   private getBaseUrl(config: ProviderConfig): string {
     return config._baseUrl as string;
@@ -220,8 +272,8 @@ export class ZhipuProvider implements Provider {
     const baseUrl = this.getBaseUrl(config);
     const headers = { 'Authorization': `Bearer ${apiKey}` };
 
-    // 1. 获取配额数据
-    const quotaResp = await this.httpClient.getJson<ZhipuQuotaResponse>(
+    // 1. 获取配额数据（关键请求，单独用更高重试次数的 client）
+    const quotaResp = await this.criticalClient.getJson<ZhipuQuotaResponse>(
       `${baseUrl}/api/monitor/usage/quota/limit`,
       headers
     );
@@ -238,66 +290,86 @@ export class ZhipuProvider implements Provider {
     const start15d = new Date(now.getTime() - 15 * 86400000);
     const start30d = new Date(now.getTime() - 30 * 86400000);
 
-    let resp1d: ZhipuModelUsageResponse | null = null;
-    let resp7d: ZhipuModelUsageResponse | null = null;
-    let resp30d: ZhipuModelUsageResponse | null = null;
-    let toolResp1d: ZhipuToolUsageResponse | null = null;
-    let toolResp7d: ZhipuToolUsageResponse | null = null;
-    let toolResp30d: ZhipuToolUsageResponse | null = null;
-    let perfResp7d: ZhipuPerformanceResponse | null = null;
-    let perfResp15d: ZhipuPerformanceResponse | null = null;
-    let perfResp30d: ZhipuPerformanceResponse | null = null;
-    let subResp: ZhipuSubscriptionResponse | null = null;
-    try {
-      [resp1d, resp7d, resp30d, toolResp1d, toolResp7d, toolResp30d, perfResp7d, perfResp15d, perfResp30d, subResp] = await Promise.all([
-        this.httpClient.getJson<ZhipuModelUsageResponse>(
-          `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuModelUsageResponse>(
-          `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuModelUsageResponse>(
-          `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuToolUsageResponse>(
-          `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuToolUsageResponse>(
-          `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuToolUsageResponse>(
-          `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuPerformanceResponse>(
-          `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuPerformanceResponse>(
-          `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start15d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuPerformanceResponse>(
-          `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuSubscriptionResponse>(
-          `${baseUrl}/api/biz/subscription/list?pageSize=9999&pageNum=1`,
-          headers
-        )
-      ]);
-    } catch (e) {
-      console.warn('[Zhipu] Failed to fetch model/tool usage:', e);
-    }
+    // 用「限流并发 + allSettled」请求辅助数据：
+    //  - 限流（最多 2 路同时）避免对同一 host 瞬间打出 10 条连接触发服务端/代理限流，
+    //    导致 ERR_CONNECTION_CLOSED（实测 2 路并发比 10 路全并发更稳更快）。
+    //  - allSettled 让单条失败不连累其余请求（每条内部已有重试）。
+    const auxRequests: Array<() => Promise<unknown>> = [
+      () => this.httpClient.getJson<ZhipuModelUsageResponse>(
+        `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuModelUsageResponse>(
+        `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuModelUsageResponse>(
+        `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuToolUsageResponse>(
+        `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuToolUsageResponse>(
+        `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuToolUsageResponse>(
+        `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuPerformanceResponse>(
+        `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuPerformanceResponse>(
+        `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start15d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuPerformanceResponse>(
+        `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuSubscriptionResponse>(
+        `${baseUrl}/api/biz/subscription/list?pageSize=9999&pageNum=1`,
+        headers
+      )
+    ];
+
+    const settled = await this.runLimitedAllSettled(auxRequests, 2);
+
+    /**
+     * 从 allSettled 结果中提取值，失败时记录并返回 null
+     */
+    const pick = <T>(i: number): T | null => {
+      const s = settled[i] as PromiseSettledResult<T>;
+      if (s.status === 'fulfilled') return s.value;
+      const reason = s.reason instanceof Error ? s.reason.message : String(s.reason);
+      console.warn(`[Zhipu] request #${i} failed:`, reason);
+      return null;
+    };
+
+    const resp1d = pick<ZhipuModelUsageResponse>(0);
+    const resp7d = pick<ZhipuModelUsageResponse>(1);
+    const resp30d = pick<ZhipuModelUsageResponse>(2);
+    const toolResp1d = pick<ZhipuToolUsageResponse>(3);
+    const toolResp7d = pick<ZhipuToolUsageResponse>(4);
+    const toolResp30d = pick<ZhipuToolUsageResponse>(5);
+    const perfResp7d = pick<ZhipuPerformanceResponse>(6);
+    const perfResp15d = pick<ZhipuPerformanceResponse>(7);
+    const perfResp30d = pick<ZhipuPerformanceResponse>(8);
+    const subResp = pick<ZhipuSubscriptionResponse>(9);
 
     // 3. 构建额度列表
     const quotas = quotaResp.data.limits.map(item => {
       const { label, labelParams } = getLimitLabel(item);
+      // 周期长度：unit=3 小时 / unit=1 天 / unit=5 月 / 其他按天估算
+      const periodHours =
+        item.unit === 3 ? item.number :
+        item.unit === 1 ? item.number * 24 :
+        item.unit === 5 ? item.number * 30 * 24 :
+        item.number * 24;  // 兜底
       if (item.type === 'TOKENS_LIMIT') {
         const used = resp1d?.data?.totalUsage?.totalModelCallCount ?? 0;
         const total = item.percentage > 0 ? Math.round(used / (item.percentage / 100)) : 0;
@@ -308,6 +380,7 @@ export class ZhipuProvider implements Provider {
           total,
           usageRate: item.percentage,
           resetAt: toISODate(item.nextResetTime),
+          periodHours,
           limitType: 'tokens' as const
         };
       }
@@ -318,6 +391,7 @@ export class ZhipuProvider implements Provider {
         total: item.usage ?? 0,
         usageRate: item.percentage,
         resetAt: toISODate(item.nextResetTime),
+        periodHours,
         limitType: item.type === 'TIME_LIMIT' ? 'mcp' as const : undefined
       };
     });
@@ -349,7 +423,7 @@ export class ZhipuProvider implements Provider {
         estimatedCost1d: calcEstimatedCost(resp1d),
         estimatedCost7d: calcEstimatedCost(resp7d),
         estimatedCost30d: calcEstimatedCost(resp30d),
-        modelRates: MODEL_RATES,
+        modelRates: buildRuntimeModelRates([resp1d?.data?.modelDataList, resp7d?.data?.modelDataList, resp30d?.data?.modelDataList]),
         mcpHistory1d: this.buildToolHistory(toolResp1d),
         mcpHistory7d: this.buildToolHistory(toolResp7d),
         mcpHistory30d: this.buildToolHistory(toolResp30d),
@@ -361,6 +435,32 @@ export class ZhipuProvider implements Provider {
         performanceHistory30d: this.buildPerformanceHistory(perfResp30d)
       }
     };
+  }
+
+  /**
+   * 限流并发执行任务，最多同时 limit 个进行中。
+   * 用 allSettled 语义：单任务失败不影响其他，结果顺序与输入一致。
+   * 用于避免对同一 host 瞬间打出过多连接。
+   */
+  private async runLimitedAllSettled<T>(
+    tasks: Array<() => Promise<T>>,
+    limit: number
+  ): Promise<PromiseSettledResult<T>[]> {
+    const results: PromiseSettledResult<T>[] = new Array(tasks.length);
+    let next = 0;
+    const worker = async () => {
+      while (true) {
+        const i = next++;
+        if (i >= tasks.length) return;
+        try {
+          results[i] = { status: 'fulfilled', value: await tasks[i]() };
+        } catch (e) {
+          results[i] = { status: 'rejected', reason: e };
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, () => worker()));
+    return results;
   }
 
   /**

@@ -31,7 +31,7 @@ Windows 托盘工具，实时监控各 AI 平台 Coding Plan 用量。
 | **DeepSeek** | API Key / 网页登录 | 账户余额（总余额/赠送/充值）、自定义预算进度条、API 与网页服务 90 天运行状态 |
 | **MiniMax** | API Key | 日额度、周额度 |
 | **MiMo** | 网页登录 | 套餐总用量、月度用量、Token 用量、账户余额 |
-| **OpenCode Go** | 网页登录（OAuth） | 5 小时滚动窗口、周额度、月额度、Zen 余额 |
+| **OpenCode Go** | API Key | 5 小时/周/月三档剩余额度 |
 | **Codex** | 读取本机 Codex CLI 登录 | 主窗口/次窗口限流、代码审查额度、Credits 余额、订阅到期 |
 
 ### 多账户管理
@@ -52,6 +52,7 @@ DeepSeek 用户可实时查看 API 服务和网页对话服务的运行状态，
 ### 其他特性
 
 - **自动定时刷新** — 可配置 1-30 分钟刷新间隔
+- **弹窗窗口** — 三态固定（不固定/置顶固定/桌面固定）、高度可拖拽调整并记忆
 - **API Key 加密** — 使用 Windows safeStorage 系统级加密
 - **开机自启动**
 - **深色/浅色主题** — 跟随系统或手动切换
@@ -80,7 +81,7 @@ git clone https://github.com/hyizhou/coding-quota-bar.git
 cd coding-quota-bar
 npm install
 npm run dev           # 开发模式
-npm run package:win   # 打包 Windows 安装程序
+npm run dist          # 打包 Windows 安装程序
 ```
 
 ## 反馈与交流

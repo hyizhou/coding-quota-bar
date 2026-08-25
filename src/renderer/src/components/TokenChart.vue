@@ -9,7 +9,14 @@
       </div>
       <div v-if="totalCost > 0" class="chart-right">
         <FloatingTooltip position="top" align="right" :rows="costRows">
-          <span class="chart-cost">¥ {{ totalCost.toFixed(2) }}</span>
+          <span class="chart-cost">
+            ¥ {{ animatedCost.formatted.value }}
+            <span
+              v-if="animatedCost.trend.value !== 'same'"
+              :class="['cost-trend', `cost-trend-${animatedCost.trend.value}`]"
+              :title="animatedCost.trend.value === 'up' ? '上涨中' : '下降中'"
+            >{{ animatedCost.trend.value === 'up' ? '↑' : '↓' }}</span>
+          </span>
         </FloatingTooltip>
       </div>
     </div>
@@ -32,6 +39,7 @@ import {
 import type { ModelTokenRecord } from '../types'
 import FloatingTooltip from './FloatingTooltip.vue'
 import { useTheme } from '../composables/useTheme'
+import { useAnimatedNumber } from '../composables/useAnimatedNumber'
 
 /** 鼠标悬停时绘制垂直辅助线 */
 const verticalLinePlugin = {
@@ -316,6 +324,9 @@ const totalCost = computed(() => {
   return total
 })
 
+// 总费用平滑过渡（数据刷新时不跳变）
+const animatedCost = useAnimatedNumber(totalCost, { duration: 600, decimals: 2 })
+
 const costRows = computed(() => {
   if (!props.modelRates || totalCost.value <= 0) return []
   const ratesLower = new Map(
@@ -449,5 +460,24 @@ const chartOptions = computed(() => ({
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   cursor: default;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cost-trend {
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-block;
+  animation: cost-trend-pop 0.6s ease-out;
+}
+
+.cost-trend-up   { color: var(--cqb-yellow-dark); }
+.cost-trend-down { color: var(--cqb-green); }
+
+@keyframes cost-trend-pop {
+  0%   { transform: translateY(6px); opacity: 0; }
+  60%  { transform: translateY(-1px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
 }
 </style>

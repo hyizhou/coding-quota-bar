@@ -272,7 +272,8 @@ export function createPopupWindow(
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      sandbox: true
     }
   });
   // 仅放开纵向调整：最小/最大宽度相同锁死横向，高度下限为默认值、上不封顶

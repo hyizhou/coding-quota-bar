@@ -7,14 +7,15 @@
     "buildResources": "assets"
   },
   "files": [
-    "dist/**/*",
-    "package.json"
+    "out/**/*",
+    "package.json",
+    "node_modules/electron-updater/**/*"
   ],
-  "publish": {
-    "provider": "github",
-    "owner": "hyizhou",
-    "repo": "coding-quota-bar"
-  },
+  "asarUnpack": [
+    "**/node_modules/electron-updater/**"
+  ],
+  "publish": null,
+  "afterPack": "./after-pack.cjs",
   "win": {
     "target": [
       {

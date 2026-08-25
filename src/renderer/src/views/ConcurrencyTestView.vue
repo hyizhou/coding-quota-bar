@@ -457,7 +457,7 @@ onUnmounted(() => {
 .tooltip-error {
   white-space: normal;
   word-break: break-all;
-  color: var(--text-error, #f87171);
+  color: var(--cqb-red-light, #FCA5A5);
 }
 
 .indicator {
@@ -473,15 +473,15 @@ onUnmounted(() => {
   box-shadow: none;
 }
 .indicator.streaming {
-  background: var(--color-warning, #EAB308);
+  background: var(--cqb-yellow, #FACC15);
   box-shadow: 0 0 4px rgba(234, 179, 8, 0.4);
 }
 .indicator.success {
-  background: var(--color-success, #22C55E);
+  background: var(--cqb-green, #4ADE80);
   box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
 }
 .indicator.fail {
-  background: var(--color-error, #ef4444);
+  background: var(--cqb-red, #F87171);
   box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
 }
 
@@ -522,8 +522,8 @@ onUnmounted(() => {
   font-size: 12px;
 }
 
-.text-green { color: var(--color-success, #22C55E); }
-.text-yellow { color: var(--color-warning, #EAB308); }
+  .text-green { color: var(--cqb-green, #4ADE80); }
+  .text-yellow { color: var(--cqb-yellow, #FACC15); }
 
 .result-details {
   margin-top: 6px;
@@ -574,7 +574,7 @@ onUnmounted(() => {
   transition: color 0.15s, background 0.15s;
 }
 .clear-all-btn:hover {
-  color: var(--color-error, #ef4444);
+  color: var(--cqb-red, #F87171);
   background: rgba(239, 68, 68, 0.1);
 }
 
@@ -597,11 +597,11 @@ onUnmounted(() => {
   cursor: pointer;
 }
 .confirm-yes {
-  background: var(--color-error, #ef4444);
+  background: var(--cqb-red, #F87171);
   color: #fff;
 }
 .confirm-yes:hover {
-  background: var(--color-error-dark, #dc2626);
+  background: var(--cqb-red-dark, #EF4444);
 }
 .confirm-no {
   background: var(--border-default);
@@ -669,7 +669,7 @@ onUnmounted(() => {
   opacity: 1;
 }
 .history-delete:hover {
-  color: var(--color-error, #ef4444);
+  color: var(--cqb-red, #F87171);
 }
 
 .history-empty {

@@ -1,6 +1,8 @@
 import { Tray, Menu, nativeImage, MenuItem } from 'electron';
 import * as zlib from 'node:zlib';
 import { t } from './i18n';
+import { COLORS, LOADING_COLOR_RGB } from '../shared/colors';
+import type { TrayColors } from '../shared/types';
 
 /**
  * 显示颜色类型
@@ -8,21 +10,12 @@ import { t } from './i18n';
 export type DisplayColor = 'green' | 'yellow' | 'red' | 'gray';
 
 /**
- * 颜色配置
- */
-const COLORS = {
-  green: '#22C55E',
-  yellow: '#F59E0B',
-  red: '#EF4444',
-  gray: '#888888'
-};
-
-/**
  * 颜色阈值配置
  */
 export interface ColorThresholds {
   green: number;  // > green 为绿色
   yellow: number; // > yellow 为黄色，< yellow 为红色
+  colors?: TrayColors; // 可选自定义色板，缺省字段回退到 COLORS
 }
 
 /**
@@ -39,13 +32,23 @@ export interface TrayCallbacks {
 }
 
 /**
- * 根据剩余百分比获取显示颜色
+ * 根据剩余百分比获取显示颜色（返回 DisplayColor key）
  */
 export function getColorByPercent(percent: number, thresholds: ColorThresholds): DisplayColor {
   if (percent < 0) return 'gray';
   if (percent >= thresholds.green) return 'green';
   if (percent >= thresholds.yellow) return 'yellow';
   return 'red';
+}
+
+/**
+ * 根据剩余百分比获取实际 hex 颜色（应用用户自定义色板）
+ */
+export function getHexByPercent(percent: number, thresholds: ColorThresholds): string {
+  const key = getColorByPercent(percent, thresholds);
+  const custom = thresholds.colors;
+  const candidate = custom?.[key];
+  return (candidate && /^#[0-9a-fA-F]{6}$/.test(candidate)) ? candidate : COLORS[key];
 }
 
 /**
@@ -63,6 +66,22 @@ const DIGIT_FONT: Record<string, string[]> = {
   '8': ['01110', '10001', '10001', '01110', '10001', '10001', '01110'],
   '9': ['01110', '10001', '10001', '01111', '00001', '00010', '01100'],
   '-': ['00000', '00000', '00000', '11111', '00000', '00000', '00000'],
+};
+
+/**
+ * 三位数专用窄字体。16px 托盘图标里 "100" 使用 5x7 字体会贴边且无法描边。
+ */
+const COMPACT_DIGIT_FONT: Record<string, string[]> = {
+  '0': ['111', '101', '101', '101', '101', '101', '111'],
+  '1': ['010', '110', '010', '010', '010', '010', '111'],
+  '2': ['111', '001', '001', '111', '100', '100', '111'],
+  '3': ['111', '001', '001', '111', '001', '001', '111'],
+  '4': ['101', '101', '101', '111', '001', '001', '001'],
+  '5': ['111', '100', '100', '111', '001', '001', '111'],
+  '6': ['111', '100', '100', '111', '101', '101', '111'],
+  '7': ['111', '001', '001', '010', '010', '010', '010'],
+  '8': ['111', '101', '101', '111', '101', '101', '111'],
+  '9': ['111', '101', '101', '111', '001', '001', '111'],
 };
 
 /**
@@ -123,53 +142,118 @@ function encodePng(width: number, height: number, rgba: Buffer): Buffer {
 
 /**
  * 创建包含数字的托盘图标 (PNG 格式)
- * 使用位图字体渲染百分比数字，生成 PNG 供 Electron NativeImage 使用
+ * 使用位图字体渲染百分比数字，并加黑色描边以提升任意背景下的可见性。
+ *
+ * 渲染两遍：
+ *   Pass 1: 8-邻接外扩黑色描边（仅在亮像素的外侧邻居位置绘制）
+ *   Pass 2: 在描边之上绘制主色亮像素
+ *
+ * @param colorHex 可选自定义颜色 hex；不传则从内置 COLORS 取
  */
-export function createTrayIcon(percent: number, color: DisplayColor): Electron.NativeImage {
-  const size = 16;
-  const colorHex = COLORS[color];
+export function createTrayIcon(percent: number, color: DisplayColor, colorHexOverride?: string): Electron.NativeImage {
+  const fallbackHex = COLORS[color];
+  const colorHex = (colorHexOverride && /^#[0-9a-fA-F]{6}$/.test(colorHexOverride))
+    ? colorHexOverride
+    : fallbackHex;
 
-  // 解析颜色
-  const r = parseInt(colorHex.slice(1, 3), 16);
-  const g = parseInt(colorHex.slice(3, 5), 16);
-  const b = parseInt(colorHex.slice(5, 7), 16);
+  const r = parseInt(colorHex.slice(1, 3), 16) || 0;
+  const g = parseInt(colorHex.slice(3, 5), 16) || 0;
+  const b = parseInt(colorHex.slice(5, 7), 16) || 0;
 
-  // 初始化透明像素缓冲
+  const png1x = renderTrayNumberPng(percent, r, g, b, 16, 1);
+  const icon = nativeImage.createFromBuffer(png1x);
+  const png2x = renderTrayNumberPng(percent, r, g, b, 32, 2);
+  icon.addRepresentation({
+    scaleFactor: 2,
+    dataURL: `data:image/png;base64,${png2x.toString('base64')}`,
+  });
+  return icon;
+}
+
+function renderTrayNumberPng(percent: number, r: number, g: number, b: number, size: number, pixelScale: number): Buffer {
   const pixels = Buffer.alloc(size * size * 4, 0);
 
-  // 渲染文本（位图字体 5x7）
   const noData = percent < 0;
-  const text = noData ? '--' : String(Math.round(percent));
-  const charWidth = 5;
-  const charHeight = 7;
-  const charGap = text.length > 2 ? 0 : 1;
-  const textWidth = text.length * charWidth + (text.length - 1) * charGap;
+  const displayPercent = Math.max(0, Math.min(100, Math.round(percent)));
+  const text = noData ? '--' : String(displayPercent);
+  const font = text.length > 2 ? COMPACT_DIGIT_FONT : DIGIT_FONT;
+  const charHeight = 7 * pixelScale;
+  const charGap = pixelScale;
+  const glyphWidths = [...text].map(ch => (font[ch]?.[0]?.length ?? 0) * pixelScale);
+  const textWidth = glyphWidths.reduce((sum, width) => sum + width, 0) + (text.length - 1) * charGap;
   const offsetX = Math.floor((size - textWidth) / 2);
   const offsetY = Math.floor((size - charHeight) / 2);
 
+  // Pass 0: 收集所有亮像素坐标（多字符之间不重复）
+  const litPixels = new Set<string>();
+  const litCoords: Array<{ x: number; y: number }> = [];
+
+  let cursorX = offsetX;
   for (let ci = 0; ci < text.length; ci++) {
-    const glyph = DIGIT_FONT[text[ci]];
-    if (!glyph) continue;
-    const cx = offsetX + ci * (charWidth + charGap);
+    const glyph = font[text[ci]];
+    if (!glyph) {
+      cursorX += charGap;
+      continue;
+    }
+    const cx = cursorX;
     for (let row = 0; row < glyph.length; row++) {
       for (let col = 0; col < glyph[row].length; col++) {
         if (glyph[row][col] === '1') {
-          const px = cx + col;
-          const py = offsetY + row;
-          if (px >= 0 && px < size && py >= 0 && py < size) {
-            const idx = (py * size + px) * 4;
-            pixels[idx] = r;
-            pixels[idx + 1] = g;
-            pixels[idx + 2] = b;
-            pixels[idx + 3] = 255;
+          for (let sy = 0; sy < pixelScale; sy++) {
+            for (let sx = 0; sx < pixelScale; sx++) {
+              const px = cx + col * pixelScale + sx;
+              const py = offsetY + row * pixelScale + sy;
+              if (px >= 0 && px < size && py >= 0 && py < size) {
+                const key = `${px},${py}`;
+                if (!litPixels.has(key)) {
+                  litPixels.add(key);
+                  litCoords.push({ x: px, y: py });
+                }
+              }
+            }
           }
         }
       }
     }
+    cursorX += (glyph[0]?.length ?? 0) * pixelScale + charGap;
   }
 
-  const pngBuffer = encodePng(size, size, pixels);
-  return nativeImage.createFromBuffer(pngBuffer);
+  const setPixel = (x: number, y: number, pr: number, pg: number, pb: number, pa: number) => {
+    if (x < 0 || x >= size || y < 0 || y >= size) return;
+    const idx = (y * size + x) * 4;
+    pixels[idx] = pr;
+    pixels[idx + 1] = pg;
+    pixels[idx + 2] = pb;
+    pixels[idx + 3] = pa;
+  };
+
+  // 16px 的 "100" 空隙只有 1px，描边会把三个数字糊成一块；2x 表示保留描边供高 DPI 托盘使用。
+  const enableOutline = text.length <= 2 || pixelScale > 1;
+
+  if (enableOutline) {
+    // Pass 1: 8 邻接外扩黑色描边（仅画在"非亮"位置）
+    const neighbors: Array<[number, number]> = [
+      [-1, -1], [0, -1], [1, -1],
+      [-1,  0],          [1,  0],
+      [-1,  1], [0,  1], [1,  1],
+    ];
+    for (const { x, y } of litCoords) {
+      for (const [dx, dy] of neighbors) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || nx >= size || ny < 0 || ny >= size) continue;
+        if (litPixels.has(`${nx},${ny}`)) continue;
+        setPixel(nx, ny, 0, 0, 0, 255);
+      }
+    }
+  }
+
+  // Pass 2: 在描边之上绘制主色亮像素
+  for (const { x, y } of litCoords) {
+    setPixel(x, y, r, g, b, 255);
+  }
+
+  return encodePng(size, size, pixels);
 }
 
 /**
@@ -193,8 +277,8 @@ export function createLoadingFrame(frameIndex: number): Electron.NativeImage {
   const gapAngle = Math.PI / 3; // 60°
   const startAngle = (frameIndex / LOADING_FRAMES) * Math.PI * 2;
 
-  // 灰蓝色弧线
-  const cr = 140, cg = 160, cb = 190;
+  // 中性灰弧线（避免与蓝色托盘背景混淆）
+  const cr = LOADING_COLOR_RGB.r, cg = LOADING_COLOR_RGB.g, cb = LOADING_COLOR_RGB.b;
 
   // 绘制弧线（两层半径让线条更粗一些）
   for (const r of [radius, radius - 1]) {
@@ -222,6 +306,7 @@ export class TrayManager {
   private tray: Tray | null = null;
   private currentPercent = -1;
   private currentColor: DisplayColor = 'gray';
+  private currentHex = '';
   private autoStartEnabled = false;
   private callbacks: TrayCallbacks | null = null;
   private loadingFrame = 0;
@@ -356,7 +441,7 @@ export class TrayManager {
 
     // 立即显示当前百分比
     if (this.tray) {
-      const icon = createTrayIcon(this.currentPercent, this.currentColor);
+      const icon = createTrayIcon(this.currentPercent, this.currentColor, this.currentHex || undefined);
       this.tray.setImage(icon);
     }
   }
@@ -367,20 +452,22 @@ export class TrayManager {
   updateDisplay(percent: number | null, thresholds: ColorThresholds): void {
     const pct = percent ?? -1;
     const color = getColorByPercent(pct, thresholds);
+    const hex = getHexByPercent(pct, thresholds);
 
-    // 只有当百分比或颜色变化时才更新
-    if (this.currentPercent === pct && this.currentColor === color) {
+    // 百分比、颜色 key 或具体 hex 任一变化都触发重绘（支持用户自定义色板）
+    if (this.currentPercent === pct && this.currentColor === color && this.currentHex === hex) {
       return;
     }
 
     this.currentPercent = pct;
     this.currentColor = color;
+    this.currentHex = hex;
 
     // 加载动画期间不更新图标（由 stopLoading 统一切换）
     if (this.loadingTimer) return;
 
     if (this.tray) {
-      const icon = createTrayIcon(pct, color);
+      const icon = createTrayIcon(pct, color, hex);
       this.tray.setImage(icon);
     }
   }

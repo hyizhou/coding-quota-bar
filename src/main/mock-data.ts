@@ -210,7 +210,7 @@ export function generateMockData(): Record<string, UsageResult> {
     },
 
     minimax: {
-      used: 2,
+      used: 0,
       total: 100,
       expiresAt: new Date(now + 4 * HOUR).toISOString(),
       details: {
@@ -220,6 +220,7 @@ export function generateMockData(): Record<string, UsageResult> {
             resetAt: new Date(now + 4 * HOUR).toISOString(),
             startAt: new Date(now - 0 * HOUR).toISOString(),
             hideBar: true,
+            displayUnit: 'percent',
             limitType: 'MiniMax',
           },
           {
@@ -227,18 +228,21 @@ export function generateMockData(): Record<string, UsageResult> {
             resetAt: new Date(now + 5 * DAY).toISOString(),
             startAt: new Date(now - 2 * DAY).toISOString(),
             hideBar: true,
+            displayUnit: 'percent',
             limitType: 'MiniMax',
           },
           {
             label: 'quota.minimaxDaily', used: 0, total: 3, usageRate: 0,
             resetAt: new Date(now + 12 * HOUR).toISOString(),
             startAt: new Date(now - 12 * HOUR).toISOString(),
+            displayUnit: 'count',
             limitType: 'Video',
           },
           {
             label: 'quota.minimaxWeekly', used: 0, total: 21, usageRate: 0,
             resetAt: new Date(now + 5 * DAY).toISOString(),
             startAt: new Date(now - 2 * DAY).toISOString(),
+            displayUnit: 'count',
             limitType: 'Video',
           },
         ],
@@ -256,17 +260,6 @@ export function generateMockData(): Record<string, UsageResult> {
           { label: 'quota.deepseekToppedUp', used: 0, total: 20, usageRate: 0, resetAt: '', hideBar: true, labelParams: { amount: '20.00' } },
         ],
       },
-    },
-
-    kimi: {
-      used: 120000,
-      total: 150000,
-      expiresAt: new Date(now + 7 * DAY).toISOString(),
-      details: {
-        quotas: [
-          { label: '配额', used: 120000, total: 150000, usageRate: 80, resetAt: new Date(now + 7 * DAY).toISOString() }
-        ]
-      }
     },
 
     codex: {
@@ -287,26 +280,5 @@ export function generateMockData(): Record<string, UsageResult> {
       },
     },
 
-    opencodego: {
-      used: 42,
-      total: 100,
-      expiresAt: '',
-      level: undefined,
-      details: {
-        quotas: [
-          { label: 'quota.opencodegoRolling', used: 42, total: 100, usageRate: 42, resetAt: new Date(now + 3 * HOUR).toISOString(), limitType: 'opencodego' },
-          { label: 'quota.opencodegoWeekly', used: 28, total: 100, usageRate: 28, resetAt: new Date(now + 4 * DAY).toISOString(), limitType: 'opencodego' },
-          { label: 'quota.opencodegoMonthly', used: 15, total: 100, usageRate: 15, resetAt: new Date(now + 20 * DAY).toISOString(), limitType: 'opencodego' },
-          { label: 'quota.opencodegoZenBalance', used: 12.50, total: 12.50, usageRate: 0, resetAt: '', hideBar: true, currency: 'USD' },
-        ],
-        balance: {
-          total: '$12.50',
-          gift: '$0.00',
-          cash: '$12.50',
-          frozen: '$0.00',
-          currency: 'USD',
-        },
-      },
-    },
   };
 }

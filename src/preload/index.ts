@@ -102,6 +102,52 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
 
   /**
+   * 测试 provider 连接（设置页"测试连接"按钮用）
+   *  - 传 accountId：用已保存的 key 测试（无需先保存）
+   *  - 传 apiKey：直接用新填的 key 测试
+   */
+  testProviderConnection: (params: {
+    providerKey: string
+    accountId?: string
+    apiKey?: string
+    authMode?: 'apikey' | 'weblogin'
+    webToken?: string
+    webUserAgent?: string
+  }) => ipcRenderer.invoke('test-provider-connection', params),
+
+  /**
+   * 导出配置（设置页"导出配置"按钮）
+   * @param options.sanitize true=脱敏(默认)，false=含完整 key
+   */
+  exportConfig: (options?: { sanitize?: boolean }) => ipcRenderer.invoke('export-config', options),
+
+  /**
+   * 选择配置文件并读取，返回解析后的 config 让 UI 确认（不直接写）
+   */
+  importConfig: () => ipcRenderer.invoke('import-config'),
+
+  /**
+   * 用户确认后真正写入导入的 config
+   */
+  confirmImportConfig: (data: any) => ipcRenderer.invoke('confirm-import-config', data),
+
+  /**
+   * === Tier 3: 诊断 ===
+   */
+  getConfigPath: () => ipcRenderer.invoke('get-config-path'),
+  reloadConfig: () => ipcRenderer.invoke('reload-config'),
+  openConfigFolder: () => ipcRenderer.invoke('open-config-folder'),
+
+  /**
+   * === 错误日志（Tier 3 polish）===
+   */
+  reportRendererError: (payload: { message: string; stack?: string; source?: string }) => {
+    ipcRenderer.send('renderer-error', payload)
+  },
+  getRendererLog: () => ipcRenderer.invoke('get-renderer-log'),
+  openRendererLog: () => ipcRenderer.invoke('open-renderer-log'),
+
+  /**
    * 监听来自托盘菜单的检查更新触发事件
    */
   onTriggerCheckUpdate: (callback: () => void) => {
@@ -208,13 +254,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   mimoFetchMonthUsage: (accountId: string, year: number, month: number) =>
     ipcRenderer.invoke('mimo-fetch-month-usage', accountId, year, month),
-
-  /**
-   * OpenCode Go 网页登录
-   */
-  opencodegoWebLogin: (accountId: string) => ipcRenderer.invoke('opencodego-web-login', accountId),
-  opencodegoWebLogout: (accountId: string) => ipcRenderer.invoke('opencodego-web-logout', accountId),
-  onOpencodegoWebLoginSuccess: (callback: (accountId: string) => void) => {
-    ipcRenderer.on('opencodego-web-login-success', (_, accountId) => callback(accountId));
-  },
 });

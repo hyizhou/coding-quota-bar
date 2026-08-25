@@ -1,7 +1,7 @@
 /**
  * Renderer 进程共享类型定义
  */
-import type { TrayDisplayRule, WindowPinMode } from '../../shared/types'
+import type { TrayDisplayRule, TrayColors, WindowPinMode } from '../../shared/types'
 
 export type { WindowPinMode }
 
@@ -24,9 +24,11 @@ export interface QuotaItem {
   usageRate: number    // 使用率 0-100
   resetAt: string      // 重置时间
   startAt?: string     // 周期开始时间
+  periodHours?: number // 周期长度（小时），用于估算爆仓时间。可选，不传则不算
   color: 'green' | 'yellow' | 'red'
   limitType?: string   // 限制类型标识，如 "tokens"、"mcp"
   hideBar?: boolean    // 为 true 时不显示进度条，仅显示文本
+  displayUnit?: 'percent' | 'count' // 显示单位：百分比或次数
   currency?: string    // ISO 币种代码
 }
 
@@ -74,6 +76,7 @@ export interface AccountUsageData {
   label?: string
   level?: string
   currency?: string
+  authMode?: 'apikey' | 'weblogin'  // 认证模式；DeepSeek 等多模式 provider 用
   subscription?: SubscriptionInfo
   error?: string
   quotas: QuotaItem[]
@@ -159,6 +162,7 @@ export interface AppConfig {
     colorThresholds: {
       green: number
       yellow: number
+      colors?: TrayColors
     }
   }
   autoStart: boolean
@@ -268,13 +272,28 @@ export interface ElectronAPI {
   deepseekWebLogout: (accountId: string) => Promise<void>
   onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => void
   deepseekFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<{ tokens: ModelTokenRecord[]; costs: ModelCostRecord[] }>
+  // 诊断 / 日志
+  testProviderConnection: (params: {
+    providerKey: string
+    accountId?: string
+    apiKey?: string
+    authMode?: 'apikey' | 'weblogin'
+    webToken?: string
+    webUserAgent?: string
+  }) => Promise<{ ok: boolean; error?: string; latencyMs: number; sample?: { used: number; total: number; level: string } }>
+  exportConfig: (options?: { sanitize?: boolean }) => Promise<{ ok: boolean; path?: string; error?: string }>
+  importConfig: () => Promise<{ ok: boolean; canceled?: boolean; config?: unknown; error?: string; isSanitized?: boolean }>
+  confirmImportConfig: (data: unknown) => Promise<{ ok: boolean; error?: string }>
+  getConfigPath: () => Promise<string>
+  reloadConfig: () => Promise<{ ok: boolean; error?: string }>
+  openConfigFolder: () => Promise<{ ok: boolean; error?: string }>
+  reportRendererError: (payload: { message: string; stack?: string; source?: string }) => void
+  getRendererLog: () => Promise<{ path: string; tail: string[] }>
+  openRendererLog: () => Promise<{ ok: boolean; error?: string }>
   mimoWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
   mimoWebLogout: (accountId: string) => Promise<void>
   onMimoWebLoginSuccess: (callback: (accountId: string) => void) => void
   mimoFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<ModelTokenRecord[]>
-  opencodegoWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
-  opencodegoWebLogout: (accountId: string) => Promise<void>
-  onOpencodegoWebLoginSuccess: (callback: (accountId: string) => void) => void
   showFeedback: () => void
 }
 

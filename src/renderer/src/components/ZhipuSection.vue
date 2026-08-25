@@ -1,12 +1,16 @@
 <template>
   <template v-for="(row, ri) in getQuotaRows(account.quotas)" :key="ri">
     <div v-if="row.length === 1" class="quota-row-single">
-      <QuotaCard v-bind="row[0]" />
+      <QuotaCard v-bind="row[0]" :burn-rate-per-hour="calcBurnRate(row[0])" />
     </div>
     <div v-else class="quota-row-pair">
-      <QuotaCard v-for="q in row" :key="q.label" v-bind="q" />
+      <QuotaCard v-for="q in row" :key="q.label" v-bind="q" :burn-rate-per-hour="calcBurnRate(q)" />
     </div>
   </template>
+  <InsightsCard
+    :history-30-d="account.history30d"
+    :model-history-1-d="account.modelHistory1d"
+  />
   <UsageStats
     v-if="hasHistoryData(account)"
     :model-records-1d="account.modelHistory1d"
@@ -26,10 +30,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, defineAsyncComponent } from 'vue'
 import QuotaCard from './QuotaCard.vue'
 import UsageStats from './UsageStats.vue'
-import PerformanceChart from './PerformanceChart.vue'
+// PerformanceChart 含 chart.js (610KB) → 异步加载，避免首屏阻塞
+const PerformanceChart = defineAsyncComponent(() => import('./PerformanceChart.vue'))
+import InsightsCard from './InsightsCard.vue'
 import type { AccountUsageData, QuotaItem } from '../types'
 
 defineProps<{
@@ -52,6 +58,28 @@ function hasPerformanceData(acc: AccountUsageData): boolean {
 }
 
 const LIMIT_TYPE_ORDER: Record<string, number> = { mcp: 0, tokens: 1 }
+
+/**
+ * 计算 burn rate（%/小时），用于 QuotaCard 展示「X 小时后用完」
+ * 算式：burnRate = usageRate / hoursElapsedInPeriod
+ *   - periodStart = resetAt - periodHours（假定当前周期从 resetAt 之前 periodHours 开始）
+ *   - hoursElapsed = (now - periodStart) / 3600 / 1000
+ * 边界：
+ *   - 周期刚开始（elapsed < 0.5h）→ 返回 undefined（数据不足）
+ *   - 没提供 periodHours → 返回 undefined
+ *   - 还没用任何量（usageRate = 0）→ 返回 0（不显示）
+ */
+function calcBurnRate(q: QuotaItem): number | undefined {
+  if (!q.periodHours || q.periodHours <= 0 || !q.resetAt) return undefined
+  if (q.usageRate <= 0) return 0
+
+  const resetTime = new Date(q.resetAt).getTime()
+  if (!Number.isFinite(resetTime)) return undefined
+  const periodStart = resetTime - q.periodHours * 3600 * 1000
+  const elapsedHours = (Date.now() - periodStart) / 3600 / 1000
+  if (elapsedHours < 0.5) return undefined  // 周期刚开始，估算不稳
+  return q.usageRate / elapsedHours
+}
 
 function getQuotaRows(quotas: QuotaItem[]): QuotaItem[][] {
   const groupMap = new Map<string, QuotaItem[]>()

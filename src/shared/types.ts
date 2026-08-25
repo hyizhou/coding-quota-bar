@@ -11,7 +11,6 @@ export interface AccountConfig {
   webToken?: string;                  // 加密的网页 session token（weblogin 模式）
   webUserAgent?: string;              // 登录时的浏览器 User-Agent，用于 API 请求伪装
   mimoLoggedIn?: boolean;             // MiMo 网页登录状态（Cookie 认证，无需 webToken）
-  opencodegoLoggedIn?: boolean;       // OpenCode Go 网页登录状态（Cookie 认证，无需 webToken）
 }
 
 /**
@@ -48,6 +47,7 @@ export interface QuotaItem {
   startAt?: string;      // 周期开始时间 ISO 8601
   limitType?: string;    // 限制类型标识，如 "tokens"、"mcp"
   hideBar?: boolean;     // 为 true 时不显示进度条，仅显示文本
+  displayUnit?: 'percent' | 'count'; // 显示单位：百分比或次数
   currency?: string;     // ISO 币种代码，如 "CNY"、"USD"
 }
 
@@ -165,6 +165,14 @@ export interface UpdateStatus {
  */
 export type TrayDisplayRule = 'lowest' | 'highest' | string; // string = compound key "providerType:accountId"
 
+/** 自定义托盘色板（可选，未提供时用 src/shared/colors.ts 默认值） */
+export interface TrayColors {
+  green: string;
+  yellow: string;
+  red: string;
+  gray: string;
+}
+
 /**
  * 窗口固定状态（header 固定按钮三态）
  */
@@ -177,6 +185,7 @@ export interface AppConfig {
     colorThresholds: {
       green: number;
       yellow: number;
+      colors?: TrayColors;
     };
   };
   autoStart: boolean;

@@ -438,6 +438,7 @@ const requestsChartOpts = computed(() => ({
   color: var(--text-tertiary);
 }
 
+
 .usage-stats {
   margin-top: 8px;
 }

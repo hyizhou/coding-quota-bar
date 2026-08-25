@@ -10,8 +10,21 @@
       </span>
     </div>
   </div>
+
+  <!-- API Key 模式：提示用户可升级到网页登录以查看用量和费用 -->
+  <div v-if="account.authMode !== 'weblogin'" class="mode-hint">
+    <span class="mode-hint-icon">💡</span>
+    <div class="mode-hint-text">
+      <div class="mode-hint-title">{{ $t('quota.deepseekApikeyHintTitle') }}</div>
+      <div class="mode-hint-desc">{{ $t('quota.deepseekApikeyHintDesc') }}</div>
+    </div>
+    <button class="mode-hint-btn" @click="$emit('open-settings')">
+      {{ $t('quota.deepseekApikeyHintBtn') }}
+    </button>
+  </div>
+
   <!-- 网页登录模式：每月用量（费用 + Token） -->
-  <div class="usage-stats">
+  <div v-else class="usage-stats">
     <div class="stats-tabs-row">
       <span class="chart-title">{{ $t('main.monthlyUsage') }}</span>
       <div class="month-selector">
@@ -20,7 +33,9 @@
         </select>
       </div>
     </div>
-    <div v-if="loading" class="chart-loading">...</div>
+    <div v-if="loading" class="loading-dots" aria-label="Loading">
+      <span></span><span></span><span></span>
+    </div>
     <template v-else>
       <template v-if="hasChartData">
         <!-- 费用统计图表 -->
@@ -52,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Bar } from 'vue-chartjs'
 import {
@@ -63,11 +78,16 @@ import { useTheme } from '../composables/useTheme'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Filler)
 
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Filler)
 const { isDark } = useTheme()
 const { t } = useI18n()
 
 const props = defineProps<{
   account: AccountUsageData
+}>()
+
+defineEmits<{
+  'open-settings': []
 }>()
 
 const budget = ref<number | undefined>(undefined)
@@ -660,9 +680,9 @@ async function onBudgetChange(e: Event) {
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.progress-fill.green { background: linear-gradient(90deg, #4ade80, #22c55e); }
-.progress-fill.yellow { background: linear-gradient(90deg, #facc15, #eab308); }
-.progress-fill.red { background: linear-gradient(90deg, #f87171, #ef4444); }
+  .progress-fill.green { background: linear-gradient(90deg, var(--cqb-green-light), var(--cqb-green)); }
+  .progress-fill.yellow { background: linear-gradient(90deg, var(--cqb-yellow-light), var(--cqb-yellow)); }
+  .progress-fill.red { background: linear-gradient(90deg, var(--cqb-red-light), var(--cqb-red)); }
 
 .budget-info {
   display: flex;
@@ -829,5 +849,102 @@ async function onBudgetChange(e: Event) {
   height: 120px;
   width: 100%;
   margin-bottom: 6px;
+}
+
+.mode-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-tab-bar) 100%);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--cqb-green, #22c55e);
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.mode-hint:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.mode-hint-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.mode-hint-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.mode-hint-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  letter-spacing: 0.01em;
+}
+
+.mode-hint-desc {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+
+.mode-hint-btn {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-on-accent, #fff);
+  background: linear-gradient(135deg, var(--cqb-green, #22c55e) 0%, var(--cqb-green-light, #86EFAC) 100%);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(34, 197, 94, 0.3);
+  transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+}
+
+.mode-hint-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.4);
+  filter: brightness(1.05);
+}
+
+.mode-hint-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(34, 197, 94, 0.2);
+}
+
+.loading-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  height: 60px;
+}
+
+.loading-dots span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-tertiary, #999);
+  animation: loading-bounce 1.2s infinite ease-in-out;
+}
+
+.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes loading-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
 }
 </style>

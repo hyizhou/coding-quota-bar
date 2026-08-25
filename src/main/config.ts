@@ -153,6 +153,30 @@ export class ConfigManager extends EventEmitter {
         }
       }
 
+      // 迁移：上游 v1.4.3–v1.5.1 的 OpenCode Go 配置键 opencodego → opencode-go
+      // （本实现走官方 API 需要 API Key，网页登录字段不再使用）
+      const legacyOcg = (this.config.providers as any)['opencodego'] as ProviderTypeConfig | undefined;
+      if (legacyOcg) {
+        const target = (this.config.providers as any)['opencode-go'] as ProviderTypeConfig | undefined;
+        const accounts = (legacyOcg.accounts ?? []).map(acc => ({
+          ...acc,
+          authMode: 'apikey' as const,
+          webToken: undefined,
+          opencodegoLoggedIn: undefined,
+        }));
+        if (target?.accounts) {
+          const ids = new Set(target.accounts.map(a => a.id));
+          for (const acc of accounts) {
+            if (!ids.has(acc.id)) target.accounts.push(acc);
+          }
+        } else {
+          (this.config.providers as any)['opencode-go'] = { accounts };
+        }
+        delete (this.config.providers as any)['opencodego'];
+        migrated = true;
+        console.log('[Config] Migrated: renamed provider "opencodego" to "opencode-go" (API Key mode)');
+      }
+
       // 迁移：补齐编译时可用但配置文件中缺失的 provider
       for (const key of getAvailableProviderKeys()) {
         if (!this.config.providers[key]) {
@@ -167,6 +191,13 @@ export class ConfigManager extends EventEmitter {
         delete (this.config as any).updateInfo;
         migrated = true;
         console.log('[Config] Migrated: removed updateInfo from persisted config');
+      }
+
+      // 本地分支默认不再订阅远程更新，避免启动后反复弹更新提醒。
+      if (process.env.CQB_ENABLE_REMOTE_UPDATES !== '1' && this.config.autoCheckUpdate !== false) {
+        this.config.autoCheckUpdate = false;
+        migrated = true;
+        console.log('[Config] Migrated: disabled remote update auto-check');
       }
 
       if (migrated) {
@@ -218,13 +249,14 @@ export class ConfigManager extends EventEmitter {
       display: {
         colorThresholds: {
           green: 50,
-          yellow: 20
+          yellow: 20,
+          colors: undefined
         }
       },
       autoStart: false,
       language: 'zh-CN',
       theme: 'auto',
-      autoCheckUpdate: true,
+      autoCheckUpdate: false,
       autoCheckUpdateInterval: 14400,
       lastAutoCheckTime: null
     };
@@ -325,6 +357,20 @@ export class ConfigManager extends EventEmitter {
       this.watcher.close();
       this.watcher = null;
     }
+  }
+
+  /**
+   * === Tier 3: 诊断支持 ===
+   */
+  /** 获取配置文件绝对路径（用于诊断面板"打开配置目录"等） */
+  getConfigPath(): string {
+    return this.configPath;
+  }
+
+  /** 重新从磁盘加载（用于"重新加载配置"按钮） */
+  async reload(): Promise<void> {
+    await this.load();
+    this.emit('changed', this.config);
   }
 
   /**

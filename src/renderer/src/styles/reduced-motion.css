@@ -1,0 +1,15 @@
+/* === 全局：尊重用户的 prefers-reduced-motion 系统设置 === */
+/* Mac: 系统设置 > 辅助功能 > 显示 > 减弱动态效果 */
+/* Windows: 设置 > 辅助功能 > 视觉效果 > 动画效果 */
+/* 该规则确保用户开启后所有 infinite 动画自动停止 */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

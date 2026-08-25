@@ -5,6 +5,9 @@ node_modules/
 dist/
 out/
 release/
+release-v*/
+dist-electron/
+dist-electron-v*/
 *.log
 
 # IDE
@@ -32,6 +35,10 @@ electron-builder.yml
 .claude/
 CLAUDE.md
 AGENTS.md
-docs/
-scripts/
 .playwright-cli/
+
+tts/
+# Agent tooling / temp artifacts
+.sisyphus/
+.spec-workflow/
+_nul

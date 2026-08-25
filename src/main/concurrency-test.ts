@@ -1,7 +1,6 @@
-import * as https from 'node:https';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { app } from 'electron';
+import { app, net } from 'electron';
 import type { ApiFormat, ConcurrencyTestConfig, ConcurrencyTestResult, RequestMetrics } from '../shared/types';
 
 /**
@@ -271,12 +270,10 @@ function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text:
       stream_options: { include_usage: true },
     });
 
-    const url = new URL(`${API_BASE_OPENAI}/chat/completions`);
+    const requestUrl = `${API_BASE_OPENAI}/chat/completions`;
 
-    const options: https.RequestOptions = {
-      hostname: url.hostname,
-      port: 443,
-      path: url.pathname,
+    const options: Electron.ClientRequestConstructorOptions = {
+      url: requestUrl,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -285,26 +282,26 @@ function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text:
         'User-Agent': 'opencode/1.4.7',
         'x-session-affinity': generateId(),
       },
-      timeout: 30000,
     };
+    let req: Electron.ClientRequest | null = null;
 
     const wallTimer = setTimeout(() => {
-      req.destroy();
+      req?.abort();
       safeResolve(makeError(startTime, 'Timeout (30s)'));
     }, 30000);
 
-    const req = https.request(options, (res) => {
+    req = net.request(options);
+    req.on('response', (res) => {
       let buffer = '';
 
       if (res.statusCode && res.statusCode >= 400) {
         let errBody = '';
         res.on('data', (chunk: Buffer) => { errBody += chunk.toString(); });
         res.on('end', () => {
-          req.destroy();
           safeResolve(makeError(startTime, `HTTP ${res.statusCode}: ${errBody.slice(0, 200)}`));
         });
         res.on('error', () => {
-          req.destroy();
+          req?.abort();
           safeResolve(makeError(startTime, `HTTP ${res.statusCode}`));
         });
         return;
@@ -372,17 +369,13 @@ function executeOpenAIStream(model: string, apiKey: string, onTextChunk?: (text:
       });
 
       res.on('error', (err) => {
-        req.destroy();
+        req?.abort();
         safeResolve(makeError(startTime, err.message));
       });
     });
 
     req.on('error', (err) => {
       safeResolve(makeError(startTime, err.message));
-    });
-    req.on('timeout', () => {
-      req.destroy();
-      safeResolve(makeError(startTime, 'Connection timeout'));
     });
     try {
       req.write(body);
@@ -420,12 +413,10 @@ function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (te
       thinking: { type: 'enabled', budget_tokens: 1024 },
     });
 
-    const url = new URL(`${API_BASE_ANTHROPIC}/v1/messages`);
+    const requestUrl = `${API_BASE_ANTHROPIC}/v1/messages`;
 
-    const options: https.RequestOptions = {
-      hostname: url.hostname,
-      port: 443,
-      path: url.pathname,
+    const options: Electron.ClientRequestConstructorOptions = {
+      url: requestUrl,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -437,26 +428,26 @@ function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (te
         'anthropic-version': '2023-06-01',
         'Accept': 'text/event-stream',
       },
-      timeout: 30000,
     };
+    let req: Electron.ClientRequest | null = null;
 
     const wallTimer = setTimeout(() => {
-      req.destroy();
+      req?.abort();
       safeResolve(makeError(startTime, 'Timeout (30s)'));
     }, 30000);
 
-    const req = https.request(options, (res) => {
+    req = net.request(options);
+    req.on('response', (res) => {
       let buffer = '';
 
       if (res.statusCode && res.statusCode >= 400) {
         let errBody = '';
         res.on('data', (chunk: Buffer) => { errBody += chunk.toString(); });
         res.on('end', () => {
-          req.destroy();
           safeResolve(makeError(startTime, `HTTP ${res.statusCode}: ${errBody.slice(0, 200)}`));
         });
         res.on('error', () => {
-          req.destroy();
+          req?.abort();
           safeResolve(makeError(startTime, `HTTP ${res.statusCode}`));
         });
         return;
@@ -534,17 +525,13 @@ function executeAnthropicStream(model: string, apiKey: string, onTextChunk?: (te
       });
 
       res.on('error', (err) => {
-        req.destroy();
+        req?.abort();
         safeResolve(makeError(startTime, err.message));
       });
     });
 
     req.on('error', (err) => {
       safeResolve(makeError(startTime, err.message));
-    });
-    req.on('timeout', () => {
-      req.destroy();
-      safeResolve(makeError(startTime, 'Connection timeout'));
     });
     try {
       req.write(body);

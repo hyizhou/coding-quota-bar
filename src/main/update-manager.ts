@@ -16,7 +16,8 @@ let autoUpdateTimerId: ReturnType<typeof setTimeout> | null = null;
 let statusClearTimer: ReturnType<typeof setTimeout> | null = null;
 
 const isDev = process.env.CQB_DEV === '1';
-const mockUpdate = process.env.CQB_MOCK_UPDATE === '1';
+const remoteUpdatesEnabled = process.env.CQB_ENABLE_REMOTE_UPDATES === '1';
+const mockUpdate = remoteUpdatesEnabled && process.env.CQB_MOCK_UPDATE === '1';
 
 export function setUpdateManagerDeps(deps: {
   getConfigManager: () => ConfigManager | null;
@@ -30,6 +31,11 @@ export function setUpdateManagerDeps(deps: {
  * 初始化 autoUpdater 事件监听（在 app startup 时调用一次）
  */
 export function initAutoUpdaterEvents(): void {
+  if (!remoteUpdatesEnabled) {
+    console.log('[Updater] Remote update checks disabled');
+    return;
+  }
+
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
   if (isDev) {
@@ -86,6 +92,11 @@ export function getUpdateStatus(): UpdateStatus {
  * 自动更新检查调度器
  */
 export function startAutoUpdateChecker(): void {
+  if (!remoteUpdatesEnabled) {
+    stopAutoUpdateChecker();
+    return;
+  }
+
   const config = _getConfigManager()?.getConfig();
   if (!config?.autoCheckUpdate || (isDev && !mockUpdate)) return;
 
@@ -105,6 +116,11 @@ export function startAutoUpdateChecker(): void {
 }
 
 async function performAutoCheck(): Promise<void> {
+  if (!remoteUpdatesEnabled) {
+    setUpdateStatus({ phase: 'idle' });
+    return;
+  }
+
   if (isAutoChecking) {
     console.log('[AutoUpdate] Check already in progress, skipping');
     return;
@@ -181,6 +197,11 @@ export function stopAutoUpdateChecker(): void {
  * 手动触发检查更新（IPC handler 用）
  */
 export async function checkForUpdate(): Promise<void> {
+  if (!remoteUpdatesEnabled) {
+    setUpdateStatus({ phase: 'noUpdate' });
+    return;
+  }
+
   if (!app.isPackaged && !mockUpdate) {
     setUpdateStatus({ phase: 'noUpdate' });
     return;
@@ -225,6 +246,11 @@ export async function checkForUpdate(): Promise<void> {
  * 下载更新
  */
 export async function downloadUpdate(): Promise<void> {
+  if (!remoteUpdatesEnabled) {
+    setUpdateStatus({ phase: 'noUpdate' });
+    return;
+  }
+
   if (updateStatus.phase === 'downloading') return;
   setUpdateStatus({ phase: 'downloading', version: updateStatus.version, progress: 0 });
   try {

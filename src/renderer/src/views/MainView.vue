@@ -59,6 +59,13 @@
     </header>
     <div v-if="providers.length > 1" class="provider-tabs" :class="{ expanded: showTabs }" @mouseenter="onTabsAreaEnter" @mouseleave="onTabsAreaLeave" @wheel.passive="onTabsWheel">
       <button
+        class="provider-tab"
+        :class="{ active: showOverview }"
+        @click="setActiveProvider(OVERVIEW_KEY)"
+      >
+        {{ $t('main.overview') }}
+      </button>
+      <button
         v-for="p in providers"
         :key="p.key"
         class="provider-tab"
@@ -85,7 +92,10 @@
       </template>
 
       <template v-else>
-        <template v-if="activeProvider">
+        <template v-if="showOverview">
+          <ProviderOverview :providers="providers" :active-accounts="activeAccounts" @select-provider="setActiveProvider" />
+        </template>
+        <template v-else-if="activeProvider">
         <div class="provider-section">
           <div class="provider-name-row">
             <span class="provider-name" :class="{ clickable: !!activeProvider.websiteUrl }" @click="openProviderWebsite(activeProvider.websiteUrl)">{{ activeProvider.name }}</span>
@@ -126,7 +136,7 @@
                 <template v-if="getActiveAccount(activeProvider)!.error === 'TOKEN_EXPIRED'">
                   <template v-if="activeProvider.key === 'codex'">{{ $t('main.codexTokenExpired') }}</template>
                   <template v-else>
-                    {{ activeProvider.key === 'mimo' ? $t('main.mimoTokenExpired') : activeProvider.key === 'opencodego' ? $t('main.opencodegoTokenExpired') : $t('main.deepseekTokenExpired') }}
+                    {{ activeProvider.key === 'mimo' ? $t('main.mimoTokenExpired') : activeProvider.key === 'opencode-go' ? $t('main.opencodegoTokenExpired') : $t('main.deepseekTokenExpired') }}
                     <button class="relogin-btn" @click="$emit('open-settings')">{{ $t('main.reloginBtn') }}</button>
                   </template>
                 </template>
@@ -136,10 +146,10 @@
             <template v-else>
               <ZhipuSection v-if="activeProvider.key === 'zhipu'" :account="getActiveAccount(activeProvider)!" />
               <MiniMaxSection v-else-if="activeProvider.key === 'minimax'" :account="getActiveAccount(activeProvider)!" />
-              <DeepSeekSection v-else-if="activeProvider.key === 'deepseek'" :account="getActiveAccount(activeProvider)!" />
+              <DeepSeekSection v-else-if="activeProvider.key === 'deepseek'" :account="getActiveAccount(activeProvider)!" @open-settings="$emit('open-settings')" />
               <MiMoSection v-else-if="activeProvider.key === 'mimo'" :account="getActiveAccount(activeProvider)!" />
-              <OpenCodeGoSection v-else-if="activeProvider.key === 'opencodego'" :account="getActiveAccount(activeProvider)!" />
               <CodexSection v-else-if="activeProvider.key === 'codex'" :account="getActiveAccount(activeProvider)!" />
+              <OpenCodeGoSection v-else-if="activeProvider.key === 'opencode-go'" :account="getActiveAccount(activeProvider)!" />
               <DeepSeekServiceStatus v-if="activeProvider.key === 'deepseek' && !getActiveAccount(activeProvider)!.error" :account="getActiveAccount(activeProvider)!" />
             </template>
           </template>
@@ -156,7 +166,16 @@
     />
 
     <footer class="footer">
-      <span>{{ lastUpdateText }}</span>
+      <span class="footer-status">
+        <span
+          class="status-dot"
+          :class="freshnessClass"
+          :title="freshnessTitle"
+          role="status"
+          :aria-label="freshnessTitle"
+        ></span>
+        <span>{{ lastUpdateText }}</span>
+      </span>
     </footer>
   </div>
 </template>
@@ -166,6 +185,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloatingTooltip from '../components/FloatingTooltip.vue'
 import UpdateBanner from '../components/UpdateBanner.vue'
+import ProviderOverview from '../components/ProviderOverview.vue'
 import ZhipuSection from '../components/ZhipuSection.vue'
 import MiniMaxSection from '../components/MiniMaxSection.vue'
 import DeepSeekSection from '../components/DeepSeekSection.vue'
@@ -202,6 +222,7 @@ function onTabsAreaLeave() {
 }
 
 // Provider Tab 状态
+const OVERVIEW_KEY = '__overview'
 const STORAGE_KEY_ACCOUNTS = 'active-accounts'
 const STORAGE_KEY_PROVIDER = 'active-provider'
 const activeAccounts = ref<Record<string, string>>({})
@@ -231,11 +252,16 @@ function setActiveProvider(key: string) {
 }
 
 const activeProvider = computed(() => {
+  if (showOverview.value) return undefined
   if (providers.value.length === 0) return undefined
   if (providers.value.length === 1) return providers.value[0]
   const key = activeProviderKey.value || providers.value[0]?.key
   return providers.value.find(p => p.key === key) || providers.value[0]
 })
+
+const showOverview = computed(() =>
+  providers.value.length > 1 && (!activeProviderKey.value || activeProviderKey.value === OVERVIEW_KEY)
+)
 
 function getActiveAccountId(p: ProviderUsageData): string {
   return activeAccounts.value[p.key] || (p.accounts[0]?.id ?? '')
@@ -265,6 +291,26 @@ const lastUpdateText = computed(() => {
     if (diffMins < 1440) return t('main.hoursAgo', { n: Math.floor(diffMins / 60) })
     return date.toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' })
   } catch { return lastUpdate.value }
+})
+
+/**
+ * 数据新鲜度：< 1min 绿、1-5min 黄、> 5min 红、无数据灰
+ * 用点色 + 脉冲动画暗示"是否需要刷新"
+ */
+const freshnessClass = computed(() => {
+  if (!lastUpdate.value) return 'status-unknown'
+  const diffMins = Math.floor((now.value - new Date(lastUpdate.value).getTime()) / 60000)
+  if (diffMins < 1) return 'status-fresh'
+  if (diffMins < 5) return 'status-warm'
+  return 'status-stale'
+})
+
+const freshnessTitle = computed(() => {
+  const c = freshnessClass.value
+  if (c === 'status-fresh') return '数据最新'
+  if (c === 'status-warm') return '数据略旧，点击刷新'
+  if (c === 'status-stale') return '数据过期，建议刷新'
+  return '尚未获取数据'
 })
 
 function applyState(state: UsageState) {
@@ -332,9 +378,15 @@ function handleUpdateBannerClick() {
   emit('open-settings', { checkUpdate: true })
 }
 
-setInterval(() => { now.value = Date.now() }, 60000)
+// 1 分钟刷一次 "x 分钟前" 显示；用 handle 保存以便卸载清理
+// 否则每次弹窗开关都泄漏一个 timer
+let nowTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(async () => {
+  // 启动 now 刷新 timer（与其他副作用合并到同一个 onMounted）
+  if (nowTimer === null) {
+    nowTimer = setInterval(() => { now.value = Date.now() }, 60000)
+  }
   fetchData()
   // 监听主进程推送的数据更新
   window.electronAPI.onUsageDataUpdated((data) => {
@@ -362,6 +414,11 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  // 清理 now timer（与其他卸载清理合并）
+  if (nowTimer !== null) {
+    clearInterval(nowTimer)
+    nowTimer = null
+  }
   offUpdateStatus?.()
 })
 </script>
@@ -457,6 +514,12 @@ onUnmounted(() => {
   opacity: 1;
   margin-bottom: 8px;
   padding: 2px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scrollbar-gutter: stable;
+}
+.provider-tabs.expanded::-webkit-scrollbar {
+  display: none;
 }
 
 .provider-tab {
@@ -469,6 +532,7 @@ onUnmounted(() => {
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  flex-shrink: 0;
 }
 .provider-tab:hover {
   color: var(--text-secondary);
@@ -515,6 +579,15 @@ onUnmounted(() => {
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
+  /* 修：左右留 padding 让 tab border 不贴边（之前 border 直接贴容器边缘
+     看起来像滚动条边框） */
+  padding: 0 4px;
+  /* 修：底部留 3px 给滚动条专属空间，避免覆盖下面 QuotaCard 文字 */
+  padding-bottom: 3px;
+  /* 修：IE/旧 Edge 隐藏滚动条 */
+  -ms-overflow-style: none;
+  /* 修：scrollbar-gutter stable 即使没滚动条也预留位置，避免布局抖动 */
+  scrollbar-gutter: stable;
 }
 .account-tabs::-webkit-scrollbar {
   display: none;
@@ -531,6 +604,8 @@ onUnmounted(() => {
   transition: all 0.15s;
   white-space: nowrap;
   line-height: 1;
+  /* 修：账号多时不被压缩（之前 flex-shrink: 1 会让按钮变窄、文字截断） */
+  flex-shrink: 0;
 }
 .account-tab:hover {
   border-color: var(--border-default);
@@ -644,7 +719,7 @@ onUnmounted(() => {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #ef4444;
+  background: var(--cqb-red);
   color: #fff;
   font-size: 12px;
   font-weight: 700;
@@ -724,6 +799,53 @@ onUnmounted(() => {
 .pin-btn.active {
   opacity: 1;
   color: var(--text-primary);
+}
+
+/* === Footer 状态点 === */
+.footer-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  position: relative;
+  transition: background 0.3s;
+}
+
+/* 数据新鲜（< 1min）：纯绿，无动画 */
+.status-dot.status-fresh {
+  background: var(--cqb-green);
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.18);
+}
+
+/* 数据略旧（1-5min）：黄色，慢脉冲暗示"该刷新了" */
+.status-dot.status-warm {
+  background: var(--cqb-yellow);
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.20);
+  animation: dot-pulse 2.4s ease-in-out infinite;
+}
+
+/* 数据过期（> 5min）：红色，快脉冲 + 视觉刺眼 */
+.status-dot.status-stale {
+  background: var(--cqb-red);
+  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.22);
+  animation: dot-pulse 1.4s ease-in-out infinite;
+}
+
+/* 尚未获取数据：灰色 */
+.status-dot.status-unknown {
+  background: var(--cqb-gray);
+  opacity: 0.5;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; }
+  50%      { box-shadow: 0 0 0 4px transparent; }
 }
 
 /* 固定且不置顶（桌面模式）：以次级文字色区分于置顶固定 */

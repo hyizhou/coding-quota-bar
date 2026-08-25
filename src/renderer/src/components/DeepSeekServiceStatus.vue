@@ -122,7 +122,7 @@ function dayTitle(offsetFromEnd: number): string {
 
 .svc-badge.ok { color: #16a34a; }
 .svc-badge.warn { color: #ca8a04; }
-.svc-badge.error { color: #dc2626; }
+  .svc-badge.error { color: var(--cqb-red-dark); }
 
 .svc-dot {
   width: 6px;
@@ -130,9 +130,9 @@ function dayTitle(offsetFromEnd: number): string {
   border-radius: 50%;
 }
 
-.svc-badge.ok .svc-dot { background: #22c55e; }
-.svc-badge.warn .svc-dot { background: #eab308; }
-.svc-badge.error .svc-dot { background: #ef4444; }
+  .svc-badge.ok .svc-dot { background: var(--cqb-green); }
+  .svc-badge.warn .svc-dot { background: var(--cqb-yellow-dark); }
+  .svc-badge.error .svc-dot { background: var(--cqb-red); }
 
 .svc-days {
   display: flex;
@@ -147,8 +147,8 @@ function dayTitle(offsetFromEnd: number): string {
   min-width: 1px;
 }
 
-.day-block.operational { background: #22c55e; }
-.day-block.degraded { background: #eab308; }
-.day-block.outage { background: #ef4444; }
+  .day-block.operational { background: var(--cqb-green); }
+  .day-block.degraded { background: var(--cqb-yellow-dark); }
+  .day-block.outage { background: var(--cqb-red); }
 .day-block.maintenance { background: #3b82f6; }
 </style>

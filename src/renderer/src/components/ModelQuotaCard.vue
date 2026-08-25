@@ -4,16 +4,13 @@
     <div v-for="(q, i) in quotas" :key="i" class="quota-row">
       <div class="quota-top">
         <span class="quota-range">{{ formatRange(q.startAt, q.resetAt) }}</span>
-        <span class="quota-percent" :class="q.color">{{ q.total === 0 ? '∞' : (q.total > 100 || q.labelParams?.boostPermille ? `${q.total - q.used}%` : `${q.total - q.used}`) }}</span>
+        <span class="quota-percent" :class="q.color">{{ formatRemaining(q) }}</span>
       </div>
       <div v-if="q.total > 0 && !q.hideBar" class="progress-bar">
-        <div class="progress-fill" :class="q.color" :style="{ width: q.usageRate + '%' }"></div>
+        <div class="progress-fill" :class="q.color" :style="{ width: formatProgressWidth(q) }"></div>
       </div>
       <div class="quota-bottom">
-        <span v-if="q.total === 0" class="quota-count quota-unlimited">∞ 无限制</span>
-        <span v-else-if="q.used > 100 || q.total > 100" class="quota-count">{{ q.used }} / {{ q.total }}</span>
-        <span v-else-if="q.labelParams?.boostPermille && Number(q.labelParams.boostPermille) > 1000" class="quota-count">总额度 {{ Math.round(Number(q.labelParams.boostPermille) / 10) }}%，已用 {{ Math.round(q.usageRate * Number(q.labelParams.boostPermille) / 1000) }}%</span>
-        <span v-else class="quota-count">已用 {{ Math.round(q.usageRate) }}%</span>
+        <span class="quota-count" :class="{ 'quota-unlimited': q.total === 0 }">{{ formatQuotaDetail(q) }}</span>
       </div>
     </div>
   </div>
@@ -28,7 +25,41 @@ defineProps<{
   quotas: QuotaItem[]
 }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
+
+function clampPercent(n: number): number {
+  return Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0))
+}
+
+function isCountQuota(q: QuotaItem): boolean {
+  return q.displayUnit === 'count'
+}
+
+function formatProgressWidth(q: QuotaItem): string {
+  return `${clampPercent(q.usageRate)}%`
+}
+
+function formatRemaining(q: QuotaItem): string {
+  if (q.total === 0) return '∞'
+  if (isCountQuota(q)) {
+    return String(Math.max(0, Math.round(q.total - q.used)))
+  }
+  return `${Math.round(100 - clampPercent(q.usageRate))}%`
+}
+
+function formatQuotaDetail(q: QuotaItem): string {
+  if (q.total === 0) return `∞ ${t('quota.unlimited')}`
+  if (isCountQuota(q)) {
+    return `${Math.max(0, Math.round(q.used))} / ${Math.max(0, Math.round(q.total))}`
+  }
+
+  const boostPermille = Number(q.labelParams?.boostPermille || 0)
+  const usedText = t('quota.usedPercent', { n: Math.round(clampPercent(q.usageRate)) })
+  if (boostPermille > 1000) {
+    return `${t('quota.totalPercent', { n: Math.round(boostPermille / 10) })} · ${usedText}`
+  }
+  return usedText
+}
 
 function formatTime(iso: string): string {
   if (!iso) return ''
@@ -82,23 +113,31 @@ function formatRange(startIso: string | undefined, endIso: string): string {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: 8px;
   margin-bottom: 3px;
 }
 
 .quota-range {
+  min-width: 0;
   font-size: 10px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quota-percent {
+  flex-shrink: 0;
+  min-width: 40px;
+  text-align: right;
   font-weight: 700;
   font-size: 14px;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
 .quota-percent.yellow { color: #a16207; }
-.quota-percent.red { color: #dc2626; }
+  .quota-percent.red { color: var(--cqb-red-dark); }
 
 .progress-bar {
   height: 5px;
@@ -113,13 +152,13 @@ function formatRange(startIso: string | undefined, endIso: string): string {
   border-radius: 3px;
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.progress-fill.green { background: linear-gradient(90deg, #4ade80, #22c55e); }
-.progress-fill.yellow { background: linear-gradient(90deg, #facc15, #eab308); }
-.progress-fill.red { background: linear-gradient(90deg, #f87171, #ef4444); }
+  .progress-fill.green { background: linear-gradient(90deg, var(--cqb-green-light), var(--cqb-green)); }
+  .progress-fill.yellow { background: linear-gradient(90deg, var(--cqb-yellow-light), var(--cqb-yellow)); }
+  .progress-fill.red { background: linear-gradient(90deg, var(--cqb-red-light), var(--cqb-red)); }
 
 .quota-bottom {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: baseline;
 }
 
@@ -127,6 +166,7 @@ function formatRange(startIso: string | undefined, endIso: string): string {
   font-size: 10px;
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
+  text-align: right;
 }
 
 .reset-text {
