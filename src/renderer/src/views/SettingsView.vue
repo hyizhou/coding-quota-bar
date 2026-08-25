@@ -356,6 +356,7 @@ import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AppConfig, ProviderTypeConfig, AccountConfig, UpdateStatus } from '../types'
 import { useTheme } from '../composables/useTheme'
+import { maskApiKey } from '../../../shared/mask'
 
 defineEmits<{ 'go-back': [] }>()
 const props = defineProps<{ autoCheckUpdate?: boolean }>()
@@ -822,6 +823,10 @@ async function saveConfig() {
   saveError.value = false
 
   const providers: Record<string, { accounts: Partial<AccountConfig>[] }> = {}
+  // 记录本次携带新密钥的账户，保存成功后再回填脱敏占位并清理明文；
+  // 不能在构建 update 时就翻转 apiKeyDirty —— 那会让输入框在保存完成前
+  // 突然清空（表现为抖动后显示空白），且失败时用户输入会丢失
+  const pendingKeys: Array<{ account: AccountInfo; key: string }> = []
   for (const info of providerList.value) {
     providers[info.key] = {
       accounts: info.accounts.map((a): Partial<AccountConfig> => {
@@ -834,7 +839,7 @@ async function saveConfig() {
         if (a.budget != null) update.budget = a.budget
         if (a.apiKeyDirty) {
           update.apiKey = a.apiKey
-          a.apiKeyDirty = false
+          pendingKeys.push({ account: a, key: a.apiKey })
         }
         return update
       })
@@ -854,6 +859,15 @@ async function saveConfig() {
       trayDisplayRule: trayDisplayRule.value,
       autoCheckUpdate: autoCheckUpdateEnabled.value,
     })
+    // 保存成功：立即回填脱敏掩码，输入框从「明文」切到「掩码占位」，
+    // 用户无需重进页面即可确认已保存；明文密钥不再留在渲染进程内存
+    for (const { account, key } of pendingKeys) {
+      // 保存期间用户又输入了新内容时，保留其编辑状态交给下一次保存
+      if (account.apiKeyDirty && account.apiKey !== key) continue
+      account.maskedApiKey = maskApiKey(key)
+      account.apiKey = ''
+      account.apiKeyDirty = false
+    }
     locale.value = language.value
     saveStatus.value = t('settings.saved')
     setTimeout(() => { saveStatus.value = '' }, 2000)

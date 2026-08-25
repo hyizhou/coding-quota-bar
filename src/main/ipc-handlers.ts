@@ -21,6 +21,7 @@ import {
 import { deepseekWebLogin, deepseekWebLogout } from './deepseek-auth';
 import { mimoWebLogin, mimoWebLogout } from './mimo-auth';
 import { checkForUpdate, downloadUpdate, getUpdateStatus } from './update-manager';
+import { maskApiKey } from '../shared/mask';
 
 let _getConfigManager: () => ConfigManager | null = () => null;
 let _getScheduler: () => Scheduler | null = () => null;
@@ -78,11 +79,7 @@ export function setupIpcHandlers(): void {
       const accounts = (provider as any).accounts;
       if (!Array.isArray(accounts)) continue;
       for (const account of accounts) {
-        if (account.apiKey && account.apiKey.length > 8) {
-          account.apiKey = `${account.apiKey.slice(0, 4)}${'*'.repeat(account.apiKey.length - 8)}${account.apiKey.slice(-4)}`;
-        } else if (account.apiKey) {
-          account.apiKey = '*'.repeat(account.apiKey.length);
-        }
+        account.apiKey = maskApiKey(account.apiKey ?? '');
         (account as any).hasWebToken = !!(account as any).webToken;
         delete (account as any).webToken;
         delete (account as any).webUserAgent;
