@@ -1,5 +1,5 @@
 <template>
-  <div class="view-settings">
+  <div class="view-settings" @focusout="onSettingsFocusOut">
     <header class="header">
       <button class="icon-btn back-btn" :title="$t('settings.backBtn')" @click="$emit('go-back')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -474,6 +474,14 @@ const accountOptions = computed(() => {
 const appVersion = ref('')
 const updateState = ref<UpdateStatus>({ phase: 'idle' })
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+let saveDeferredByFocus = false
+
+// 判断当前焦点是否在文本类输入框（text/password）上；
+// checkbox/radio/select 不算 —— 它们的变更需要即时防抖保存
+function focusedTypingInput(): boolean {
+  const el = document.activeElement
+  return el instanceof HTMLInputElement && (el.type === 'text' || el.type === 'password')
+}
 
 function generateId(): string {
   return Math.random().toString(16).slice(2, 10)
@@ -656,11 +664,34 @@ async function handleMimoWebLogout(account: AccountInfo) {
 }
 
 function scheduleSave() {
+  // 文本输入框（text/password）聚焦期间挂起自动保存：
+  // 防抖计时器若在用户慢速输入中途触发，保存后会清空明文并重建输入框，
+  // 导致正在输入的内容被截断、需要从头重输；失焦时再立即落盘
+  if (focusedTypingInput()) {
+    saveDeferredByFocus = true
+    // 挂起前清掉已排队的防抖，避免旧的计时器仍在本轮聚焦中途触发保存
+    if (saveTimer) {
+      clearTimeout(saveTimer)
+      saveTimer = null
+    }
+    return
+  }
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     saveTimer = null
     saveConfig()
   }, 500)
+}
+
+// 失焦后若期间挂起过保存则立即落盘；
+// requestAnimationFrame 用于跳过「焦点从一个文本框直接移到另一个文本框」的中间态
+function onSettingsFocusOut() {
+  requestAnimationFrame(() => {
+    if (saveDeferredByFocus && !focusedTypingInput()) {
+      saveDeferredByFocus = false
+      saveConfig()
+    }
+  })
 }
 
 // 监听与 watch 的清理句柄：必须在 setup 顶层声明并清理；
