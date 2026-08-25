@@ -107,6 +107,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
 
   /**
+   * 测试 provider 连接（设置页"测试连接"按钮用）
+   * - 传 apiKey：直接用输入框里未保存的新 key 测试
+   * - 传 accountId：用 ConfigManager 已保存的凭证测试
+   */
+  testProviderConnection: (params: {
+    providerKey: string;
+    accountId?: string;
+    apiKey?: string;
+    authMode?: 'apikey' | 'weblogin';
+    webToken?: string;
+    webUserAgent?: string;
+  }) => ipcRenderer.invoke('test-provider-connection', params),
+
+  /**
    * 监听来自托盘菜单的检查更新触发事件
    */
   onTriggerCheckUpdate: (callback: () => void) =>

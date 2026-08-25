@@ -139,7 +139,12 @@
     "webLoginActive": "Logged In",
     "webLogoutBtn": "Log Out",
     "webTokenExpired": "Login expired, click to re-login",
-    "codexToggleHint": "Reads local Codex CLI login (requires Codex CLI installed and logged in)"
+    "codexToggleHint": "Reads local Codex CLI login (requires Codex CLI installed and logged in)",
+    "testConnection": "Test Connection",
+    "testing": "Testing...",
+    "testSuccess": "Connected",
+    "testFailed": "Failed",
+    "testLatency": "{ms}ms"
   },
   "provider": {
     "expired": "Expired",

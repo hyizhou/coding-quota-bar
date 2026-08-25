@@ -32,15 +32,51 @@
         <!-- 其他 Provider: 多账号模式 -->
         <template v-else>
           <div v-for="(account, idx) in info.accounts" :key="account.id" class="account-item">
-            <label class="toggle-row">
-              <input type="checkbox" v-model="account.enabled" />
-              <span class="toggle-switch"></span>
-              <input
-                class="account-label-input"
-                v-model="account.label"
-                :placeholder="$t('settings.accountLabelPlaceholder')"
-              />
-            </label>
+            <div class="account-toggle-row">
+              <label class="toggle-row">
+                <input type="checkbox" v-model="account.enabled" />
+                <span class="toggle-switch"></span>
+                <input
+                  class="account-label-input"
+                  v-model="account.label"
+                  :placeholder="$t('settings.accountLabelPlaceholder')"
+                />
+              </label>
+              <!-- 测试连接：调真实 fetchUsage 验证 key；仅 API Key 模式账户显示 -->
+              <button
+                v-if="account.authMode !== 'weblogin'"
+                class="test-conn-btn"
+                :class="{
+                  'is-testing': getTestState(info.key, account.id)?.status === 'testing',
+                  'is-success': getTestState(info.key, account.id)?.status === 'success',
+                  'is-failed': getTestState(info.key, account.id)?.status === 'failed',
+                }"
+                :disabled="getTestState(info.key, account.id)?.status === 'testing'"
+                :title="testTitle(info.key, account.id)"
+                @click="testConnection(info, account)"
+              >
+                <svg v-if="getTestState(info.key, account.id)?.status === 'testing'" class="spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+                <svg v-else-if="getTestState(info.key, account.id)?.status === 'success'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <svg v-else-if="getTestState(info.key, account.id)?.status === 'failed'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                <span v-if="getTestState(info.key, account.id)?.status === 'testing'">{{ $t('settings.testing') }}</span>
+                <span v-else-if="getTestState(info.key, account.id)?.status === 'success'">
+                  {{ $t('settings.testSuccess') }} · {{ $t('settings.testLatency', { ms: getTestState(info.key, account.id)?.latencyMs }) }}
+                </span>
+                <span v-else-if="getTestState(info.key, account.id)?.status === 'failed'">
+                  {{ $t('settings.testFailed') }}{{ getTestState(info.key, account.id)?.error ? ' · ' + getTestState(info.key, account.id)?.error : '' }}
+                </span>
+                <span v-else>{{ $t('settings.testConnection') }}</span>
+              </button>
+            </div>
             <div class="provider-body" v-if="account.enabled">
               <!-- MiMo: 仅网页登录，无 authMode 切换，无 API Key 输入 -->
               <div v-if="info.key === 'mimo'" class="web-login-section">
@@ -334,6 +370,87 @@ function removeAccount(providerKey: string, index: number) {
   provider.accounts.splice(index, 1)
 }
 
+interface TestState {
+  status: 'idle' | 'testing' | 'success' | 'failed'
+  error?: string
+  latencyMs?: number
+  sample?: { used: number; total: number; level: string }
+}
+
+// 测试连接状态：键为 "providerKey:accountId"
+const testStates = ref<Record<string, TestState>>({})
+
+function getTestState(providerKey: string, accountId: string): TestState | undefined {
+  return testStates.value[`${providerKey}:${accountId}`]
+}
+
+function testTitle(providerKey: string, accountId: string): string {
+  const state = getTestState(providerKey, accountId)
+  if (state?.status === 'success') {
+    return `${t('settings.testSuccess')} · ${t('settings.testLatency', { ms: state.latencyMs ?? 0 })}`
+  }
+  if (state?.status === 'failed') return state.error || t('settings.testFailed')
+  return t('settings.testConnection')
+}
+
+// 5s 后自动清除成功状态的 timer handle（按 key 索引）
+// 连续点击同一账户时取消上一次的延迟清除，避免状态错乱；卸载时统一清空
+const testAutoClearTimers = new Map<string, ReturnType<typeof setTimeout>>()
+function clearTestAutoClearTimer(key: string) {
+  const handle = testAutoClearTimers.get(key)
+  if (handle) {
+    clearTimeout(handle)
+    testAutoClearTimers.delete(key)
+  }
+}
+
+async function testConnection(info: ProviderInfo, account: AccountInfo) {
+  const key = `${info.key}:${account.id}`
+  clearTestAutoClearTimer(key)
+  testStates.value[key] = { status: 'testing' }
+  // 客户端保险：IPC 自身卡死时也能 bail（12s > 后端 8s，留 4s 余量）
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => reject(new Error('客户端超时（12s）')), 12000)
+  })
+  try {
+    const params: Parameters<typeof window.electronAPI.testProviderConnection>[0] = {
+      providerKey: info.key,
+      accountId: account.id,
+      authMode: account.authMode,
+    }
+    // 输入框里改过且非空时直接测新 key，否则测已保存的 key
+    if (account.apiKeyDirty && account.apiKey) {
+      params.apiKey = account.apiKey
+    }
+    const result = await Promise.race([
+      window.electronAPI.testProviderConnection(params),
+      timeoutPromise,
+    ])
+    if (result.ok) {
+      testStates.value[key] = {
+        status: 'success',
+        latencyMs: result.latencyMs,
+        sample: result.sample,
+      }
+    } else {
+      testStates.value[key] = { status: 'failed', error: result.error }
+    }
+  } catch (e) {
+    testStates.value[key] = { status: 'failed', error: e instanceof Error ? e.message : String(e) }
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle)
+  }
+  // 5s 后自动复位成功状态
+  if (testStates.value[key].status === 'success') {
+    const handle = setTimeout(() => {
+      if (testStates.value[key]?.status === 'success') testStates.value[key] = { status: 'idle' }
+      testAutoClearTimers.delete(key)
+    }, 5000)
+    testAutoClearTimers.set(key, handle)
+  }
+}
+
 async function handleWebLogin(account: AccountInfo) {
   const result = await window.electronAPI.deepseekWebLogin(account.id)
   if (result.success) {
@@ -498,6 +615,10 @@ onMounted(async () => {
 onUnmounted(() => {
   disposed = true
 
+  // 清理所有测试连接的延迟复位 timer，避免组件销毁后仍触发
+  for (const handle of testAutoClearTimers.values()) clearTimeout(handle)
+  testAutoClearTimers.clear()
+
   offTriggerCheckUpdate?.()
   offTriggerCheckUpdate = null
 
@@ -634,6 +755,17 @@ function handleUpdateClick() {
   margin-top: 8px;
 }
 
+.account-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-toggle-row .toggle-row {
+  flex: 1;
+  min-width: 0;
+}
+
 .account-label-input {
   flex: 1;
   font-size: 12px;
@@ -645,6 +777,56 @@ function handleUpdateClick() {
 }
 .account-label-input::placeholder {
   color: var(--text-tertiary);
+}
+
+.test-conn-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  max-width: 45%;
+  font-size: 11px;
+  padding: 3px 9px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.test-conn-btn > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.test-conn-btn:hover:not(:disabled) {
+  background: var(--bg-input);
+  border-color: var(--text-tertiary);
+  color: var(--text-primary);
+}
+.test-conn-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.test-conn-btn.is-testing {
+  color: var(--text-tertiary);
+}
+.test-conn-btn.is-success {
+  color: #22C55E;
+  border-color: #22C55E;
+  background: rgba(34, 197, 94, 0.08);
+}
+.test-conn-btn.is-failed {
+  color: #ef4444;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+.test-conn-btn .spin {
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .provider-body {

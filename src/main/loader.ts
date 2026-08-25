@@ -10,8 +10,9 @@ import buildConfig from '../../app.build';
 
 /**
  * Provider 类映射
+ * 同时供 ipc-handlers（测试连接）临时实例化使用，避免重复维护一份映射
  */
-const PROVIDER_CLASSES = {
+export const PROVIDER_CLASSES = {
   zhipu: ZhipuProvider,
   minimax: MiniMaxProvider,
   kimi: KimiProvider,

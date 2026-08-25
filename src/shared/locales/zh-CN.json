@@ -139,7 +139,12 @@
     "webLoginActive": "已登录",
     "webLogoutBtn": "退出登录",
     "webTokenExpired": "登录已过期，点击重新登录",
-    "codexToggleHint": "读取本机 Codex CLI 登录信息（需已安装并登录 Codex CLI）"
+    "codexToggleHint": "读取本机 Codex CLI 登录信息（需已安装并登录 Codex CLI）",
+    "testConnection": "测试连接",
+    "testing": "测试中...",
+    "testSuccess": "连接成功",
+    "testFailed": "连接失败",
+    "testLatency": "{ms}ms"
   },
   "provider": {
     "expired": "已过期",

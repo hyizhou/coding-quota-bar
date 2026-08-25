@@ -235,6 +235,13 @@ export interface ConcurrencyTestFirstContentInfo {
   total: number
 }
 
+export interface ProviderConnectionTestResult {
+  ok: boolean
+  error?: string
+  latencyMs: number
+  sample?: { used: number; total: number; level: string }
+}
+
 export interface ElectronAPI {
   getDevMode: () => Promise<boolean>
   getUsageData: () => Promise<UsageState | null>
@@ -258,6 +265,14 @@ export interface ElectronAPI {
   concurrencyTestStart: (config: ConcurrencyTestConfig) => Promise<ConcurrencyTestResult>
   concurrencyTestGetHistory: (providerKey: string) => Promise<ConcurrencyTestResult[]>
   concurrencyTestDelete: (providerKey: string, id: string) => Promise<void>
+  testProviderConnection: (params: {
+    providerKey: string
+    accountId?: string
+    apiKey?: string
+    authMode?: 'apikey' | 'weblogin'
+    webToken?: string
+    webUserAgent?: string
+  }) => Promise<ProviderConnectionTestResult>
   onConcurrencyTestProgress: (callback: (progress: ConcurrencyTestProgress) => void) => () => void
   onConcurrencyTestStream: (callback: (info: ConcurrencyTestStreamInfo) => void) => () => void
   onConcurrencyTestFirstContent: (callback: (info: ConcurrencyTestFirstContentInfo) => void) => () => void

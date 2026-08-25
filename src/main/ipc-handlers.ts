@@ -2,12 +2,13 @@ import { ipcMain, app, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import type { ConfigManager } from './config';
 import type { Scheduler } from './scheduler';
-import type { ConcurrencyTestConfig, ProviderTypeConfig, WindowPinMode } from '../shared/types';
+import type { ConcurrencyTestConfig, Provider, ProviderConfig, ProviderTypeConfig, WindowPinMode } from '../shared/types';
 import { ConcurrencyTestEngine } from './concurrency-test';
 import { DeepSeekProvider } from '../providers/deepseek';
 import { MiMoProvider } from '../providers/mimo';
-import { getAvailableProviderKeys } from './loader';
+import { getAvailableProviderKeys, PROVIDER_CLASSES, type ProviderType } from './loader';
 import { buildUsageData } from './data-transform';
+import buildConfig from '../../app.build';
 import {
   showPopupWindow,
   getPopupWindow,
@@ -224,6 +225,83 @@ export function setupIpcHandlers(): void {
     } catch (e) {
       console.warn('[MiMo] Failed to fetch month usage:', e);
       return [];
+    }
+  });
+
+  /**
+   * 测试 provider 连接：临时实例化 provider 调一次真实 fetchUsage
+   * 入参：{ providerKey, accountId?, apiKey?, authMode?, webToken?, webUserAgent? }
+   *  - apiKey 优先（支持测试输入框里未保存的新 key）
+   *  - 否则按 accountId 从 ConfigManager 读取已保存凭证
+   * 返回：{ ok, error?, latencyMs, sample? }
+   */
+  ipcMain.handle('test-provider-connection', async (_, params: {
+    providerKey: string;
+    accountId?: string;
+    apiKey?: string;
+    authMode?: 'apikey' | 'weblogin';
+    webToken?: string;
+    webUserAgent?: string;
+  }): Promise<{ ok: boolean; error?: string; latencyMs: number; sample?: { used: number; total: number; level: string } }> => {
+    const start = Date.now();
+    const ProviderClass = PROVIDER_CLASSES[params.providerKey as ProviderType];
+    if (!ProviderClass) {
+      return { ok: false, error: `Unknown provider: ${params.providerKey}`, latencyMs: 0 };
+    }
+
+    const buildEntry = buildConfig.providers.find((p: typeof buildConfig.providers[number]) => p.key === params.providerKey);
+
+    // 解析最终使用的凭证：入参优先，缺省回退到已保存配置
+    let apiKey = params.apiKey || '';
+    let webToken = params.webToken;
+    let webUserAgent = params.webUserAgent;
+    if (params.accountId) {
+      const cfg = _getConfigManager()?.getConfig();
+      const providerCfg = cfg?.providers?.[params.providerKey] as ProviderTypeConfig | undefined;
+      const account = providerCfg?.accounts?.find(a => a.id === params.accountId);
+      if (account) {
+        if (!apiKey) apiKey = account.apiKey || '';
+        if (!webToken) webToken = account.webToken;
+        if (!webUserAgent) webUserAgent = account.webUserAgent;
+      }
+    }
+
+    const config: ProviderConfig = {
+      enabled: true,
+      apiKey,
+      _baseUrl: buildEntry?.baseUrl || '',
+      authMode: params.authMode || 'apikey',
+      webToken,
+      webUserAgent,
+      accountId: params.accountId,
+    };
+
+    try {
+      const instance: Provider = new ProviderClass();
+      // 8s 超时：网络卡死时不让按钮永远转圈
+      let timeoutHandle: NodeJS.Timeout | undefined;
+      const result = await Promise.race([
+        instance.fetchUsage(config),
+        new Promise<never>((_, reject) => {
+          timeoutHandle = setTimeout(() => reject(new Error('连接超时（8s）')), 8000);
+        }),
+      ]).finally(() => {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+      });
+      return {
+        ok: true,
+        latencyMs: Date.now() - start,
+        sample: {
+          used: result.used,
+          total: result.total,
+          level: result.level || '',
+        },
+      };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // 剥掉 [Provider] 前缀，只保留面向用户的错误文案
+      const cleanMsg = msg.replace(/^\[[\w-]+\]\s*/, '');
+      return { ok: false, error: cleanMsg, latencyMs: Date.now() - start };
     }
   });
 
