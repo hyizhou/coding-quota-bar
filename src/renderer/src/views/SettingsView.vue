@@ -9,10 +9,37 @@
       <h1>{{ $t('settings.title') }}</h1>
     </header>
 
-    <div class="settings-body" ref="settingsBodyRef">
-      <div class="section-label">{{ $t('settings.providerSection') }}</div>
+    <!-- 搜索框：实时过滤 provider 卡片与通用设置项 -->
+    <div class="settings-search">
+      <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="search-input"
+        :placeholder="$t('settings.searchPlaceholder')"
+      />
+      <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''" :title="$t('settings.searchPlaceholder')">×</button>
+    </div>
 
-      <div v-for="info in providerList" :key="info.key" class="settings-card">
+    <div class="settings-body" ref="settingsBodyRef">
+      <div v-if="searchNoMatch" class="no-match">{{ $t('settings.noMatch') }}</div>
+
+      <template v-else>
+      <div
+        v-if="!searchActive || filteredProviderList.length > 0"
+        class="section-label"
+        :class="{ 'is-collapsed': collapsedSections.has('providers') }"
+        @click="toggleSection('providers')"
+      >
+        <span class="section-toggle">{{ collapsedSections.has('providers') ? '▶' : '▼' }}</span>
+        {{ $t('settings.providerSection') }}
+        <span class="section-count">({{ filteredProviderList.length }})</span>
+      </div>
+
+      <div v-if="!collapsedSections.has('providers')">
+        <div v-for="info in filteredProviderList" :key="info.key" class="settings-card">
         <div class="provider-header">
           <span class="provider-title">{{ $t(`providers.${info.key}`) }}</span>
           <button v-if="info.key !== 'codex'" class="add-account-btn" @click="addAccount(info.key)">
@@ -167,11 +194,22 @@
           </div>
         </template>
       </div>
+      </div>
 
-      <div class="section-label">{{ $t('settings.generalSection') }}</div>
+      <div
+        v-if="!searchActive || filteredGeneralKeys.size > 0"
+        class="section-label"
+        :class="{ 'is-collapsed': collapsedSections.has('general') }"
+        @click="toggleSection('general')"
+      >
+        <span class="section-toggle">{{ collapsedSections.has('general') ? '▶' : '▼' }}</span>
+        {{ $t('settings.generalSection') }}
+      </div>
 
-      <div class="settings-card">
-        <div class="form-group">
+      <div v-if="!collapsedSections.has('general')">
+
+      <div v-if="filteredGeneralKeys.size > 0" class="settings-card">
+        <div v-if="filteredGeneralKeys.has('refreshInterval')" class="form-group">
           <label class="form-label">{{ $t('settings.refreshInterval') }}</label>
           <select v-model="refreshInterval" class="form-select">
             <option value="60">{{ $t('settings.interval1m') }}</option>
@@ -181,14 +219,14 @@
             <option value="1800">{{ $t('settings.interval30m') }}</option>
           </select>
         </div>
-        <div class="form-group">
+        <div v-if="filteredGeneralKeys.has('popupTrigger')" class="form-group">
           <label class="form-label">{{ $t('settings.popupTriggerLabel') }}</label>
           <select v-model="popupTrigger" class="form-select">
             <option value="hover">{{ $t('settings.popupTriggerHover') }}</option>
             <option value="click">{{ $t('settings.popupTriggerClick') }}</option>
           </select>
         </div>
-        <div class="form-group">
+        <div v-if="filteredGeneralKeys.has('trayDisplayRule')" class="form-group">
           <label class="form-label">{{ $t('settings.trayDisplayRule') }}</label>
           <select v-model="trayDisplayRule" class="form-select">
             <option value="lowest">{{ $t('settings.trayDisplayLowest') }}</option>
@@ -200,14 +238,14 @@
             >{{ opt.label }}</option>
           </select>
         </div>
-        <div class="form-group">
+        <div v-if="filteredGeneralKeys.has('language')" class="form-group">
           <label class="form-label">{{ $t('settings.language') }}</label>
           <select v-model="language" class="form-select">
             <option value="zh-CN">中文</option>
             <option value="en-US">English</option>
           </select>
         </div>
-        <div class="form-group">
+        <div v-if="filteredGeneralKeys.has('theme')" class="form-group">
           <label class="form-label">{{ $t('settings.theme') }}</label>
           <select v-model="themePreference" class="form-select">
             <option value="light">{{ $t('settings.themeLight') }}</option>
@@ -215,29 +253,29 @@
             <option value="auto">{{ $t('settings.themeAuto') }}</option>
           </select>
         </div>
-        <div class="toggle-group">
-          <label class="toggle-row">
+        <div v-if="generalTogglesVisible" class="toggle-group">
+          <label v-if="filteredGeneralKeys.has('autoStart')" class="toggle-row">
             <input type="checkbox" v-model="autoStart" :disabled="!isPackaged" />
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.autoStart') }}</span>
             <span v-if="!isPackaged" class="dev-hint">{{ $t('settings.devModeHint') }}</span>
           </label>
-          <label class="toggle-row" :title="$t('settings.memorySavingModeHint')">
+          <label v-if="filteredGeneralKeys.has('memorySavingMode')" class="toggle-row" :title="$t('settings.memorySavingModeHint')">
             <input type="checkbox" v-model="memorySavingMode" />
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.memorySavingMode') }}</span>
           </label>
-          <label class="toggle-row" :title="$t('settings.rememberPopupPositionHint')">
+          <label v-if="filteredGeneralKeys.has('rememberPopupPosition')" class="toggle-row" :title="$t('settings.rememberPopupPositionHint')">
             <input type="checkbox" v-model="rememberPopupPosition" />
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.rememberPopupPosition') }}</span>
           </label>
-          <label class="toggle-row" :title="$t('settings.showEstimatedCostHint')">
+          <label v-if="filteredGeneralKeys.has('showEstimatedCost')" class="toggle-row" :title="$t('settings.showEstimatedCostHint')">
             <input type="checkbox" v-model="showEstimatedCost" />
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.showEstimatedCost') }}</span>
           </label>
-          <label class="toggle-row" :title="$t('settings.autoCheckUpdateHint')">
+          <label v-if="filteredGeneralKeys.has('autoCheckUpdate')" class="toggle-row" :title="$t('settings.autoCheckUpdateHint')">
             <input type="checkbox" v-model="autoCheckUpdateEnabled" />
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.autoCheckUpdate') }}</span>
@@ -245,7 +283,7 @@
         </div>
       </div>
 
-      <div class="version-section">
+      <div v-if="!searchActive" class="version-section">
         <div class="version-left">
           <button class="icon-btn github-btn" title="GitHub" @click="openGitHub">
             <img src="../assets/github.svg" alt="GitHub" />
@@ -271,6 +309,8 @@
           <template v-else>{{ $t('settings.checkUpdate') }}</template>
         </button>
       </div>
+      </div>
+      </template>
     </div>
 
     <footer class="footer">
@@ -326,6 +366,63 @@ const settingsBodyRef = ref<HTMLElement | null>(null)
 const saveStatus = ref('')
 const saveError = ref(false)
 const currentConfig = ref<AppConfig | null>(null)
+
+/**
+ * 搜索 + section 折叠
+ * - searchQuery: 用户输入的关键字（实时过滤）
+ * - collapsedSections: 哪些 section 被折叠（key = section id）
+ * - filteredProviderList: 搜索后剩下的 provider 列表（不修改原数据）
+ * - filteredGeneralKeys: 通用区命中的设置项 key（无关键字时为全部）
+ * 搜索时无命中的 section 整体隐藏；两区皆无命中才显示「没有匹配项」
+ */
+const GENERAL_SEARCH_ITEMS: { key: string; label: string }[] = [
+  { key: 'refreshInterval', label: 'settings.refreshInterval' },
+  { key: 'popupTrigger', label: 'settings.popupTriggerLabel' },
+  { key: 'trayDisplayRule', label: 'settings.trayDisplayRule' },
+  { key: 'language', label: 'settings.language' },
+  { key: 'theme', label: 'settings.theme' },
+  { key: 'autoStart', label: 'settings.autoStart' },
+  { key: 'memorySavingMode', label: 'settings.memorySavingMode' },
+  { key: 'rememberPopupPosition', label: 'settings.rememberPopupPosition' },
+  { key: 'showEstimatedCost', label: 'settings.showEstimatedCost' },
+  { key: 'autoCheckUpdate', label: 'settings.autoCheckUpdate' },
+]
+const GENERAL_TOGGLE_KEYS = ['autoStart', 'memorySavingMode', 'rememberPopupPosition', 'showEstimatedCost', 'autoCheckUpdate']
+
+const searchQuery = ref('')
+const collapsedSections = ref<Set<string>>(new Set())
+function toggleSection(id: string) {
+  const s = new Set(collapsedSections.value)
+  if (s.has(id)) s.delete(id); else s.add(id)
+  collapsedSections.value = s
+}
+const filteredProviderList = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return providerList.value
+  return providerList.value.filter(info => {
+    // 匹配 provider 名
+    const providerName = t(`providers.${info.key}`).toLowerCase()
+    if (providerName.includes(q)) return true
+    // 匹配账号 label
+    if (info.accounts.some(a => (a.label || '').toLowerCase().includes(q))) return true
+    return false
+  })
+})
+const searchActive = computed(() => searchQuery.value.trim() !== '')
+const filteredGeneralKeys = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  return new Set(
+    GENERAL_SEARCH_ITEMS
+      .filter(item => t(item.label).toLowerCase().includes(q))
+      .map(item => item.key),
+  )
+})
+const generalTogglesVisible = computed(() =>
+  GENERAL_TOGGLE_KEYS.some(key => filteredGeneralKeys.value.has(key)),
+)
+const searchNoMatch = computed(() =>
+  searchActive.value && filteredProviderList.value.length === 0 && filteredGeneralKeys.value.size === 0,
+)
 
 const accountOptions = computed(() => {
   const options: { value: string; label: string }[] = []
@@ -719,6 +816,90 @@ function handleUpdateClick() {
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 6px;
+}
+
+/* === 搜索 + section 折叠 === */
+.settings-search {
+  position: relative;
+  margin: 8px 10px 0;
+}
+.settings-search .search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+.search-input {
+  width: 100%;
+  padding: 5px 26px 5px 26px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.search-input:focus {
+  border-color: var(--text-tertiary);
+}
+.search-input::placeholder { color: var(--text-tertiary); }
+.search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.search-clear:hover { color: var(--text-primary); background: var(--border-subtle); }
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  margin: 4px 0 4px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.section-label:hover { background: var(--bg-input); }
+.section-label .section-toggle {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  transition: transform 0.2s;
+}
+.section-label.is-collapsed { margin-bottom: 4px; }
+.section-label .section-count {
+  color: var(--text-tertiary);
+  font-weight: 400;
+  font-size: 10px;
+  margin-left: auto;
+  opacity: 0.7;
+}
+.no-match {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  padding: 12px;
+  font-style: italic;
 }
 
 .provider-header {

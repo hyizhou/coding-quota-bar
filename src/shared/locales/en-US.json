@@ -144,7 +144,9 @@
     "testing": "Testing...",
     "testSuccess": "Connected",
     "testFailed": "Failed",
-    "testLatency": "{ms}ms"
+    "testLatency": "{ms}ms",
+    "searchPlaceholder": "Search settings...",
+    "noMatch": "No matches"
   },
   "provider": {
     "expired": "Expired",

@@ -144,7 +144,9 @@
     "testing": "测试中...",
     "testSuccess": "连接成功",
     "testFailed": "连接失败",
-    "testLatency": "{ms}ms"
+    "testLatency": "{ms}ms",
+    "searchPlaceholder": "搜索设置项...",
+    "noMatch": "没有匹配项"
   },
   "provider": {
     "expired": "已过期",
