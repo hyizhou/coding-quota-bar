@@ -172,20 +172,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloatingTooltip from '../components/FloatingTooltip.vue'
 import UpdateBanner from '../components/UpdateBanner.vue'
 import ProviderOverview from '../components/ProviderOverview.vue'
 import ZhipuSection from '../components/ZhipuSection.vue'
 import MiniMaxSection from '../components/MiniMaxSection.vue'
-import DeepSeekSection from '../components/DeepSeekSection.vue'
 import DeepSeekServiceStatus from '../components/DeepSeekServiceStatus.vue'
-import MiMoSection from '../components/MiMoSection.vue'
 import OpenCodeGoSection from '../components/OpenCodeGoSection.vue'
 import CodexSection from '../components/CodexSection.vue'
 import type { ProviderUsageData, AccountUsageData, UsageState, WindowPinMode } from '../types'
 import { useTheme } from '../composables/useTheme'
+
+// DeepSeekSection / MiMoSection 内部直接引用 chart.js → 异步加载，
+// 打开对应 provider tab 时才下载 chart-lib chunk
+const DeepSeekSection = defineAsyncComponent(() => import('../components/DeepSeekSection.vue'))
+const MiMoSection = defineAsyncComponent(() => import('../components/MiMoSection.vue'))
 
 const emit = defineEmits<{ 'open-settings': [options?: { checkUpdate?: boolean }]; 'open-concurrency-test': [] }>()
 

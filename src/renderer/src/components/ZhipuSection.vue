@@ -26,10 +26,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, defineAsyncComponent } from 'vue'
 import QuotaCard from './QuotaCard.vue'
 import UsageStats from './UsageStats.vue'
-import PerformanceChart from './PerformanceChart.vue'
+// PerformanceChart 含 chart.js → 异步加载，避免首屏阻塞
+const PerformanceChart = defineAsyncComponent(() => import('./PerformanceChart.vue'))
 import type { AccountUsageData, QuotaItem } from '../types'
 
 defineProps<{
