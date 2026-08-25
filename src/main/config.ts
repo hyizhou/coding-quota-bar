@@ -153,6 +153,30 @@ export class ConfigManager extends EventEmitter {
         }
       }
 
+      // 迁移：旧配置键 opencodego（网页登录模式）→ opencode-go（官方 API + API Key 模式）
+      const legacyOcg = (this.config.providers as any)['opencodego'] as ProviderTypeConfig | undefined;
+      if (legacyOcg) {
+        const target = (this.config.providers as any)['opencode-go'] as ProviderTypeConfig | undefined;
+        const accounts = (legacyOcg.accounts ?? []).map(acc => ({
+          ...acc,
+          authMode: 'apikey' as const,
+          webToken: undefined,
+          webUserAgent: undefined,
+          opencodegoLoggedIn: undefined,
+        }));
+        if (target?.accounts) {
+          const ids = new Set(target.accounts.map(a => a.id));
+          for (const acc of accounts) {
+            if (!ids.has(acc.id)) target.accounts.push(acc);
+          }
+        } else {
+          (this.config.providers as any)['opencode-go'] = { accounts };
+        }
+        delete (this.config.providers as any)['opencodego'];
+        migrated = true;
+        console.log('[Config] Migrated: renamed provider "opencodego" to "opencode-go" (API Key mode)');
+      }
+
       // 迁移：补齐编译时可用但配置文件中缺失的 provider
       for (const key of getAvailableProviderKeys()) {
         if (!this.config.providers[key]) {

@@ -119,7 +119,6 @@
     "authModeWebloginHint": "通过网页接口查询余额、用量和费用明细",
     "webLoginBtn": "登录 DeepSeek",
     "mimoLoginBtn": "登录 MiMo 平台",
-    "opencodegoLoginBtn": "登录 OpenCode Go",
     "webLoginActive": "已登录",
     "webLogoutBtn": "退出登录",
     "webTokenExpired": "登录已过期，点击重新登录",
@@ -175,10 +174,9 @@
     "codexCreditsUnlimited": "余额（无限）",
     "codexSubscriptionUntil": "订阅到期",
     "codexLimitReached": "已触发限流，Codex 不可用",
-    "opencodegoRolling": "5小时窗口",
-    "opencodegoWeekly": "周额度",
-    "opencodegoMonthly": "月额度",
-    "opencodegoZenBalance": "Zen 余额"
+    "opencodeGo5h": "5小时额度",
+    "opencodeGoWeekly": "周额度",
+    "opencodeGoMonthly": "月额度"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",
@@ -198,7 +196,7 @@
     "kimi": "Kimi",
     "deepseek": "DeepSeek",
     "mimo": "MiMo",
-    "opencodego": "OpenCode Go",
+    "opencode-go": "OpenCode Go",
     "codex": "Codex"
   },
   "concurrencyTest": {

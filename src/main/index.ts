@@ -35,9 +35,6 @@ import {
   setMimoAuthDeps,
 } from './mimo-auth';
 import {
-  setOpencodegoAuthDeps,
-} from './opencodego-auth';
-import {
   setDataTransformDeps,
   buildUsageData,
 } from './data-transform';
@@ -112,7 +109,6 @@ async function initialize(): Promise<void> {
   setUpdateManagerDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setDeepseekAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setMimoAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
-  setOpencodegoAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setDataTransformDeps({ getConfigManager, getScheduler });
   setIpcHandlersDeps({ getConfigManager, getScheduler });
 
@@ -177,25 +173,21 @@ async function initialize(): Promise<void> {
   scheduler.on('refreshed', async () => {
     trayManager?.stopLoading();
 
-    // 自动刷新 DeepSeek token；同步 MiMo/OpenCode Go 登录状态
+    // 自动刷新 DeepSeek token；同步 MiMo 登录状态
     if (!isAutoRefreshingToken) {
       const aggregated = scheduler!.getAggregatedData();
       if (aggregated) {
         const expiredAccounts: Array<{ provider: string; accountId: string }> = [];
         const mimoSuccessAccounts: string[] = [];
-        const opencodegoSuccessAccounts: string[] = [];
         for (const [key, result] of aggregated.results) {
           const [provider, accountId] = key.split(':');
           if (result.error === 'TOKEN_EXPIRED') {
-            if (provider === 'deepseek' || provider === 'mimo' || provider === 'opencodego') {
+            if (provider === 'deepseek' || provider === 'mimo') {
               expiredAccounts.push({ provider, accountId });
             }
           } else if (provider === 'mimo' && !result.error) {
             // MiMo 成功获取数据，记录需要同步登录状态的账户
             mimoSuccessAccounts.push(accountId);
-          } else if (provider === 'opencodego' && !result.error) {
-            // OpenCode Go 成功获取数据，记录需要同步登录状态的账户
-            opencodegoSuccessAccounts.push(accountId);
           }
         }
 
@@ -211,28 +203,6 @@ async function initialize(): Promise<void> {
                 const account = mimo.accounts.find(a => a.id === accountId);
                 if (account && !account.mimoLoggedIn) {
                   account.mimoLoggedIn = true;
-                  needSave = true;
-                }
-              }
-              if (needSave) {
-                await configManager!.updateConfig({ providers });
-              }
-            }
-          }
-        }
-
-        // OpenCode Go 成功获取数据时同步 opencodegoLoggedIn 状态
-        if (opencodegoSuccessAccounts.length > 0) {
-          const cfg = configManager?.getConfig();
-          if (cfg) {
-            const providers = structuredClone(cfg.providers);
-            const opencodego = providers.opencodego as import('../shared/types').ProviderTypeConfig;
-            if (opencodego?.accounts) {
-              let needSave = false;
-              for (const accountId of opencodegoSuccessAccounts) {
-                const account = opencodego.accounts.find(a => a.id === accountId);
-                if (account && !account.opencodegoLoggedIn) {
-                  account.opencodegoLoggedIn = true;
                   needSave = true;
                 }
               }
@@ -260,18 +230,6 @@ async function initialize(): Promise<void> {
                   const account = mimo?.accounts?.find(a => a.id === accountId);
                   if (account) {
                     account.mimoLoggedIn = false;
-                    await configManager!.updateConfig({ providers });
-                  }
-                }
-              } else if (provider === 'opencodego') {
-                // OpenCode Go session 过期
-                const cfg = configManager?.getConfig();
-                if (cfg) {
-                  const providers = structuredClone(cfg.providers);
-                  const opencodego = providers.opencodego as import('../shared/types').ProviderTypeConfig;
-                  const account = opencodego?.accounts?.find(a => a.id === accountId);
-                  if (account) {
-                    account.opencodegoLoggedIn = false;
                     await configManager!.updateConfig({ providers });
                   }
                 }

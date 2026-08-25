@@ -287,25 +287,17 @@ export function generateMockData(): Record<string, UsageResult> {
       },
     },
 
-    opencodego: {
+    'opencode-go': {
       used: 42,
       total: 100,
-      expiresAt: '',
+      expiresAt: new Date(now + 3 * HOUR).toISOString(),
       level: undefined,
       details: {
         quotas: [
-          { label: 'quota.opencodegoRolling', used: 42, total: 100, usageRate: 42, resetAt: new Date(now + 3 * HOUR).toISOString(), limitType: 'opencodego' },
-          { label: 'quota.opencodegoWeekly', used: 28, total: 100, usageRate: 28, resetAt: new Date(now + 4 * DAY).toISOString(), limitType: 'opencodego' },
-          { label: 'quota.opencodegoMonthly', used: 15, total: 100, usageRate: 15, resetAt: new Date(now + 20 * DAY).toISOString(), limitType: 'opencodego' },
-          { label: 'quota.opencodegoZenBalance', used: 12.50, total: 12.50, usageRate: 0, resetAt: '', hideBar: true, currency: 'USD' },
+          { label: 'quota.opencodeGo5h', used: 42, total: 100, usageRate: 42, resetAt: new Date(now + 3 * HOUR).toISOString(), limitType: '5h' },
+          { label: 'quota.opencodeGoWeekly', used: 28, total: 100, usageRate: 28, resetAt: new Date(now + 4 * DAY).toISOString(), limitType: 'weekly' },
+          { label: 'quota.opencodeGoMonthly', used: 15, total: 100, usageRate: 15, resetAt: new Date(now + 20 * DAY).toISOString(), limitType: 'monthly' },
         ],
-        balance: {
-          total: '$12.50',
-          gift: '$0.00',
-          cash: '$12.50',
-          frozen: '$0.00',
-          currency: 'USD',
-        },
       },
     },
   };

@@ -268,9 +268,6 @@ export interface ElectronAPI {
   mimoWebLogout: (accountId: string) => Promise<void>
   onMimoWebLoginSuccess: (callback: (accountId: string) => void) => () => void
   mimoFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<ModelTokenRecord[]>
-  opencodegoWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
-  opencodegoWebLogout: (accountId: string) => Promise<void>
-  onOpencodegoWebLoginSuccess: (callback: (accountId: string) => void) => () => void
   showFeedback: () => void
 }
 

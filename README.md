@@ -31,7 +31,7 @@ Windows 托盘工具，实时监控各 AI 平台 Coding Plan 用量。
 | **DeepSeek** | API Key / 网页登录 | 账户余额（总余额/赠送/充值）、自定义预算进度条、API 与网页服务 90 天运行状态 |
 | **MiniMax** | API Key | 日额度、周额度 |
 | **MiMo** | 网页登录 | 套餐总用量、月度用量、Token 用量、账户余额 |
-| **OpenCode Go** | 网页登录（OAuth） | 5 小时滚动窗口、周额度、月额度、Zen 余额 |
+| **OpenCode Go** | API Key | 5 小时滚动窗口、周额度、月额度 |
 | **Codex** | 读取本机 Codex CLI 登录 | 主窗口/次窗口限流、代码审查额度、Credits 余额、订阅到期 |
 
 ### 多账户管理

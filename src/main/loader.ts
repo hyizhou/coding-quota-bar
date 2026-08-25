@@ -4,7 +4,7 @@ import { MiniMaxProvider } from '../providers/minimax';
 import { KimiProvider } from '../providers/kimi';
 import { DeepSeekProvider } from '../providers/deepseek';
 import { MiMoProvider } from '../providers/mimo';
-import { OpenCodeGoProvider } from '../providers/opencodego';
+import { OpenCodeGoProvider } from '../providers/opencode-go';
 import { CodexProvider } from '../providers/codex';
 import buildConfig from '../../app.build';
 
@@ -17,7 +17,7 @@ const PROVIDER_CLASSES = {
   kimi: KimiProvider,
   deepseek: DeepSeekProvider,
   mimo: MiMoProvider,
-  opencodego: OpenCodeGoProvider,
+  'opencode-go': OpenCodeGoProvider,
   codex: CodexProvider,
 } as const;
 
@@ -57,7 +57,9 @@ export class ProviderLoader {
     const availableKeys = new Set(getAvailableProviderKeys());
     const loaded: LoadedProvider[] = [];
 
-    for (const [type, providerConfig] of Object.entries(providerConfigs)) {
+    for (const [rawType, providerConfig] of Object.entries(providerConfigs)) {
+      // 旧版配置使用 opencodego 作为配置键，这里统一映射到 opencode-go
+      const type = rawType === 'opencodego' ? 'opencode-go' : rawType;
       // 编译时未标记为 available 的直接跳过
       if (!availableKeys.has(type)) {
         continue;
@@ -79,13 +81,13 @@ export class ProviderLoader {
           continue;
         }
 
-        // 按认证模式检查必要凭证
+        // 按认证模式检查必要凭证（OpenCode Go 走官方 API，无论旧账户是什么模式都需要 API Key）
         const authMode = account.authMode || 'apikey';
-        if (authMode === 'apikey' && !account.apiKey?.trim()) {
+        if ((authMode === 'apikey' || type === 'opencode-go') && !account.apiKey?.trim()) {
           continue;
         }
-        // MiMo 使用 Cookie 认证，OpenCode Go 使用 Cookie 认证，Codex 读取本地 auth 文件，均不需要 webToken
-        if (authMode === 'weblogin' && type !== 'mimo' && type !== 'opencodego' && type !== 'codex' && !account.webToken?.trim()) {
+        // MiMo 使用 Cookie 认证，Codex 读取本地 auth 文件，均不需要 webToken
+        if (authMode === 'weblogin' && type !== 'mimo' && type !== 'codex' && !account.webToken?.trim()) {
           continue;
         }
 

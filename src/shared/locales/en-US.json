@@ -119,7 +119,6 @@
     "authModeWebloginHint": "Query balance, usage and cost details via web API",
     "webLoginBtn": "Login to DeepSeek",
     "mimoLoginBtn": "Login to MiMo",
-    "opencodegoLoginBtn": "Login to OpenCode Go",
     "webLoginActive": "Logged In",
     "webLogoutBtn": "Log Out",
     "webTokenExpired": "Login expired, click to re-login",
@@ -175,10 +174,9 @@
     "codexCreditsUnlimited": "Credits (Unlimited)",
     "codexSubscriptionUntil": "Subscription Until",
     "codexLimitReached": "Rate limit reached, Codex unavailable",
-    "opencodegoRolling": "5-Hour Window",
-    "opencodegoWeekly": "Weekly Quota",
-    "opencodegoMonthly": "Monthly Quota",
-    "opencodegoZenBalance": "Zen Balance"
+    "opencodeGo5h": "5-Hour Quota",
+    "opencodeGoWeekly": "Weekly Quota",
+    "opencodeGoMonthly": "Monthly Quota"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",
@@ -198,7 +196,7 @@
     "kimi": "Kimi",
     "deepseek": "DeepSeek",
     "mimo": "MiMo",
-    "opencodego": "OpenCode Go",
+    "opencode-go": "OpenCode Go",
     "codex": "Codex"
   },
   "concurrencyTest": {

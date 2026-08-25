@@ -170,12 +170,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   mimoFetchMonthUsage: (accountId: string, year: number, month: number) =>
     ipcRenderer.invoke('mimo-fetch-month-usage', accountId, year, month),
-
-  /**
-   * OpenCode Go 网页登录
-   */
-  opencodegoWebLogin: (accountId: string) => ipcRenderer.invoke('opencodego-web-login', accountId),
-  opencodegoWebLogout: (accountId: string) => ipcRenderer.invoke('opencodego-web-logout', accountId),
-  onOpencodegoWebLoginSuccess: (callback: (accountId: string) => void) =>
-    subscribe('opencodego-web-login-success', callback),
 });

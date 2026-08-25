@@ -64,28 +64,6 @@
                 </button>
               </div>
 
-              <!-- OpenCode Go: 仅网页登录，无 authMode 切换，无 API Key 输入 -->
-              <div v-else-if="info.key === 'opencodego'" class="web-login-section">
-                <button
-                  class="web-login-btn"
-                  :class="{ active: account.webTokenStatus === 'active' }"
-                  @click="handleOpencodegoWebLogin(account)"
-                >
-                  {{ account.webTokenStatus === 'active'
-                     ? $t('settings.webLoginActive')
-                     : account.webTokenStatus === 'expired'
-                       ? $t('settings.webTokenExpired')
-                       : $t('settings.opencodegoLoginBtn') }}
-                </button>
-                <button
-                  v-if="account.webTokenStatus === 'active'"
-                  class="web-logout-btn"
-                  @click="handleOpencodegoWebLogout(account)"
-                >
-                  {{ $t('settings.webLogoutBtn') }}
-                </button>
-              </div>
-
               <!-- DeepSeek 认证模式选择 -->
               <template v-else>
                 <div v-if="info.key === 'deepseek'" class="auth-mode-row">
@@ -344,7 +322,7 @@ function addAccount(providerKey: string) {
     enabled: true,
     apiKey: '',
     showKey: false,
-    authMode: (providerKey === 'mimo' || providerKey === 'opencodego' || providerKey === 'codex') ? 'weblogin' : 'apikey',
+    authMode: (providerKey === 'mimo' || providerKey === 'codex') ? 'weblogin' : 'apikey',
     webTokenStatus: 'none',
     apiKeyDirty: false,
   })
@@ -389,22 +367,6 @@ async function handleMimoWebLogout(account: AccountInfo) {
   if (freshConfig) currentConfig.value = freshConfig
 }
 
-async function handleOpencodegoWebLogin(account: AccountInfo) {
-  const result = await window.electronAPI.opencodegoWebLogin(account.id)
-  if (result.success) {
-    account.webTokenStatus = 'active'
-    const freshConfig = await window.electronAPI.getConfig()
-    if (freshConfig) currentConfig.value = freshConfig
-  }
-}
-
-async function handleOpencodegoWebLogout(account: AccountInfo) {
-  await window.electronAPI.opencodegoWebLogout(account.id)
-  account.webTokenStatus = 'none'
-  const freshConfig = await window.electronAPI.getConfig()
-  if (freshConfig) currentConfig.value = freshConfig
-}
-
 function scheduleSave() {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
@@ -441,14 +403,12 @@ onMounted(async () => {
       apiKey: account.apiKey ?? '',
       showKey: false,
       budget: (account as any).budget ?? undefined,
-      authMode: (key === 'mimo' || key === 'opencodego' || key === 'codex') ? (account.authMode ?? 'weblogin') : (account.authMode ?? 'apikey'),
+      authMode: (key === 'mimo' || key === 'codex') ? (account.authMode ?? 'weblogin') : (account.authMode ?? 'apikey'),
       webTokenStatus: key === 'mimo'
         ? ((account as any).mimoLoggedIn ? 'active' : 'none')
-        : key === 'opencodego'
-          ? ((account as any).opencodegoLoggedIn ? 'active' : 'none')
-          : key === 'codex'
-            ? 'none'
-            : (account.hasWebToken ? 'active' : 'none'),
+        : key === 'codex'
+          ? 'none'
+          : (account.hasWebToken ? 'active' : 'none'),
       apiKeyDirty: false,
     }))
 
