@@ -206,6 +206,8 @@ export class ZhipuProvider implements Provider {
   name = '智谱';
 
   private httpClient = new HttpClientWithRetry(3, 1000);
+  // 关键请求（quota/limit）：重试更多次、退避更长，避免一次间歇性网络错误就让整个面板无数据
+  private criticalClient = new HttpClientWithRetry(5, 1200);
 
   private getBaseUrl(config: ProviderConfig): string {
     return config._baseUrl as string;
@@ -220,8 +222,8 @@ export class ZhipuProvider implements Provider {
     const baseUrl = this.getBaseUrl(config);
     const headers = { 'Authorization': `Bearer ${apiKey}` };
 
-    // 1. 获取配额数据
-    const quotaResp = await this.httpClient.getJson<ZhipuQuotaResponse>(
+    // 1. 获取配额数据（关键请求，单独用更高重试次数的 client）
+    const quotaResp = await this.criticalClient.getJson<ZhipuQuotaResponse>(
       `${baseUrl}/api/monitor/usage/quota/limit`,
       headers
     );
@@ -238,62 +240,76 @@ export class ZhipuProvider implements Provider {
     const start15d = new Date(now.getTime() - 15 * 86400000);
     const start30d = new Date(now.getTime() - 30 * 86400000);
 
-    let resp1d: ZhipuModelUsageResponse | null = null;
-    let resp7d: ZhipuModelUsageResponse | null = null;
-    let resp30d: ZhipuModelUsageResponse | null = null;
-    let toolResp1d: ZhipuToolUsageResponse | null = null;
-    let toolResp7d: ZhipuToolUsageResponse | null = null;
-    let toolResp30d: ZhipuToolUsageResponse | null = null;
-    let perfResp7d: ZhipuPerformanceResponse | null = null;
-    let perfResp15d: ZhipuPerformanceResponse | null = null;
-    let perfResp30d: ZhipuPerformanceResponse | null = null;
-    let subResp: ZhipuSubscriptionResponse | null = null;
-    try {
-      [resp1d, resp7d, resp30d, toolResp1d, toolResp7d, toolResp30d, perfResp7d, perfResp15d, perfResp30d, subResp] = await Promise.all([
-        this.httpClient.getJson<ZhipuModelUsageResponse>(
-          `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuModelUsageResponse>(
-          `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuModelUsageResponse>(
-          `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuToolUsageResponse>(
-          `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuToolUsageResponse>(
-          `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuToolUsageResponse>(
-          `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuPerformanceResponse>(
-          `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuPerformanceResponse>(
-          `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start15d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuPerformanceResponse>(
-          `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
-          headers
-        ),
-        this.httpClient.getJson<ZhipuSubscriptionResponse>(
-          `${baseUrl}/api/biz/subscription/list?pageSize=9999&pageNum=1`,
-          headers
-        )
-      ]);
-    } catch (e) {
-      console.warn('[Zhipu] Failed to fetch model/tool usage:', e);
-    }
+    // 用「限流并发 + allSettled」请求辅助数据：
+    //  - 限流（最多 2 路同时）避免对同一 host 瞬间打出 10 条连接触发服务端/代理限流，
+    //    导致 ERR_CONNECTION_CLOSED（实测 2 路并发比 10 路全并发更稳更快）。
+    //  - allSettled 让单条失败不连累其余请求（每条内部已有重试）。
+    const auxRequests: Array<() => Promise<unknown>> = [
+      () => this.httpClient.getJson<ZhipuModelUsageResponse>(
+        `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuModelUsageResponse>(
+        `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuModelUsageResponse>(
+        `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuToolUsageResponse>(
+        `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuToolUsageResponse>(
+        `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuToolUsageResponse>(
+        `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuPerformanceResponse>(
+        `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuPerformanceResponse>(
+        `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start15d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuPerformanceResponse>(
+        `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
+        headers
+      ),
+      () => this.httpClient.getJson<ZhipuSubscriptionResponse>(
+        `${baseUrl}/api/biz/subscription/list?pageSize=9999&pageNum=1`,
+        headers
+      )
+    ];
+
+    const settled = await this.runLimitedAllSettled(auxRequests, 2);
+
+    /**
+     * 从 allSettled 结果中提取值，失败时记录并返回 null
+     */
+    const pick = <T>(i: number): T | null => {
+      const s = settled[i] as PromiseSettledResult<T>;
+      if (s.status === 'fulfilled') return s.value;
+      const reason = s.reason instanceof Error ? s.reason.message : String(s.reason);
+      console.warn(`[Zhipu] request #${i} failed:`, reason);
+      return null;
+    };
+
+    const resp1d = pick<ZhipuModelUsageResponse>(0);
+    const resp7d = pick<ZhipuModelUsageResponse>(1);
+    const resp30d = pick<ZhipuModelUsageResponse>(2);
+    const toolResp1d = pick<ZhipuToolUsageResponse>(3);
+    const toolResp7d = pick<ZhipuToolUsageResponse>(4);
+    const toolResp30d = pick<ZhipuToolUsageResponse>(5);
+    const perfResp7d = pick<ZhipuPerformanceResponse>(6);
+    const perfResp15d = pick<ZhipuPerformanceResponse>(7);
+    const perfResp30d = pick<ZhipuPerformanceResponse>(8);
+    const subResp = pick<ZhipuSubscriptionResponse>(9);
 
     // 3. 构建额度列表
     const quotas = quotaResp.data.limits.map(item => {
@@ -361,6 +377,32 @@ export class ZhipuProvider implements Provider {
         performanceHistory30d: this.buildPerformanceHistory(perfResp30d)
       }
     };
+  }
+
+  /**
+   * 限流并发执行任务，最多同时 limit 个进行中。
+   * 用 allSettled 语义：单任务失败不影响其他，结果顺序与输入一致。
+   * 用于避免对同一 host 瞬间打出过多连接。
+   */
+  private async runLimitedAllSettled<T>(
+    tasks: Array<() => Promise<T>>,
+    limit: number
+  ): Promise<PromiseSettledResult<T>[]> {
+    const results: PromiseSettledResult<T>[] = new Array(tasks.length);
+    let next = 0;
+    const worker = async () => {
+      while (true) {
+        const i = next++;
+        if (i >= tasks.length) return;
+        try {
+          results[i] = { status: 'fulfilled', value: await tasks[i]() };
+        } catch (e) {
+          results[i] = { status: 'rejected', reason: e };
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, () => worker()));
+    return results;
   }
 
   /**
