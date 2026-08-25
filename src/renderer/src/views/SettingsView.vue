@@ -38,12 +38,30 @@
         <span class="section-count">({{ filteredProviderList.length }})</span>
       </div>
 
-      <div v-if="!collapsedSections.has('providers')">
+      <Transition
+        :css="false"
+        @before-enter="collapseBeforeEnter"
+        @enter="collapseEnter"
+        @after-enter="collapseAfterEnter"
+        @enter-cancelled="collapseReset"
+        @before-leave="collapseBeforeLeave"
+        @leave="collapseLeave"
+        @after-leave="collapseAfterLeave"
+        @leave-cancelled="collapseReset"
+      >
+      <div v-if="!collapsedSections.has('providers')" class="section-collapse">
         <div v-for="info in filteredProviderList" :key="info.key" class="settings-card">
         <div class="provider-header">
           <span class="provider-title">{{ $t(`providers.${info.key}`) }}</span>
-          <button v-if="info.key !== 'codex'" class="add-account-btn" @click="addAccount(info.key)">
-            + {{ $t('settings.addAccount') }}
+          <button
+            v-if="info.key !== 'codex'"
+            class="add-account-btn"
+            :title="$t('settings.addAccount')"
+            @click="addAccount(info.key)"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
           </button>
         </div>
 
@@ -69,9 +87,9 @@
                   :placeholder="$t('settings.accountLabelPlaceholder')"
                 />
               </label>
-              <!-- 测试连接：调真实 fetchUsage 验证 key；仅 API Key 模式账户显示 -->
+              <!-- 测试连接：调真实 fetchUsage 验证 key；仅启用且 API Key 模式的账户显示 -->
               <button
-                v-if="account.authMode !== 'weblogin'"
+                v-if="account.enabled && account.authMode !== 'weblogin'"
                 class="test-conn-btn"
                 :class="{
                   'is-testing': getTestState(info.key, account.id)?.status === 'testing',
@@ -195,6 +213,7 @@
         </template>
       </div>
       </div>
+      </Transition>
 
       <div
         v-if="!searchActive || filteredGeneralKeys.size > 0"
@@ -206,7 +225,18 @@
         {{ $t('settings.generalSection') }}
       </div>
 
-      <div v-if="!collapsedSections.has('general')">
+      <Transition
+        :css="false"
+        @before-enter="collapseBeforeEnter"
+        @enter="collapseEnter"
+        @after-enter="collapseAfterEnter"
+        @enter-cancelled="collapseReset"
+        @before-leave="collapseBeforeLeave"
+        @leave="collapseLeave"
+        @after-leave="collapseAfterLeave"
+        @leave-cancelled="collapseReset"
+      >
+      <div v-if="!collapsedSections.has('general')" class="section-collapse">
 
       <div v-if="filteredGeneralKeys.size > 0" class="settings-card">
         <div v-if="filteredGeneralKeys.has('refreshInterval')" class="form-group">
@@ -310,6 +340,7 @@
         </button>
       </div>
       </div>
+      </Transition>
       </template>
     </div>
 
@@ -465,6 +496,46 @@ function removeAccount(providerKey: string, index: number) {
   const provider = providerList.value.find(p => p.key === providerKey)
   if (!provider) return
   provider.accounts.splice(index, 1)
+}
+
+/**
+ * section 折叠/展开的高度过渡：内容高度不定，
+ * 用 JS 钩子在 0 与 scrollHeight 之间过渡，结束后还原为自动高度。
+ */
+const COLLAPSE_DURATION = 200
+
+function collapseBeforeEnter(el: Element) {
+  const e = el as HTMLElement
+  e.style.height = '0'
+  e.style.overflow = 'hidden'
+}
+function collapseEnter(el: Element, done: () => void) {
+  const e = el as HTMLElement
+  e.style.height = `${e.scrollHeight}px`
+  setTimeout(done, COLLAPSE_DURATION + 50)
+}
+function collapseAfterEnter(el: Element) {
+  collapseReset(el)
+}
+function collapseBeforeLeave(el: Element) {
+  const e = el as HTMLElement
+  e.style.height = `${e.scrollHeight}px`
+  e.style.overflow = 'hidden'
+}
+function collapseLeave(el: Element, done: () => void) {
+  const e = el as HTMLElement
+  // 强制回流，让固定高度先生效后再过渡到 0
+  void e.offsetHeight
+  e.style.height = '0'
+  setTimeout(done, COLLAPSE_DURATION + 50)
+}
+function collapseAfterLeave(el: Element) {
+  collapseReset(el)
+}
+function collapseReset(el: Element) {
+  const e = el as HTMLElement
+  e.style.height = ''
+  e.style.overflow = ''
 }
 
 interface TestState {
@@ -818,6 +889,11 @@ function handleUpdateClick() {
   margin-bottom: 6px;
 }
 
+/* section 折叠/展开过渡：height 由 JS 钩子驱动 */
+.section-collapse {
+  transition: height 0.2s ease;
+}
+
 /* === 搜索 + section 折叠 === */
 .settings-search {
   position: relative;
@@ -916,16 +992,24 @@ function handleUpdateClick() {
 }
 
 .add-account-btn {
+  display: inline-flex;
+  align-items: center;
   font-size: 11px;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border: 1px dashed var(--border-default);
   border-radius: 4px;
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
-  transition: all 0.15s;
+  opacity: 0;
+  transition: all 0.2s ease;
 }
-.add-account-btn:hover {
+.provider-header:hover .add-account-btn,
+.add-account-btn:focus-visible {
+  opacity: 1;
+}
+.provider-header .add-account-btn:hover,
+.add-account-btn:focus-visible {
   border-color: #3B82F6;
   color: #3B82F6;
 }
@@ -967,13 +1051,13 @@ function handleUpdateClick() {
   flex-shrink: 0;
   max-width: 45%;
   font-size: 11px;
-  padding: 3px 9px;
+  padding: 2px 8px;
   border: 1px solid var(--border-default);
   border-radius: 4px;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
   overflow: hidden;
   white-space: nowrap;
 }
@@ -981,10 +1065,9 @@ function handleUpdateClick() {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.test-conn-btn:hover:not(:disabled) {
-  background: var(--bg-input);
-  border-color: var(--text-tertiary);
-  color: var(--text-primary);
+.test-conn-btn:hover:not(:disabled):not(.is-testing):not(.is-success):not(.is-failed) {
+  border-color: #3B82F6;
+  color: #3B82F6;
 }
 .test-conn-btn:disabled {
   cursor: not-allowed;
