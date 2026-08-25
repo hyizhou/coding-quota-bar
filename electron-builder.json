@@ -1,13 +1,17 @@
 {
-  "appId": "com.codingquotabar.app",
+  "appId": "top.hyizhou.codingquotabar",
   "productName": "Coding Quota Bar",
-  "copyright": "Copyright © 2026 coding-quota-bar-team",
+  "copyright": "Copyright © 2026 hyizhou",
+  "electronLanguages": [
+    "zh-CN",
+    "en-US"
+  ],
   "directories": {
     "output": "release",
     "buildResources": "assets"
   },
   "files": [
-    "dist/**/*",
+    "out/**/*",
     "package.json"
   ],
   "publish": {
@@ -19,7 +23,9 @@
     "target": [
       {
         "target": "nsis",
-        "arch": ["x64"]
+        "arch": [
+          "x64"
+        ]
       }
     ],
     "icon": "assets/icon.png"
@@ -29,7 +35,6 @@
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "Coding Quota Bar",
-    "perMachine": false
+    "shortcutName": "Coding Quota Bar"
   }
 }

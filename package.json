@@ -24,41 +24,6 @@
     "vite": "^7.3.1",
     "vue-tsc": "^3.2.6"
   },
-  "build": {
-    "appId": "top.hyizhou.codingquotabar",
-    "productName": "Coding Quota Bar",
-    "copyright": "Copyright © 2026 hyizhou",
-    "electronLanguages": [
-      "zh-CN",
-      "en-US"
-    ],
-    "directories": {
-      "output": "release",
-      "buildResources": "assets"
-    },
-    "files": [
-      "out/**/*",
-      "package.json"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "assets/icon.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Coding Quota Bar"
-    }
-  },
   "dependencies": {
     "chart.js": "^4.5.1",
     "electron-updater": "^6.8.3",
