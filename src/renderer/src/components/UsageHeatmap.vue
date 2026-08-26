@@ -11,7 +11,7 @@
       <div class="wd-col">
         <span v-for="(w, i) in weekdayLabels" :key="i" class="wd">{{ w }}</span>
       </div>
-      <div ref="scrollEl" class="hm-scroll">
+      <div ref="scrollEl" class="hm-scroll" @wheel.prevent="onWheel">
         <canvas
           ref="canvasEl"
           class="hm-canvas"
@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watchEffect } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTheme } from '../composables/useTheme'
 
@@ -248,6 +248,41 @@ function onLeave(): void {
 function onClick(): void {
   if (hoverCell.value) emit('select', hoverCell.value.date)
 }
+
+// ---------- 平滑滚动 ----------
+
+let animFrame = 0
+let animTarget = 0
+const ANIM_DURATION = 150
+
+/** 滚轮在热力图区域转为横向平滑滚动（触控板横向手势优先），不滚动页面 */
+function onWheel(e: WheelEvent): void {
+  const el = scrollEl.value
+  if (!el) return
+  const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+
+  // 动画进行中在目标位置上累加，连续滚动时目标顺延、动画即时重定锚
+  const max = el.scrollWidth - el.clientWidth
+  const base = animFrame ? animTarget : el.scrollLeft
+  animTarget = Math.max(0, Math.min(base + delta, max))
+
+  if (animFrame) cancelAnimationFrame(animFrame)
+  const from = el.scrollLeft
+  const start = performance.now()
+
+  const step = (now: number): void => {
+    const t = Math.min(1, (now - start) / ANIM_DURATION)
+    const eased = 1 - Math.pow(1 - t, 3)  // easeOutCubic
+    el.scrollLeft = from + (animTarget - from) * eased
+    animFrame = t < 1 ? requestAnimationFrame(step) : 0
+  }
+  animFrame = requestAnimationFrame(step)
+}
+
+onUnmounted(() => {
+  if (animFrame) cancelAnimationFrame(animFrame)
+  animFrame = 0
+})
 
 // ---------- 绘制 ----------
 
