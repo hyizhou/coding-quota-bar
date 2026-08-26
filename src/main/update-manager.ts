@@ -4,6 +4,9 @@ import type { ConfigManager } from './config';
 import type { UpdateStatus } from '../shared/types';
 import type { getPopupWindow as GetPopupWindowFn } from './popup-manager';
 
+const AUTO_UPDATE_INITIAL_DELAY_MS = 30_000;
+const AUTO_UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000;
+
 let _getConfigManager: () => ConfigManager | null = () => null;
 let _getPopupWindow: () => BrowserWindow | null = () => null;
 
@@ -86,22 +89,18 @@ export function getUpdateStatus(): UpdateStatus {
  * 自动更新检查调度器
  */
 export function startAutoUpdateChecker(): void {
+  stopAutoUpdateChecker();
+
   const config = _getConfigManager()?.getConfig();
   if (!config?.autoCheckUpdate || (isDev && !mockUpdate)) return;
 
-  const intervalMs = (config.autoCheckUpdateInterval || 14400) * 1000;
-  const lastCheck = config.lastAutoCheckTime ? new Date(config.lastAutoCheckTime).getTime() : 0;
-  const elapsed = Date.now() - lastCheck;
-  const remaining = Math.max(0, intervalMs - elapsed);
-  const initialDelay = lastCheck === 0 ? 30000 : remaining;
-
-  console.log(`[AutoUpdate] Scheduling first check in ${Math.round(initialDelay / 1000)}s`);
+  console.log(`[AutoUpdate] Scheduling first check in ${AUTO_UPDATE_INITIAL_DELAY_MS / 1000}s`);
 
   autoUpdateTimerId = setTimeout(async () => {
     autoUpdateTimerId = null;
     await performAutoCheck();
     scheduleNextAutoCheck();
-  }, initialDelay);
+  }, AUTO_UPDATE_INITIAL_DELAY_MS);
 }
 
 async function performAutoCheck(): Promise<void> {
@@ -129,15 +128,12 @@ async function performAutoCheck(): Promise<void> {
     }
 
     const result = await autoUpdater.checkForUpdates();
-    await _getConfigManager()?.updateConfig({
-      lastAutoCheckTime: new Date().toISOString()
-    });
 
     if (result?.updateInfo) {
       const latestVersion = result.updateInfo.version;
       const currentVersion = app.getVersion();
 
-      if (latestVersion > currentVersion) {
+      if (isNewerVersion(latestVersion, currentVersion)) {
         console.log(`[AutoUpdate] Update available: v${latestVersion}`);
         setUpdateStatus({ phase: 'available', version: latestVersion });
       } else {
@@ -150,9 +146,6 @@ async function performAutoCheck(): Promise<void> {
   } catch (error) {
     console.error('[AutoUpdate] Check failed:', error);
     setUpdateStatus({ phase: 'error' });
-    await _getConfigManager()?.updateConfig({
-      lastAutoCheckTime: new Date().toISOString()
-    });
   } finally {
     isAutoChecking = false;
   }
@@ -161,13 +154,13 @@ async function performAutoCheck(): Promise<void> {
 function scheduleNextAutoCheck(): void {
   const config = _getConfigManager()?.getConfig();
   if (!config?.autoCheckUpdate) return;
+  if (autoUpdateTimerId !== null) return;
 
-  const intervalMs = (config.autoCheckUpdateInterval || 14400) * 1000;
   autoUpdateTimerId = setTimeout(async () => {
     autoUpdateTimerId = null;
     await performAutoCheck();
     scheduleNextAutoCheck();
-  }, intervalMs);
+  }, AUTO_UPDATE_INTERVAL_MS);
 }
 
 export function stopAutoUpdateChecker(): void {
@@ -200,13 +193,10 @@ export async function checkForUpdate(): Promise<void> {
   setUpdateStatus({ phase: 'checking' });
   try {
     const result = await autoUpdater.checkForUpdates();
-    await _getConfigManager()?.updateConfig({
-      lastAutoCheckTime: new Date().toISOString()
-    });
     if (result?.updateInfo) {
       const latestVersion = result.updateInfo.version;
       const currentVersion = app.getVersion();
-      if (latestVersion > currentVersion) {
+      if (isNewerVersion(latestVersion, currentVersion)) {
         setUpdateStatus({ phase: 'available', version: latestVersion });
       } else {
         setUpdateStatus({ phase: 'noUpdate' });
@@ -219,6 +209,84 @@ export async function checkForUpdate(): Promise<void> {
   } finally {
     isAutoChecking = false;
   }
+}
+
+function isNewerVersion(latestVersion: string, currentVersion: string): boolean {
+  const latest = parseVersion(latestVersion);
+  const current = parseVersion(currentVersion);
+  if (!latest || !current) return false;
+
+  for (let i = 0; i < latest.core.length; i++) {
+    const diff = compareBigInt(latest.core[i], current.core[i]);
+    if (diff !== 0) return diff > 0;
+  }
+
+  return comparePrerelease(latest.prerelease, current.prerelease) > 0;
+}
+
+function parseVersion(version: string): { core: [bigint, bigint, bigint]; prerelease: string[] } | null {
+  const match = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+([0-9A-Za-z.-]+))?$/.exec(version);
+  if (!match) return null;
+
+  const prerelease = match[4]?.split('.') ?? [];
+  for (const identifier of prerelease) {
+    if (!isValidVersionIdentifier(identifier, false)) return null;
+  }
+
+  const build = match[5]?.split('.') ?? [];
+  for (const identifier of build) {
+    if (!isValidVersionIdentifier(identifier, true)) return null;
+  }
+
+  return {
+    core: [BigInt(match[1]), BigInt(match[2]), BigInt(match[3])],
+    prerelease,
+  };
+}
+
+function isValidVersionIdentifier(identifier: string, isBuildMetadata: boolean): boolean {
+  if (!/^[0-9A-Za-z-]+$/.test(identifier)) return false;
+  if (isBuildMetadata || !/^\d+$/.test(identifier)) return true;
+  return identifier === '0' || !identifier.startsWith('0');
+}
+
+function comparePrerelease(left: string[], right: string[]): number {
+  if (!left.length && !right.length) return 0;
+  if (!left.length) return 1;
+  if (!right.length) return -1;
+
+  const length = Math.max(left.length, right.length);
+  for (let i = 0; i < length; i++) {
+    const leftPart = left[i];
+    const rightPart = right[i];
+    if (leftPart === undefined) return -1;
+    if (rightPart === undefined) return 1;
+
+    const leftNumeric = /^\d+$/.test(leftPart);
+    const rightNumeric = /^\d+$/.test(rightPart);
+    if (leftNumeric && rightNumeric) {
+      const diff = compareBigInt(BigInt(leftPart), BigInt(rightPart));
+      if (diff !== 0) return diff;
+    } else if (leftNumeric !== rightNumeric) {
+      return leftNumeric ? -1 : 1;
+    } else {
+      const diff = compareAsciiText(leftPart, rightPart);
+      if (diff !== 0) return diff;
+    }
+  }
+  return 0;
+}
+
+function compareBigInt(left: bigint, right: bigint): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
+function compareAsciiText(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
 }
 
 /**

@@ -187,8 +187,6 @@ export interface AppConfig {
   theme?: 'light' | 'dark' | 'auto';
   trayDisplayRule?: TrayDisplayRule;
   autoCheckUpdate?: boolean;
-  autoCheckUpdateInterval?: number;
-  lastAutoCheckTime?: string | null;
   popupPosition?: { x: number; y: number };
   popupSize?: { width: number; height: number };
   rememberPopupPosition?: boolean;
