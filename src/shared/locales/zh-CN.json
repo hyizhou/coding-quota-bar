@@ -205,7 +205,7 @@
     "opencodeGoWeekly": "周额度",
     "opencodeGoMonthly": "月额度",
     "openrouterKeyLimit": "限额 ${used}/${total}",
-    "openrouterBalance": "账户余额",
+    "openrouterBalance": "总余额",
     "openrouterDailyUsage": "今日消费",
     "openrouterWeeklyUsage": "本周消费",
     "openrouterMonthlyUsage": "本月消费",

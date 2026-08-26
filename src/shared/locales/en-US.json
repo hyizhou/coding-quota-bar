@@ -205,7 +205,7 @@
     "opencodeGoWeekly": "Weekly Quota",
     "opencodeGoMonthly": "Monthly Quota",
     "openrouterKeyLimit": "Limit ${used}/${total}",
-    "openrouterBalance": "Balance",
+    "openrouterBalance": "Total Balance",
     "openrouterDailyUsage": "Today",
     "openrouterWeeklyUsage": "This Week",
     "openrouterMonthlyUsage": "This Month",
