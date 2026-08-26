@@ -92,11 +92,11 @@
       </template>
 
       <template v-else>
-        <template v-if="showOverview">
-          <ProviderOverview :providers="providers" @select-provider="handleOverviewSelect" />
-        </template>
-        <template v-else-if="activeProvider">
-        <div class="provider-section">
+        <div class="view-stack">
+          <Transition :name="viewSlideName">
+            <ProviderOverview v-if="showOverview" :providers="providers" @select-provider="handleOverviewSelect" />
+            <!-- key 保证服务商之间互切也走 Transition 进出场，而非原地复用 -->
+            <div v-else-if="activeProvider" :key="activeProvider.key" class="provider-section">
           <div class="provider-name-row">
             <span class="provider-name" :class="{ clickable: !!activeProvider.websiteUrl }" @click="openProviderWebsite(activeProvider.websiteUrl)">{{ activeProvider.name }}</span>
             <!-- 账户切换按钮：仅当 2 个及以上账户时显示 -->
@@ -155,8 +155,9 @@
               <DeepSeekServiceStatus v-if="activeProvider.key === 'deepseek' && !getActiveAccount(activeProvider)!.error" :account="getActiveAccount(activeProvider)!" />
             </template>
           </template>
+            </div>
+          </Transition>
         </div>
-      </template>
       </template>
     </div>
 
@@ -227,6 +228,8 @@ const STORAGE_KEY_ACCOUNTS = 'active-accounts'
 const STORAGE_KEY_PROVIDER = 'active-provider'
 const activeAccounts = ref<Record<string, string>>({})
 const activeProviderKey = ref('')
+// 总览 ↔ 服务商详情 切换方向：进入服务商从右滑入，返回总览从左滑入
+const viewSlideName = ref<'slide-forward' | 'slide-backward'>('slide-forward')
 
 function saveActiveAccounts() {
   try { localStorage.setItem(STORAGE_KEY_ACCOUNTS, JSON.stringify(activeAccounts.value)) } catch {}
@@ -247,6 +250,7 @@ function restoreActiveProvider() {
 }
 
 function setActiveProvider(key: string) {
+  viewSlideName.value = key === OVERVIEW_KEY ? 'slide-backward' : 'slide-forward'
   activeProviderKey.value = key
   try { localStorage.setItem(STORAGE_KEY_PROVIDER, key) } catch {}
 }
@@ -497,7 +501,13 @@ onUnmounted(() => {
 .main-body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0 10px;
+}
+
+/* 过渡定位基准：无水平 padding，absolute + width:100% 与正常流宽度一致，避免切换瞬间宽度跳变 */
+.view-stack {
+  position: relative;
 }
 
 .main-body::-webkit-scrollbar { width: 3px; }
@@ -507,6 +517,21 @@ onUnmounted(() => {
 .provider-section {
   margin-bottom: 10px;
 }
+
+/* 总览 ↔ 服务商详情 交叉滑动：两页同时进出、整页推入，与主/设置页切换手法一致 */
+.slide-forward-enter-active,
+.slide-forward-leave-active,
+.slide-backward-enter-active,
+.slide-backward-leave-active {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: absolute;
+  width: 100%;
+}
+
+.slide-forward-enter-from { transform: translateX(100%); }
+.slide-forward-leave-to { transform: translateX(-100%); }
+.slide-backward-enter-from { transform: translateX(-100%); }
+.slide-backward-leave-to { transform: translateX(100%); }
 
 .provider-tabs {
   display: flex;

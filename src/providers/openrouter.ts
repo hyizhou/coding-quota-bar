@@ -93,8 +93,7 @@ export class OpenRouterProvider implements Provider {
     const creditsData = credits?.data && typeof credits.data === 'object' ? credits.data : null;
     const keyData = keyResp?.data && typeof keyResp.data === 'object' ? keyResp.data : null;
 
-    // 余额：按 total_credits - total_usage 计算（产品决策：不依赖 balance 字段）；
-    // credits/usage 一并透出，供账户卡小字展示累计充值/消费
+    // 余额 = 累计充值 - 累计消费；三项数值透出给账户卡（大字余额 + 小字累计）
     let balance: { amount: number; credits: number; usage: number } | null = null;
     if (creditsData) {
       const credits = toAmount(creditsData.total_credits);
@@ -120,7 +119,7 @@ export class OpenRouterProvider implements Provider {
     if (hasLimit) {
       quotas.push({
         label: 'quota.openrouterKeyLimit',
-        // reset 供 Key 卡头部展示重置期（仅确认存在的 "daily"）
+        // reset 为 "daily" 时 Key 卡头部展示重置周期，其余取值不展示
         labelParams: { used: limitUsed.toFixed(2), total: limit.toFixed(2), reset: limitReset === 'daily' ? 'daily' : '' },
         used: limitUsed,
         total: limit,
