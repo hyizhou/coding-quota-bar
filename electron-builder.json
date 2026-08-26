@@ -6,6 +6,7 @@
     "zh-CN",
     "en-US"
   ],
+  "compression": "maximum",
   "directories": {
     "output": "release",
     "buildResources": "assets"
