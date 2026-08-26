@@ -1,5 +1,7 @@
 <!--
-  通用 GitHub 风格用量热力图组件：按周分列、横向滚动、月份标签、强度图例
+  通用 GitHub 风格用量热力图组件（Canvas 绘制版）：
+  按周分列、横向滚动、月份标签、强度图例、悬浮提示与点击选中均绘制在同一 canvas 上，
+  避免为每天生成 DOM 节点（365 天 ≈ 365 个节点 → 1 个 canvas，仅在数据/主题/交互变化时重绘）
   数据格式 { date: 'YYYY-MM-DD', value: number }，周一为每周第一天
   复用方通过 formatValue 自定义悬浮提示文案，通过 select 事件获取点击日期
 -->
@@ -10,45 +12,28 @@
         <span v-for="(w, i) in weekdayLabels" :key="i" class="wd">{{ w }}</span>
       </div>
       <div ref="scrollEl" class="hm-scroll">
-        <div class="hm-inner" :style="{ width: innerWidth + 'px' }">
-          <div class="months-row">
-            <span
-              v-for="m in monthLabels"
-              :key="m.key"
-              class="month-label"
-              :style="{ left: m.left + 'px' }"
-            >{{ m.text }}</span>
-          </div>
-          <div class="weeks-row">
-            <div v-for="(week, wi) in weeks" :key="wi" class="week-col">
-              <span
-                v-for="(cell, ci) in week"
-                :key="ci"
-                class="cell"
-                :class="[cell.date ? `l${cell.level}` : 'empty', { today: cell.today, selected: cell.date === selected }]"
-                :title="cell.date ? tip(cell) : undefined"
-                @click="cell.date && emit('select', cell.date)"
-              ></span>
-            </div>
-          </div>
-        </div>
+        <canvas
+          ref="canvasEl"
+          class="hm-canvas"
+          :style="{ width: cssWidth + 'px', height: cssHeight + 'px' }"
+          @mousemove="onMove"
+          @mouseleave="onLeave"
+          @click="onClick"
+        ></canvas>
       </div>
     </div>
     <div class="hm-legend">
       <span>{{ $t('heatmap.less') }}</span>
-      <span class="lg l0"></span>
-      <span class="lg l1"></span>
-      <span class="lg l2"></span>
-      <span class="lg l3"></span>
-      <span class="lg l4"></span>
+      <span v-for="(c, i) in legendColors" :key="i" class="lg" :style="{ background: c }"></span>
       <span>{{ $t('heatmap.more') }}</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useTheme } from '../composables/useTheme'
 
 /**
  * 热力图单条记录
@@ -71,15 +56,25 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ select: [date: string] }>()
 
 const { locale } = useI18n()
+const { isDark } = useTheme()
 
+// 布局常量（CSS 像素）
 const CELL = 12
 const GAP = 2
 const COL_W = CELL + GAP
+const ROW_H = CELL + GAP
+const MONTH_ROW_H = 16   // 月份标签行高（12px 文字 + 4px 间距）
+const FONT = `system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif`
+
+// 强度阶梯色（level 0 无用量，取主题边框色，绘制时动态读取）
+const LIGHT_LEVELS = ['#dcfce7', '#86efac', '#4ade80', '#16a34a']
+const DARK_LEVELS = ['#14532d', '#166534', '#15803d', '#22c55e']
 
 const today = new Date()
 const todayStr = localDate(today)
 
 const scrollEl = ref<HTMLElement | null>(null)
+const canvasEl = ref<HTMLCanvasElement | null>(null)
 
 // 默认滚动到最右侧（最近一周）
 onMounted(() => {
@@ -111,6 +106,11 @@ function addDays(d: Date, n: number): Date {
   const r = new Date(d)
   r.setDate(r.getDate() + n)
   return r
+}
+
+/** 读取主题 CSS 变量 */
+function cssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }
 
 const dayMap = computed(() => {
@@ -154,7 +154,7 @@ const weeks = computed<Cell[][]>(() => {
     for (let i = 0; i < 7; i++) {
       const d = addDays(cursor, i)
       const ds = localDate(d)
-      // 今日之后（本周尾部）与数据范围之外的日期不渲染格子
+      // 今日之后（本周尾部）与数据范围之外的日期不绘制格子
       if (d > today || !dayMap.value.has(ds)) {
         col.push({ value: 0, level: 0, today: false })
         continue
@@ -188,7 +188,8 @@ const monthLabels = computed(() => {
   return labels
 })
 
-const innerWidth = computed(() => weeks.value.length * COL_W)
+const cssWidth = computed(() => weeks.value.length * COL_W)
+const cssHeight = MONTH_ROW_H + 7 * CELL + 6 * GAP
 
 /** 周一/周三/周五显示窄标签（同 GitHub 的稀疏排布） */
 const weekdayLabels = computed(() => {
@@ -196,10 +197,155 @@ const weekdayLabels = computed(() => {
   return [fmt(new Date(2024, 0, 1)), '', fmt(new Date(2024, 0, 3)), '', fmt(new Date(2024, 0, 5)), '', '']
 })
 
-function tip(cell: Cell): string {
-  const value = props.formatValue ? props.formatValue(cell.value) : cell.value.toLocaleString()
-  return `${cell.date} · ${value}`
+/** 图例颜色（level 0 + 强度阶梯），与画布绘制同源 */
+const legendColors = computed(() => {
+  void isDark.value  // 主题切换时重新计算
+  return [cssVar('--border-subtle'), ...(isDark.value ? DARK_LEVELS : LIGHT_LEVELS)]
+})
+
+// ---------- 交互 ----------
+
+interface HoverCell {
+  col: number
+  row: number
+  date: string
+  value: number
 }
+
+const hoverCell = ref<HoverCell | null>(null)
+
+function cellAt(x: number, y: number): { col: number; row: number; cell: Cell } | null {
+  const col = Math.floor(x / COL_W)
+  const row = Math.floor((y - MONTH_ROW_H) / ROW_H)
+  if (col < 0 || row < 0 || row > 6) return null
+  const cell = weeks.value[col]?.[row]
+  if (!cell?.date) return null
+  return { col, row, cell }
+}
+
+function onMove(e: MouseEvent): void {
+  const canvas = canvasEl.value
+  if (!canvas) return
+  const rect = canvas.getBoundingClientRect()
+  const hit = cellAt(e.clientX - rect.left, e.clientY - rect.top)
+  if (hit) {
+    // 仅命中变化时更新，避免 mousemove 高频触发重绘
+    if (hoverCell.value?.col !== hit.col || hoverCell.value?.row !== hit.row) {
+      hoverCell.value = { col: hit.col, row: hit.row, date: hit.cell.date!, value: hit.cell.value }
+    }
+    canvas.style.cursor = 'pointer'
+  } else {
+    if (hoverCell.value) hoverCell.value = null
+    canvas.style.cursor = 'default'
+  }
+}
+
+function onLeave(): void {
+  hoverCell.value = null
+  if (canvasEl.value) canvasEl.value.style.cursor = 'default'
+}
+
+function onClick(): void {
+  if (hoverCell.value) emit('select', hoverCell.value.date)
+}
+
+// ---------- 绘制 ----------
+
+watchEffect(() => {
+  const canvas = canvasEl.value
+  if (!canvas) return
+  const cols = weeks.value
+  const labels = monthLabels.value
+  const hover = hoverCell.value
+  const selected = props.selected
+  const dark = isDark.value
+
+  const w = cssWidth.value
+  const h = cssHeight
+  if (w <= 0) return
+
+  const dpr = window.devicePixelRatio || 1
+  const pxW = Math.round(w * dpr)
+  const pxH = Math.round(h * dpr)
+  if (canvas.width !== pxW || canvas.height !== pxH) {
+    canvas.width = pxW
+    canvas.height = pxH
+  }
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  ctx.clearRect(0, 0, w, h)
+
+  const levels = [cssVar('--border-subtle'), ...(dark ? DARK_LEVELS : LIGHT_LEVELS)]
+  const tertiary = cssVar('--text-tertiary')
+  const secondary = cssVar('--text-secondary')
+  const primary = cssVar('--text-primary')
+  const bgApp = cssVar('--bg-app')
+
+  // 月份标签
+  ctx.font = `9px ${FONT}`
+  ctx.fillStyle = tertiary
+  ctx.textBaseline = 'top'
+  for (const m of labels) {
+    ctx.fillText(m.text, m.left, 0)
+  }
+
+  // 用量格子
+  for (let i = 0; i < cols.length; i++) {
+    for (let j = 0; j < 7; j++) {
+      const cell = cols[i][j]
+      if (!cell.date) continue
+      const x = i * COL_W
+      const y = MONTH_ROW_H + j * ROW_H
+      ctx.beginPath()
+      ctx.roundRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1, 2.5)
+      ctx.fillStyle = levels[cell.level]
+      ctx.fill()
+
+      if (cell.date === selected) {
+        ctx.strokeStyle = '#16a34a'
+        ctx.lineWidth = 1.5
+        ctx.strokeRect(x + 0.75, y + 0.75, CELL - 1.5, CELL - 1.5)
+      } else if (cell.today) {
+        ctx.strokeStyle = secondary
+        ctx.lineWidth = 1
+        ctx.strokeRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1)
+      }
+      if (hover && hover.col === i && hover.row === j) {
+        ctx.strokeStyle = secondary
+        ctx.lineWidth = 1
+        ctx.strokeRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1)
+      }
+    }
+  }
+
+  // 悬浮提示（画在画布内，自动随内容横向滚动，顶部行自动翻到格子下方）
+  if (hover) {
+    const valueText = props.formatValue ? props.formatValue(hover.value) : hover.value.toLocaleString()
+    const label = `${hover.date} · ${valueText}`
+    ctx.font = `10px ${FONT}`
+    const tw = ctx.measureText(label).width
+    const bw = tw + 12
+    const bh = 18
+    let bx = hover.col * COL_W + CELL / 2 - bw / 2
+    bx = Math.max(2, Math.min(bx, w - bw - 2))
+    let by = MONTH_ROW_H + hover.row * ROW_H - bh - 4
+    if (by < 0) by = MONTH_ROW_H + hover.row * ROW_H + CELL + 4
+
+    ctx.beginPath()
+    ctx.roundRect(bx, by, bw, bh, 4)
+    ctx.globalAlpha = 0.96
+    ctx.fillStyle = bgApp
+    ctx.fill()
+    ctx.globalAlpha = 1
+    ctx.strokeStyle = cssVar('--border-default')
+    ctx.lineWidth = 1
+    ctx.stroke()
+    ctx.fillStyle = primary
+    ctx.textBaseline = 'middle'
+    ctx.fillText(label, bx + 6, by + bh / 2 + 0.5)
+  }
+})
 </script>
 
 <style scoped>
@@ -213,7 +359,7 @@ function tip(cell: Cell): string {
   gap: 0 3px;
 }
 
-/* 左侧星期标签列，与格子行高对齐 */
+/* 左侧星期标签列，与画布格子行高对齐 */
 .wd-col {
   display: grid;
   grid-template-rows: repeat(7, 12px);
@@ -236,67 +382,9 @@ function tip(cell: Cell): string {
 .hm-scroll::-webkit-scrollbar { height: 3px; }
 .hm-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
 
-.months-row {
-  position: relative;
-  height: 12px;
-  margin-bottom: 4px;
+.hm-canvas {
+  display: block;
 }
-
-.month-label {
-  position: absolute;
-  top: 0;
-  font-size: 9px;
-  color: var(--text-tertiary);
-  line-height: 12px;
-  white-space: nowrap;
-}
-
-.weeks-row {
-  display: flex;
-  gap: 2px;
-}
-
-.week-col {
-  display: grid;
-  grid-template-rows: repeat(7, 12px);
-  gap: 2px;
-}
-
-.cell {
-  width: 12px;
-  height: 12px;
-  border-radius: 2.5px;
-  background: var(--border-subtle);
-  cursor: pointer;
-  transition: box-shadow 0.1s;
-}
-.cell:hover:not(.empty) {
-  box-shadow: 0 0 0 1px var(--text-secondary);
-}
-.cell.empty {
-  background: transparent;
-  cursor: default;
-}
-.cell.today {
-  box-shadow: inset 0 0 0 1px var(--text-secondary);
-}
-.cell.today:hover:not(.empty) {
-  box-shadow: 0 0 0 1px var(--text-secondary);
-}
-.cell.selected {
-  box-shadow: inset 0 0 0 1.5px #16a34a;
-}
-
-/* 绿色强度阶梯（light / dark 双主题），图例复用 */
-.l0 { background: var(--border-subtle); }
-.l1 { background: #dcfce7; }
-.l2 { background: #86efac; }
-.l3 { background: #4ade80; }
-.l4 { background: #16a34a; }
-:global(html.dark) .l1 { background: #14532d; }
-:global(html.dark) .l2 { background: #166534; }
-:global(html.dark) .l3 { background: #15803d; }
-:global(html.dark) .l4 { background: #22c55e; }
 
 .hm-legend {
   display: flex;
