@@ -264,10 +264,10 @@ const streakRows = computed(() => [
 
 // ---------- 本周 / 本月 ----------
 
-/** 周一为一周开始 */
+/** 周日为一周开始（与热力图行序一致） */
 function startOfWeek(d: Date): Date {
   const r = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-  r.setDate(r.getDate() - (r.getDay() + 6) % 7)
+  r.setDate(r.getDate() - r.getDay())
   return r
 }
 

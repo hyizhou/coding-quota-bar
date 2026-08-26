@@ -2,7 +2,7 @@
   通用 GitHub 风格用量热力图组件（Canvas 绘制版）：
   按周分列、横向滚动、月份标签、强度图例、悬浮提示与点击选中均绘制在同一 canvas 上，
   避免为每天生成 DOM 节点（365 天 ≈ 365 个节点 → 1 个 canvas，仅在数据/主题/交互变化时重绘）
-  数据格式 { date: 'YYYY-MM-DD', value: number }，周一为每周第一天
+  数据格式 { date: 'YYYY-MM-DD', value: number }，周日为每周第一天
   复用方通过 formatValue 自定义悬浮提示文案，通过 select 事件获取点击日期
 -->
 <template>
@@ -95,10 +95,10 @@ function parseDate(s: string): Date {
   return new Date(y, m - 1, d)
 }
 
-/** 周一为一周开始 */
+/** 周日为一周开始 */
 function startOfWeek(d: Date): Date {
   const r = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-  r.setDate(r.getDate() - (r.getDay() + 6) % 7)
+  r.setDate(r.getDate() - r.getDay())
   return r
 }
 
@@ -191,10 +191,11 @@ const monthLabels = computed(() => {
 const cssWidth = computed(() => weeks.value.length * COL_W)
 const cssHeight = MONTH_ROW_H + 7 * CELL + 6 * GAP
 
-/** 周一/周三/周五显示窄标签（同 GitHub 的稀疏排布） */
+/** 周日/周三/周五显示窄标签（同 GitHub 的稀疏排布） */
 const weekdayLabels = computed(() => {
   const fmt = (d: Date) => d.toLocaleDateString(locale.value, { weekday: 'narrow' })
-  return [fmt(new Date(2024, 0, 1)), '', fmt(new Date(2024, 0, 3)), '', fmt(new Date(2024, 0, 5)), '', '']
+  // 行序为 周日~周六：2024-01-07 周日、2024-01-10 周三、2024-01-12 周五
+  return [fmt(new Date(2024, 0, 7)), '', '', fmt(new Date(2024, 0, 10)), '', fmt(new Date(2024, 0, 12)), '']
 })
 
 /** 图例颜色（level 0 + 强度阶梯），与画布绘制同源 */
@@ -412,10 +413,12 @@ watchEffect(() => {
 .hm-scroll {
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: thin;
 }
-.hm-scroll::-webkit-scrollbar { height: 3px; }
+/* 现代细滚动条：4px 细条、透明轨道，悬浮滚动条本体时颜色加深 */
+.hm-scroll::-webkit-scrollbar { height: 4px; }
+.hm-scroll::-webkit-scrollbar-track { background: transparent; }
 .hm-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+.hm-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
 
 .hm-canvas {
   display: block;
