@@ -203,7 +203,18 @@
     "codexLimitReached": "已触发限流，Codex 不可用",
     "opencodeGo5h": "5小时额度",
     "opencodeGoWeekly": "周额度",
-    "opencodeGoMonthly": "月额度"
+    "opencodeGoMonthly": "月额度",
+    "openrouterKeyLimit": "限额 ${used}/${total}",
+    "openrouterBalance": "账户余额",
+    "openrouterDailyUsage": "今日消费",
+    "openrouterWeeklyUsage": "本周消费",
+    "openrouterMonthlyUsage": "本月消费",
+    "openrouterKeyExpiry": "有效期至",
+    "openrouterTotalCredits": "累计充值",
+    "openrouterTotalUsage": "累计消费",
+    "openrouterResetDaily": "每日重置",
+    "openrouterNoLimit": "未设置限额",
+    "openrouterKeyTitle": "Key {n}"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",
@@ -224,7 +235,8 @@
     "deepseek": "DeepSeek",
     "mimo": "MiMo",
     "opencode-go": "OpenCode Go",
-    "codex": "Codex"
+    "codex": "Codex",
+    "openrouter": "OpenRouter"
   },
   "concurrencyTest": {
     "title": "并发测试",

@@ -139,6 +139,24 @@ function selectPrimaryMetric(providerKey: string, account: AccountUsageData): Ov
     return quotaMetric(rolling, t('quota.opencodeGo5h'))
   }
 
+  if (providerKey === 'openrouter') {
+    // 设置了 Key Credit limit 时以限额为主指标；否则仅展示余额文本
+    const keyLimit = account.quotas.find(q => q.limitType === 'openrouter-key-limit')
+    if (keyLimit) return quotaMetric(keyLimit, t('quota.openrouterKeyLimit'))
+
+    const balance = account.quotas.find(q => q.limitType === 'openrouter-balance')
+    const monthly = account.quotas.find(q => q.limitType === 'openrouter-monthly')
+    const amountOf = (q: QuotaItem) => formatCurrency(Number(q.labelParams?.amount ?? 0), 'USD')
+    return {
+      label: balance ? t(balance.label) : t('quota.openrouterBalance'),
+      value: balance ? amountOf(balance) : '--',
+      detail: monthly ? `${t(monthly.label)} ${amountOf(monthly)}` : t('overview.balanceOnly'),
+      usageRate: 0,
+      color: 'neutral',
+      hideBar: true,
+    }
+  }
+
   return quotaMetric(findTightestQuota(account.quotas), t('overview.primaryQuota'))
 }
 
@@ -174,6 +192,19 @@ function selectSecondaryMetrics(providerKey: string, account: AccountUsageData):
     return account.quotas
       .filter(q => q.limitType === 'weekly' || q.limitType === 'monthly')
       .map(q => secondaryFromQuota(q))
+  }
+
+  if (providerKey === 'openrouter') {
+    const order = ['openrouter-daily', 'openrouter-weekly', 'openrouter-monthly']
+    return order
+      .map(type => account.quotas.find(q => q.limitType === type))
+      .filter((q): q is QuotaItem => !!q)
+      .filter(q => Number(q.labelParams?.amount ?? 0) > 0)
+      .map(q => ({
+        label: t(q.label),
+        value: formatCurrency(Number(q.labelParams?.amount ?? 0), 'USD'),
+        color: 'neutral' as const,
+      }))
   }
 
   return account.quotas

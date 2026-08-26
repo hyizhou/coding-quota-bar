@@ -46,14 +46,23 @@ export class UsageAggregator {
       const MOCK_DATA = generateMockData();
       this.results.clear();
       for (const { type, accountId } of providers) {
-        const compoundKey = `${type}:${accountId}`;
-        const mock = MOCK_DATA[type] || { used: 0, total: 100, expiresAt: '', details: {} };
-        this.results.set(compoundKey, mock);
+        const mock = MOCK_DATA[type];
+        if (Array.isArray(mock)) {
+          // 平铺多卡型 Provider（openrouter）：mock 展示全部场景，与配置账户数无关
+          mock.forEach((m, i) => this.results.set(`${type}:mock-${i + 1}`, m));
+        } else {
+          const compoundKey = `${type}:${accountId}`;
+          this.results.set(compoundKey, mock || { used: 0, total: 100, expiresAt: '', details: {} });
+        }
       }
       if (this.results.size === 0) {
         // 没有启用的 provider 时，填充所有模拟数据
         for (const [type, data] of Object.entries(MOCK_DATA)) {
-          this.results.set(`${type}:mock`, data);
+          if (Array.isArray(data)) {
+            data.forEach((m, i) => this.results.set(`${type}:mock-${i + 1}`, m));
+          } else {
+            this.results.set(`${type}:mock`, data);
+          }
         }
       }
       this.lastUpdate = new Date();

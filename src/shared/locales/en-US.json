@@ -203,7 +203,18 @@
     "codexLimitReached": "Rate limit reached, Codex unavailable",
     "opencodeGo5h": "5-Hour Quota",
     "opencodeGoWeekly": "Weekly Quota",
-    "opencodeGoMonthly": "Monthly Quota"
+    "opencodeGoMonthly": "Monthly Quota",
+    "openrouterKeyLimit": "Limit ${used}/${total}",
+    "openrouterBalance": "Balance",
+    "openrouterDailyUsage": "Today",
+    "openrouterWeeklyUsage": "This Week",
+    "openrouterMonthlyUsage": "This Month",
+    "openrouterKeyExpiry": "Expires",
+    "openrouterTotalCredits": "Total Credits",
+    "openrouterTotalUsage": "Total Spend",
+    "openrouterResetDaily": "Resets daily",
+    "openrouterNoLimit": "No limit set",
+    "openrouterKeyTitle": "Key {n}"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",
@@ -224,7 +235,8 @@
     "deepseek": "DeepSeek",
     "mimo": "MiMo",
     "opencode-go": "OpenCode Go",
-    "codex": "Codex"
+    "codex": "Codex",
+    "openrouter": "OpenRouter"
   },
   "concurrencyTest": {
     "title": "Concurrency Test",

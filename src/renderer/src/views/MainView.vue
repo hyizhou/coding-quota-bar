@@ -100,7 +100,7 @@
           <div class="provider-name-row">
             <span class="provider-name" :class="{ clickable: !!activeProvider.websiteUrl }" @click="openProviderWebsite(activeProvider.websiteUrl)">{{ activeProvider.name }}</span>
             <!-- 账户切换按钮：仅当 2 个及以上账户时显示 -->
-            <div v-if="activeProvider.accounts.length > 1" class="account-tabs" @wheel="onTabsWheel">
+            <div v-if="activeProvider.accounts.length > 1 && activeProvider.key !== 'openrouter'" class="account-tabs" @wheel="onTabsWheel">
               <button
                 v-for="(acc, idx) in activeProvider.accounts"
                 :key="acc.id"
@@ -130,7 +130,8 @@
           </div>
 
           <template v-if="getActiveAccount(activeProvider)">
-            <div v-if="getActiveAccount(activeProvider)!.error" class="error-card">
+            <!-- OpenRouter 的错误在 Key 卡内部展示，账户卡与其他 Key 不受单个 Key 失败影响 -->
+            <div v-if="getActiveAccount(activeProvider)!.error && activeProvider.key !== 'openrouter'" class="error-card">
               <span class="error-icon">!</span>
               <span class="error-text">
                 <template v-if="getActiveAccount(activeProvider)!.error === 'TOKEN_EXPIRED'">
@@ -150,6 +151,7 @@
               <MiMoSection v-else-if="activeProvider.key === 'mimo'" :account="getActiveAccount(activeProvider)!" />
               <OpenCodeGoSection v-else-if="activeProvider.key === 'opencode-go'" :account="getActiveAccount(activeProvider)!" />
               <CodexSection v-else-if="activeProvider.key === 'codex'" :account="getActiveAccount(activeProvider)!" />
+              <OpenRouterSection v-else-if="activeProvider.key === 'openrouter'" :accounts="activeProvider.accounts" />
               <DeepSeekServiceStatus v-if="activeProvider.key === 'deepseek' && !getActiveAccount(activeProvider)!.error" :account="getActiveAccount(activeProvider)!" />
             </template>
           </template>
@@ -182,6 +184,7 @@ import MiniMaxSection from '../components/MiniMaxSection.vue'
 import DeepSeekServiceStatus from '../components/DeepSeekServiceStatus.vue'
 import OpenCodeGoSection from '../components/OpenCodeGoSection.vue'
 import CodexSection from '../components/CodexSection.vue'
+import OpenRouterSection from '../components/OpenRouterSection.vue'
 import type { ProviderUsageData, AccountUsageData, UsageState, WindowPinMode } from '../types'
 import { useTheme } from '../composables/useTheme'
 

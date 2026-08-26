@@ -12,5 +12,6 @@ export default {
     { key: 'mimo', available: true, envVar: '', baseUrl: 'https://platform.xiaomimimo.com', websiteUrl: 'https://platform.xiaomimimo.com/console/plan-manage' },
     { key: 'opencode-go', available: true, envVar: 'OPENCODE_API_KEY', baseUrl: 'https://opencode.ai', websiteUrl: 'https://opencode.ai/auth' },
     { key: 'codex', available: true, envVar: '', baseUrl: 'https://chatgpt.com', websiteUrl: 'https://chatgpt.com/' },
+    { key: 'openrouter', available: true, envVar: 'OPENROUTER_API_KEY', baseUrl: 'https://openrouter.ai', websiteUrl: 'https://openrouter.ai/settings/keys' },
   ],
 } as const;

@@ -157,7 +157,7 @@ function generatePerformanceHistory(days: number): { date: string; liteDecodeSpe
  * 每次调用都基于当前时间生成新数据，确保时间字段始终有效。
  * 各 Provider 的 mock 数据与其真实 Provider 返回结构保持一致。
  */
-export function generateMockData(): Record<string, UsageResult> {
+export function generateMockData(): Record<string, UsageResult | UsageResult[]> {
   const now = Date.now();
 
   const totalTokens1d = Math.round(500000 + Math.random() * 500000);
@@ -300,5 +300,104 @@ export function generateMockData(): Record<string, UsageResult> {
         ],
       },
     },
+
+    // OpenRouter：Key 卡平铺结构，mock 覆盖全部场景（账户卡余额取自第一个场景）
+    openrouter: [
+      // 场景 1：正常在用——限额 25% + 每日重置 + 未来有效期
+      {
+        used: 2.5,
+        total: 10,
+        expiresAt: '',
+        details: {
+          quotas: [
+            { label: 'quota.openrouterBalance', labelParams: { amount: '51.50', credits: '200.00', usage: '148.50' }, used: 51.5, total: 51.5, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-balance', currency: 'USD' },
+            { label: 'quota.openrouterKeyLimit', labelParams: { used: '2.50', total: '10.00', reset: 'daily' }, used: 2.5, total: 10, usageRate: 25, resetAt: '', limitType: 'openrouter-key-limit', currency: 'USD' },
+            { label: 'quota.openrouterDailyUsage', labelParams: { amount: '1.20' }, used: 1.2, total: 1.2, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-daily', currency: 'USD' },
+            { label: 'quota.openrouterWeeklyUsage', labelParams: { amount: '2.10' }, used: 2.1, total: 2.1, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-weekly', currency: 'USD' },
+            { label: 'quota.openrouterMonthlyUsage', labelParams: { amount: '8.40' }, used: 8.4, total: 8.4, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-monthly', currency: 'USD' },
+            { label: 'quota.openrouterKeyExpiry', used: 0, total: 0, usageRate: 0, resetAt: new Date(now + 7 * DAY).toISOString(), hideBar: true, limitType: 'openrouter-expiry' },
+          ],
+        },
+      },
+      // 场景 2：长期限额——90% 高用量，无重置期、无有效期
+      {
+        used: 45,
+        total: 50,
+        expiresAt: '',
+        details: {
+          quotas: [
+            { label: 'quota.openrouterKeyLimit', labelParams: { used: '45.00', total: '50.00', reset: '' }, used: 45, total: 50, usageRate: 90, resetAt: '', limitType: 'openrouter-key-limit', currency: 'USD' },
+            { label: 'quota.openrouterDailyUsage', labelParams: { amount: '3.80' }, used: 3.8, total: 3.8, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-daily', currency: 'USD' },
+            { label: 'quota.openrouterWeeklyUsage', labelParams: { amount: '22.50' }, used: 22.5, total: 22.5, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-weekly', currency: 'USD' },
+            { label: 'quota.openrouterMonthlyUsage', labelParams: { amount: '45.00' }, used: 45, total: 45, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-monthly', currency: 'USD' },
+          ],
+        },
+      },
+      // 场景 3：已过期——有效期是过去时间，仍返回历史数据
+      {
+        used: 3,
+        total: 10,
+        expiresAt: '',
+        details: {
+          quotas: [
+            { label: 'quota.openrouterKeyLimit', labelParams: { used: '3.00', total: '10.00', reset: '' }, used: 3, total: 10, usageRate: 30, resetAt: '', limitType: 'openrouter-key-limit', currency: 'USD' },
+            { label: 'quota.openrouterDailyUsage', labelParams: { amount: '0.00' }, used: 0, total: 0, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-daily', currency: 'USD' },
+            { label: 'quota.openrouterWeeklyUsage', labelParams: { amount: '0.90' }, used: 0.9, total: 0.9, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-weekly', currency: 'USD' },
+            { label: 'quota.openrouterMonthlyUsage', labelParams: { amount: '3.00' }, used: 3, total: 3, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-monthly', currency: 'USD' },
+            { label: 'quota.openrouterKeyExpiry', used: 0, total: 0, usageRate: 0, resetAt: new Date(now - 6 * DAY).toISOString(), hideBar: true, limitType: 'openrouter-expiry' },
+          ],
+        },
+      },
+      // 场景 4：限额耗尽——100%，每日重置后恢复
+      {
+        used: 10,
+        total: 10,
+        expiresAt: '',
+        details: {
+          quotas: [
+            { label: 'quota.openrouterKeyLimit', labelParams: { used: '10.00', total: '10.00', reset: 'daily' }, used: 10, total: 10, usageRate: 100, resetAt: '', limitType: 'openrouter-key-limit', currency: 'USD' },
+            { label: 'quota.openrouterDailyUsage', labelParams: { amount: '6.20' }, used: 6.2, total: 6.2, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-daily', currency: 'USD' },
+            { label: 'quota.openrouterWeeklyUsage', labelParams: { amount: '10.00' }, used: 10, total: 10, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-weekly', currency: 'USD' },
+            { label: 'quota.openrouterMonthlyUsage', labelParams: { amount: '10.00' }, used: 10, total: 10, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-monthly', currency: 'USD' },
+            { label: 'quota.openrouterKeyExpiry', used: 0, total: 0, usageRate: 0, resetAt: new Date(now + 20 * DAY).toISOString(), hideBar: true, limitType: 'openrouter-expiry' },
+          ],
+        },
+      },
+      // 场景 5：全新未使用——0%，消费全零
+      {
+        used: 0,
+        total: 10,
+        expiresAt: '',
+        details: {
+          quotas: [
+            { label: 'quota.openrouterKeyLimit', labelParams: { used: '0.00', total: '10.00', reset: 'daily' }, used: 0, total: 10, usageRate: 0, resetAt: '', limitType: 'openrouter-key-limit', currency: 'USD' },
+            { label: 'quota.openrouterDailyUsage', labelParams: { amount: '0.00' }, used: 0, total: 0, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-daily', currency: 'USD' },
+            { label: 'quota.openrouterWeeklyUsage', labelParams: { amount: '0.00' }, used: 0, total: 0, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-weekly', currency: 'USD' },
+            { label: 'quota.openrouterMonthlyUsage', labelParams: { amount: '0.00' }, used: 0, total: 0, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-monthly', currency: 'USD' },
+          ],
+        },
+      },
+      // 场景 6：未设置限额——无 limit 项，仅消费
+      {
+        used: 0,
+        total: 0,
+        expiresAt: '',
+        details: {
+          quotas: [
+            { label: 'quota.openrouterDailyUsage', labelParams: { amount: '0.00' }, used: 0, total: 0, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-daily', currency: 'USD' },
+            { label: 'quota.openrouterWeeklyUsage', labelParams: { amount: '0.00' }, used: 0, total: 0, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-weekly', currency: 'USD' },
+            { label: 'quota.openrouterMonthlyUsage', labelParams: { amount: '0.35' }, used: 0.35, total: 0.35, usageRate: 0, resetAt: '', hideBar: true, limitType: 'openrouter-monthly', currency: 'USD' },
+          ],
+        },
+      },
+      // 场景 7：无效 Key——HTTP 401
+      {
+        used: 0,
+        total: 100,
+        expiresAt: '',
+        error: '[OpenRouter] HTTP 401 (/api/v1/key): invalid api key',
+        details: {},
+      },
+    ],
   };
 }

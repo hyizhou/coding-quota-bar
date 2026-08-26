@@ -6,6 +6,7 @@ import { DeepSeekProvider } from '../providers/deepseek';
 import { MiMoProvider } from '../providers/mimo';
 import { OpenCodeGoProvider } from '../providers/opencode-go';
 import { CodexProvider } from '../providers/codex';
+import { OpenRouterProvider } from '../providers/openrouter';
 import buildConfig from '../../app.build';
 
 /**
@@ -20,6 +21,7 @@ export const PROVIDER_CLASSES = {
   mimo: MiMoProvider,
   'opencode-go': OpenCodeGoProvider,
   codex: CodexProvider,
+  openrouter: OpenRouterProvider,
 } as const;
 
 /**
