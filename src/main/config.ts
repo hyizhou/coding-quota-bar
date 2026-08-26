@@ -193,6 +193,22 @@ export class ConfigManager extends EventEmitter {
         console.log('[Config] Migrated: removed updateInfo from persisted config');
       }
 
+      // 配置缺失时使用默认开启，保证设置页展示与主进程调度一致
+      if (typeof this.config.autoCheckUpdate !== 'boolean') {
+        this.config.autoCheckUpdate = true;
+        migrated = true;
+        console.log('[Config] Migrated: enabled automatic update checks');
+      }
+
+      // 更新检查为固定调度，不持久化检查频率和调度进度
+      for (const field of ['autoCheckUpdateInterval', 'lastAutoCheckTime'] as const) {
+        if (field in this.config) {
+          delete (this.config as any)[field];
+          migrated = true;
+          console.log(`[Config] Migrated: removed update field "${field}"`);
+        }
+      }
+
       if (migrated) {
         await this.save(this.config);
       }
@@ -248,9 +264,7 @@ export class ConfigManager extends EventEmitter {
       autoStart: false,
       language: 'zh-CN',
       theme: 'auto',
-      autoCheckUpdate: true,
-      autoCheckUpdateInterval: 14400,
-      lastAutoCheckTime: null
+      autoCheckUpdate: true
     };
 
     await this.save(defaultConfig);
