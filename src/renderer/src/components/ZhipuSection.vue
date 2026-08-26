@@ -1,9 +1,9 @@
 <template>
   <template v-for="(row, ri) in getQuotaRows(account.quotas)" :key="ri">
-    <div v-if="row.length === 1" class="quota-row-single">
+    <div v-if="row.length === 1" class="quota-row-single quota-clickable" @click="emit('open-usage-stats', account.id, account.label)">
       <QuotaCard v-bind="row[0]" />
     </div>
-    <div v-else class="quota-row-pair">
+    <div v-else class="quota-row-pair quota-clickable" @click="emit('open-usage-stats', account.id, account.label)">
       <QuotaCard v-for="q in row" :key="q.label" v-bind="q" />
     </div>
   </template>
@@ -35,6 +35,11 @@ import type { AccountUsageData, QuotaItem } from '../types'
 
 defineProps<{
   account: AccountUsageData
+}>()
+
+const emit = defineEmits<{
+  /** 点击额度卡片 → 打开智谱用量统计页 */
+  'open-usage-stats': [accountId: string, accountLabel?: string]
 }>()
 
 const showCost = ref(false)
@@ -92,6 +97,11 @@ function getQuotaRows(quotas: QuotaItem[]): QuotaItem[][] {
 <style scoped>
 .quota-row-single {
   margin-bottom: 6px;
+}
+
+/* 额度卡片可点击进入用量统计页 */
+.quota-clickable {
+  cursor: pointer;
 }
 
 .quota-row-pair {

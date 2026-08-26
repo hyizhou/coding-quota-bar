@@ -1,0 +1,556 @@
+<!--
+  智谱用量统计页：展示 credit-usage/activity 接口返回的
+  总使用量、单日峰值、使用时长、连续天数等汇总信息（悬浮显示精确值）
+  与 GitHub 风格的每日用量热力图。
+  入口：主页智谱额度卡片（5小时额度 / MCP 用量 / 周额度）点击进入
+-->
+<template>
+  <div class="view-zhipu-stats">
+    <header class="header">
+      <button class="icon-btn back-btn" :title="$t('settings.backBtn')" @click="$emit('go-back')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+      <h1>{{ $t('zhipuStats.title') }}</h1>
+      <span v-if="accountLabel" class="account-label">{{ accountLabel }}</span>
+    </header>
+
+    <div class="stats-body">
+      <!-- 加载骨架 -->
+      <div v-if="loading" class="skeleton-group">
+        <div class="skeleton-grid">
+          <div v-for="i in 4" :key="i" class="skeleton summary-skeleton"></div>
+        </div>
+        <div class="skeleton calendar-skeleton"></div>
+      </div>
+
+      <!-- 加载失败 -->
+      <div v-else-if="error" class="error-block">
+        <p class="error-title">{{ $t('zhipuStats.loadFailed') }}</p>
+        <p class="error-detail">{{ error }}</p>
+        <button class="retry-btn" @click="load">{{ $t('zhipuStats.retry') }}</button>
+      </div>
+
+      <!-- 无数据 -->
+      <div v-else-if="empty" class="empty-block">{{ $t('zhipuStats.noData') }}</div>
+
+      <template v-else>
+        <!-- 汇总卡片 2x2，悬浮显示精确值 -->
+        <div class="summary-grid">
+          <FloatingTooltip :rows="totalRows" position="bottom" align="left">
+            <div class="summary-card">
+              <span class="summary-label">{{ $t('zhipuStats.totalUsage') }}</span>
+              <span class="summary-value">{{ formatCount(summary?.totalTokens ?? 0) }}</span>
+              <span class="summary-sub">tokens</span>
+            </div>
+          </FloatingTooltip>
+          <FloatingTooltip :rows="peakRows" position="bottom" align="right">
+            <div class="summary-card">
+              <span class="summary-label">{{ $t('zhipuStats.peakDaily') }}</span>
+              <span class="summary-value">{{ formatCount(summary?.peakDailyTokens ?? 0) }}</span>
+              <span class="summary-sub">{{ peakDateText }}</span>
+            </div>
+          </FloatingTooltip>
+          <FloatingTooltip :rows="durationRows" position="bottom" align="left">
+            <div class="summary-card">
+              <span class="summary-label">{{ $t('zhipuStats.usageDuration') }}</span>
+              <span class="summary-value">{{ durationHours }}<small class="unit">{{ $t('zhipuStats.hoursUnit') }}</small></span>
+            </div>
+          </FloatingTooltip>
+          <FloatingTooltip :rows="streakRows" position="bottom" align="right">
+            <div class="summary-card">
+              <span class="summary-label">{{ $t('zhipuStats.streak') }}</span>
+              <span class="summary-value">{{ summary?.currentStreakDays ?? 0 }}<small class="unit">{{ $t('zhipuStats.daysUnit') }}</small></span>
+              <span class="summary-sub">{{ $t('zhipuStats.longestStreak', { n: summary?.longestStreakDays ?? 0 }) }}</span>
+            </div>
+          </FloatingTooltip>
+        </div>
+
+        <!-- 本月 / 本周用量：一行一个周期，左 Token 右 MCP -->
+        <div class="period-grid">
+          <FloatingTooltip :rows="[{ label: $t('zhipuStats.monthTokens'), value: exact(monthTokens) + ' tokens' }]" position="top" align="left">
+            <div class="period-cell">
+              <span class="period-label">{{ $t('zhipuStats.monthTokens') }}</span>
+              <span class="period-value">{{ formatCount(monthTokens) }}</span>
+            </div>
+          </FloatingTooltip>
+          <FloatingTooltip :rows="[{ label: $t('zhipuStats.monthMcp'), value: exact(monthMcpCalls) }]" position="top" align="right">
+            <div class="period-cell">
+              <span class="period-label">{{ $t('zhipuStats.monthMcp') }}</span>
+              <span class="period-value">{{ monthMcpCalls }}</span>
+            </div>
+          </FloatingTooltip>
+          <FloatingTooltip :rows="[{ label: $t('zhipuStats.weekTokens'), value: exact(weekTokens) + ' tokens' }]" position="bottom" align="left">
+            <div class="period-cell">
+              <span class="period-label">{{ $t('zhipuStats.weekTokens') }}</span>
+              <span class="period-value">{{ formatCount(weekTokens) }}</span>
+            </div>
+          </FloatingTooltip>
+          <FloatingTooltip :rows="[{ label: $t('zhipuStats.weekMcp'), value: exact(weekMcpCalls) }]" position="bottom" align="right">
+            <div class="period-cell">
+              <span class="period-label">{{ $t('zhipuStats.weekMcp') }}</span>
+              <span class="period-value">{{ weekMcpCalls }}</span>
+            </div>
+          </FloatingTooltip>
+        </div>
+
+        <!-- GitHub 风格热力图 -->
+        <div class="calendar-card">
+          <div class="calendar-head">
+            <span class="calendar-title">{{ $t('zhipuStats.calendarTitle') }}</span>
+            <div class="mode-toggle">
+              <button
+                v-for="m in modes"
+                :key="m.value"
+                class="tab-btn"
+                :class="{ active: mode === m.value }"
+                @click="mode = m.value"
+              >{{ m.label }}</button>
+            </div>
+          </div>
+          <UsageHeatmap
+            :records="heatmapRecords"
+            :format-value="formatHeatmapValue"
+            :selected="selectedDate ?? undefined"
+            @select="onSelectDay"
+          />
+          <div v-if="selectedDay" class="day-detail">
+            <span class="detail-date">{{ selectedDayLabel }}</span>
+            <span class="detail-items">
+              <span>{{ $t('zhipuStats.detailTokens') }}: <strong>{{ exact(selectedDay.totalTokens) }}</strong></span>
+              <span>{{ $t('zhipuStats.detailMcp') }}: <strong>{{ selectedDay.mcpCalls }}</strong></span>
+              <span v-if="selectedDay.totalCredits > 0">{{ $t('zhipuStats.detailCredits') }}: <strong>{{ selectedDay.totalCredits }}</strong></span>
+            </span>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import FloatingTooltip from '../components/FloatingTooltip.vue'
+import UsageHeatmap from '../components/UsageHeatmap.vue'
+import type { HeatmapRecord } from '../components/UsageHeatmap.vue'
+import type { ZhipuDailyUsageItem, ZhipuUsageActivitySummary } from '../types'
+
+const props = defineProps<{
+  accountId: string
+  accountLabel?: string
+}>()
+
+defineEmits<{ 'go-back': [] }>()
+
+const { t, locale } = useI18n()
+
+const loading = ref(false)
+const error = ref('')
+const summary = ref<ZhipuUsageActivitySummary | null>(null)
+const series = ref<ZhipuDailyUsageItem[]>([])
+
+const empty = computed(() => !summary.value && series.value.length === 0)
+
+// Token / MCP 视图切换，持久化用户选择
+const STORAGE_KEY_MODE = 'zhipu-stats-mode'
+type StatsMode = 'token' | 'mcp'
+const mode = ref<StatsMode>(restoreMode())
+
+function restoreMode(): StatsMode {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_MODE)
+    if (saved === 'token' || saved === 'mcp') return saved
+  } catch {}
+  return 'token'
+}
+
+watch(mode, v => { try { localStorage.setItem(STORAGE_KEY_MODE, v) } catch {} })
+
+const modes = [
+  { label: t('zhipuStats.tokenView'), value: 'token' as StatsMode },
+  { label: t('zhipuStats.mcpView'), value: 'mcp' as StatsMode }
+]
+
+async function load() {
+  if (!props.accountId) return
+  loading.value = true
+  error.value = ''
+  try {
+    const result = await window.electronAPI.zhipuFetchUsageStats(props.accountId)
+    if (result?.error) {
+      error.value = result.error.replace(/^\[[\w-]+\]\s*/, '')
+    } else {
+      summary.value = result?.summary ?? null
+      series.value = result?.series ?? []
+    }
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(load)
+
+// ---------- 格式化 ----------
+
+/** 千分位精确数值（悬浮提示用） */
+function exact(n: number): string {
+  return n.toLocaleString(locale.value)
+}
+
+/** 紧凑数值（K/M/B） */
+function formatCount(n: number): string {
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
+  if (n >= 1000) return `${(n / 1000).toFixed(2)}K`
+  return `${n}`
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+// ---------- 汇总卡片 ----------
+
+const totalRows = computed(() => [
+  { label: t('zhipuStats.totalUsage'), value: `${exact(summary.value?.totalTokens ?? 0)} tokens` },
+])
+
+const peakRows = computed(() => {
+  const raw = summary.value?.peakDailyTokensDate
+  let dateText = ''
+  if (raw) {
+    const d = new Date(raw)
+    dateText = isNaN(d.getTime()) ? raw : d.toLocaleDateString(locale.value, { year: 'numeric', month: 'long', day: 'numeric' })
+  }
+  return [
+    { label: t('zhipuStats.peakDaily'), value: exact(summary.value?.peakDailyTokens ?? 0) },
+    { label: t('zhipuStats.peakDate'), value: dateText },
+  ]
+})
+
+const peakDateText = computed(() => {
+  const raw = summary.value?.peakDailyTokensDate
+  if (!raw) return ''
+  const d = new Date(raw)
+  return isNaN(d.getTime()) ? raw : d.toLocaleDateString(locale.value, { month: 'short', day: 'numeric' })
+})
+
+const durationHours = computed(() => {
+  const ms = summary.value?.totalUsageDurationMs ?? 0
+  return (ms / 3_600_000).toFixed(1)
+})
+
+const durationRows = computed(() => {
+  const ms = summary.value?.totalUsageDurationMs ?? 0
+  const h = Math.floor(ms / 3_600_000)
+  const m = Math.floor((ms % 3_600_000) / 60_000)
+  return [
+    { label: t('zhipuStats.usageDuration'), value: `${h} ${t('zhipuStats.hoursUnit')} ${m} ${t('zhipuStats.minutesUnit')}` },
+  ]
+})
+
+const streakRows = computed(() => [
+  { label: t('zhipuStats.streak'), value: `${summary.value?.currentStreakDays ?? 0} ${t('zhipuStats.daysUnit')}` },
+  { label: t('zhipuStats.longest'), value: `${summary.value?.longestStreakDays ?? 0} ${t('zhipuStats.daysUnit')}` },
+])
+
+// ---------- 本周 / 本月 ----------
+
+/** 周日为一周开始（与热力图行序一致） */
+function startOfWeek(d: Date): Date {
+  const r = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  r.setDate(r.getDate() - r.getDay())
+  return r
+}
+
+function sumSince(field: 'totalTokens' | 'mcpCalls', fromDate: Date): number {
+  const from = localDateStr(fromDate)
+  return series.value.reduce((sum, r) => r.date >= from ? sum + r[field] : sum, 0)
+}
+
+function sumMonth(field: 'totalTokens' | 'mcpCalls'): number {
+  const now = new Date()
+  const prefix = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`
+  return series.value.reduce((sum, r) => r.date.startsWith(prefix) ? sum + r[field] : sum, 0)
+}
+
+const weekTokens = computed(() => sumSince('totalTokens', startOfWeek(new Date())))
+const monthTokens = computed(() => sumMonth('totalTokens'))
+const weekMcpCalls = computed(() => sumSince('mcpCalls', startOfWeek(new Date())))
+const monthMcpCalls = computed(() => sumMonth('mcpCalls'))
+
+// ---------- 热力图 ----------
+
+const heatmapRecords = computed<HeatmapRecord[]>(() =>
+  series.value.map(r => ({ date: r.date, value: mode.value === 'token' ? r.totalTokens : r.mcpCalls }))
+)
+
+function formatHeatmapValue(n: number): string {
+  return mode.value === 'token' ? `${formatCount(n)} tokens` : `${n} ${t('zhipuStats.callsUnit')}`
+}
+
+const selectedDate = ref<string | null>(null)
+
+function onSelectDay(date: string): void {
+  selectedDate.value = date
+}
+
+const selectedDay = computed(() => {
+  if (!selectedDate.value) return null
+  return series.value.find(r => r.date === selectedDate.value) ?? null
+})
+
+const selectedDayLabel = computed(() => {
+  if (!selectedDate.value) return ''
+  const [y, m, d] = selectedDate.value.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(locale.value, { year: 'numeric', month: 'short', day: 'numeric' })
+})
+</script>
+
+<style scoped>
+.view-zhipu-stats {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.account-label {
+  margin-left: 6px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  background: var(--bg-hover);
+  padding: 2px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.stats-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2px 0 6px;
+}
+.stats-body::-webkit-scrollbar { width: 3px; }
+.stats-body::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+
+/* 汇总卡片 2x2 */
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  /* 外层 FloatingTooltip 包裹层为 grid item 会拉伸到行高，卡片撑满以保持同排等高 */
+  height: 100%;
+  background: var(--bg-card);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+.summary-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.summary-value .unit {
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 3px;
+  color: var(--text-tertiary);
+}
+
+.summary-sub {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 本周 / 本月用量 2x2 */
+.period-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.period-cell {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+.period-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.period-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 热力图卡片 */
+.calendar-card {
+  padding: 10px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+.calendar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.calendar-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 2px;
+}
+
+.tab-btn {
+  background: none;
+  border: 1px solid var(--border-tab);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1.4;
+}
+.tab-btn:hover { color: var(--text-secondary); border-color: var(--border-tab-hover); }
+.tab-btn.active {
+  background: var(--bg-toggle-active);
+  color: var(--bg-input);
+  border-color: var(--bg-toggle-active);
+}
+
+/* 点击日期后的当日明细 */
+.day-detail {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+
+.detail-date {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.detail-items {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.detail-items strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 加载骨架 */
+.skeleton {
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--skeleton-a) 25%, var(--skeleton-b) 50%, var(--skeleton-a) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.summary-skeleton { height: 62px; }
+.calendar-skeleton { height: 210px; }
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* 错误 / 空状态 */
+.error-block,
+.empty-block {
+  text-align: center;
+  padding: 28px 12px;
+  color: var(--text-secondary);
+}
+
+.error-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-heading);
+}
+
+.error-detail {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-bottom: 12px;
+  word-break: break-all;
+}
+
+.retry-btn {
+  font-size: 11px;
+  padding: 4px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.retry-btn:hover {
+  background: var(--bg-hover);
+}
+</style>

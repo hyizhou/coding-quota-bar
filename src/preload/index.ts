@@ -184,4 +184,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   mimoFetchMonthUsage: (accountId: string, year: number, month: number) =>
     ipcRenderer.invoke('mimo-fetch-month-usage', accountId, year, month),
+
+  /**
+   * 智谱每日用量历史（用量统计页按需加载）
+   */
+  zhipuFetchUsageStats: (accountId: string) =>
+    ipcRenderer.invoke('zhipu-fetch-usage-stats', accountId),
 });

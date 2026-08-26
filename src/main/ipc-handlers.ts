@@ -3,7 +3,9 @@ import { autoUpdater } from 'electron-updater';
 import type { ConfigManager } from './config';
 import type { Scheduler } from './scheduler';
 import type { ConcurrencyTestConfig, Provider, ProviderConfig, ProviderTypeConfig, WindowPinMode } from '../shared/types';
+import type { ZhipuUsageStats } from '../shared/types';
 import { ConcurrencyTestEngine } from './concurrency-test';
+import { ZhipuProvider } from '../providers/zhipu';
 import { DeepSeekProvider } from '../providers/deepseek';
 import { MiMoProvider } from '../providers/mimo';
 import { getAvailableProviderKeys, PROVIDER_CLASSES, type ProviderType } from './loader';
@@ -222,6 +224,22 @@ export function setupIpcHandlers(): void {
     } catch (e) {
       console.warn('[MiMo] Failed to fetch month usage:', e);
       return [];
+    }
+  });
+
+  // 智谱每日用量历史（用量统计页按需加载，避免每次定时刷新都拉一年数据）
+  ipcMain.handle('zhipu-fetch-usage-stats', async (_, accountId: string): Promise<ZhipuUsageStats> => {
+    const empty: ZhipuUsageStats = { summary: null, series: [] };
+    const scheduler = _getScheduler() as any;
+    const loaded = scheduler?.providers as import('./loader').LoadedProvider[] | undefined;
+    if (!loaded) return empty;
+    const provider = loaded.find((p: any) => p.accountId === accountId && p.instance instanceof ZhipuProvider);
+    if (!provider) return empty;
+    try {
+      return await (provider.instance as ZhipuProvider).fetchUsageActivity(provider.config);
+    } catch (e) {
+      console.warn('[Zhipu] Failed to fetch usage stats:', e);
+      return { ...empty, error: e instanceof Error ? e.message : String(e) };
     }
   });
 

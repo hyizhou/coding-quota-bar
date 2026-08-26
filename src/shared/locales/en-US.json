@@ -266,6 +266,37 @@
     "confirmYes": "Yes",
     "confirmNo": "Cancel"
   },
+  "zhipuStats": {
+    "title": "Usage Stats",
+    "totalUsage": "Total Usage",
+    "peakDaily": "Daily Peak",
+    "usageDuration": "Time Used",
+    "streak": "Streak",
+    "longestStreak": "Longest {n}d",
+    "longest": "Longest",
+    "hoursUnit": "h",
+    "minutesUnit": "min",
+    "daysUnit": "d",
+    "weekTokens": "Week Tokens",
+    "weekMcp": "Week MCP",
+    "monthTokens": "Month Tokens",
+    "monthMcp": "Month MCP",
+    "peakDate": "Peak Date",
+    "calendarTitle": "Daily Usage",
+    "tokenView": "Token",
+    "mcpView": "MCP",
+    "detailTokens": "Tokens",
+    "detailMcp": "MCP Calls",
+    "detailCredits": "Credits",
+    "callsUnit": "calls",
+    "noData": "No data",
+    "loadFailed": "Failed to load",
+    "retry": "Retry"
+  },
+  "heatmap": {
+    "less": "Less",
+    "more": "More"
+  },
   "subscription": {
     "plan": "Plan",
     "subDate": "Sub Date",

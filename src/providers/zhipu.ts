@@ -1,4 +1,5 @@
 import type { Provider, ProviderConfig, SubscriptionInfo, UsageResult } from '../shared/types';
+import type { ZhipuDailyUsageItem, ZhipuUsageActivitySummary, ZhipuUsageStats } from '../shared/types';
 import { HttpClientWithRetry } from '../main/http';
 import pricingConfig from './zai-pricing.json';
 
@@ -72,6 +73,31 @@ interface ZhipuModelUsageResponse {
 }
 
 /**
+ * 智谱 credit-usage/activity API 响应类型（近一年每日用量历史）
+ */
+interface ZhipuActivityResponse {
+  code: number;
+  data?: {
+    summary?: {
+      totalTokens?: number;
+      peakDailyTokens?: number;
+      peakDailyTokensDate?: string;
+      totalUsageDurationMs?: number;
+      currentStreakDays?: number;
+      longestStreakDays?: number;
+    };
+    series?: Array<{
+      date: string;
+      totalCredits?: string | number;  // 4 位小数字符串
+      totalTokens?: number;
+      mcpCalls?: number;
+    }>;
+  };
+  msg?: string;
+  success?: boolean;
+}
+
+/**
  * 智谱 model-performance-day API 响应类型
  */
 interface ZhipuPerformanceResponse {
@@ -115,6 +141,14 @@ interface ZhipuSubscriptionResponse {
 function formatDateTime(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+/**
+ * 格式化日期部分为 YYYY-MM-DD（不含时间）
+ */
+function formatDateOnly(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 /**
@@ -377,6 +411,55 @@ export class ZhipuProvider implements Provider {
         performanceHistory30d: this.buildPerformanceHistory(perfResp30d)
       }
     };
+  }
+
+  /**
+   * 获取每日用量历史（用量统计页按需加载，默认近一年）
+   * 接口路径为 /api/monitor/credit-usage/activity（无 usage/ 段，多一段会 404）
+   */
+  async fetchUsageActivity(config: ProviderConfig, days = 365): Promise<ZhipuUsageStats> {
+    const apiKey = config.apiKey?.trim();
+    if (!apiKey) {
+      throw new Error('[Zhipu] API Key is required');
+    }
+
+    const baseUrl = this.getBaseUrl(config);
+    const now = new Date();
+    const start = new Date(now.getTime() - days * 86400000);
+
+    // 空格编码为 %20、冒号保留原样（与客户端实测可用形态一致，不用 URLSearchParams/encodeURIComponent 整体编码）
+    const startTime = `${formatDateOnly(start)}%2000:00:00`;
+    const endTime = `${formatDateOnly(now)}%2023:59:59`;
+    // type=1 个人套餐；团队套餐需额外组织头，暂不支持
+    const url = `${baseUrl}/api/monitor/credit-usage/activity?startTime=${startTime}&endTime=${endTime}&type=1`;
+
+    const resp = await this.httpClient.getJson<ZhipuActivityResponse>(url, {
+      'Authorization': `Bearer ${apiKey}`
+    });
+
+    // HTTP 200 ≠ 成功：业务错误时 HTTP 仍为 200，必须检查 body 的 code
+    if (resp.code !== 0 && resp.code !== 200) {
+      throw new Error(`[Zhipu] Activity API error: ${resp.msg || 'Unknown error'}`);
+    }
+
+    const series: ZhipuDailyUsageItem[] = (resp.data?.series ?? []).map(item => ({
+      date: item.date,
+      totalTokens: item.totalTokens ?? 0,
+      totalCredits: Number(item.totalCredits ?? 0),
+      mcpCalls: item.mcpCalls ?? 0,
+    }));
+
+    const s = resp.data?.summary;
+    const summary: ZhipuUsageActivitySummary | null = s ? {
+      totalTokens: s.totalTokens ?? 0,
+      peakDailyTokens: s.peakDailyTokens ?? 0,
+      peakDailyTokensDate: s.peakDailyTokensDate ?? '',
+      totalUsageDurationMs: s.totalUsageDurationMs ?? 0,
+      currentStreakDays: s.currentStreakDays ?? 0,
+      longestStreakDays: s.longestStreakDays ?? 0,
+    } : null;
+
+    return { summary, series };
   }
 
   /**
