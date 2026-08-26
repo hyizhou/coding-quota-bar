@@ -145,7 +145,7 @@
               </span>
             </div>
             <template v-else>
-              <ZhipuSection v-if="activeProvider.key === 'zhipu'" :account="getActiveAccount(activeProvider)!" />
+              <ZhipuSection v-if="activeProvider.key === 'zhipu'" :account="getActiveAccount(activeProvider)!" @open-usage-stats="onOpenZhipuUsageStats" />
               <MiniMaxSection v-else-if="activeProvider.key === 'minimax'" :account="getActiveAccount(activeProvider)!" />
               <DeepSeekSection v-else-if="activeProvider.key === 'deepseek'" :account="getActiveAccount(activeProvider)!" />
               <MiMoSection v-else-if="activeProvider.key === 'mimo'" :account="getActiveAccount(activeProvider)!" />
@@ -193,7 +193,16 @@ import { useTheme } from '../composables/useTheme'
 const DeepSeekSection = defineAsyncComponent(() => import('../components/DeepSeekSection.vue'))
 const MiMoSection = defineAsyncComponent(() => import('../components/MiMoSection.vue'))
 
-const emit = defineEmits<{ 'open-settings': [options?: { checkUpdate?: boolean }]; 'open-concurrency-test': [] }>()
+const emit = defineEmits<{
+  'open-settings': [options?: { checkUpdate?: boolean }]
+  'open-concurrency-test': []
+  'open-zhipu-usage-stats': [accountId: string, accountLabel?: string]
+}>()
+
+/** 智谱额度卡片点击 → 通知 App 切换到用量统计页 */
+function onOpenZhipuUsageStats(accountId: string, accountLabel?: string): void {
+  emit('open-zhipu-usage-stats', accountId, accountLabel)
+}
 
 const { t, locale } = useI18n()
 const { isDark, toggleTheme } = useTheme()

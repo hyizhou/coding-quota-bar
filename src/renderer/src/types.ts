@@ -1,9 +1,12 @@
 /**
  * Renderer 进程共享类型定义
  */
-import type { TrayDisplayRule, WindowPinMode } from '../../shared/types'
+import type { TrayDisplayRule, WindowPinMode, ZhipuDailyUsageItem, ZhipuUsageActivitySummary, ZhipuUsageStats } from '../../shared/types'
 
 export type { WindowPinMode }
+export type { ZhipuDailyUsageItem }
+export type { ZhipuUsageActivitySummary }
+export type { ZhipuUsageStats }
 
 export interface SubscriptionInfo {
   plan: string
@@ -282,6 +285,7 @@ export interface ElectronAPI {
   mimoWebLogout: (accountId: string) => Promise<void>
   onMimoWebLoginSuccess: (callback: (accountId: string) => void) => () => void
   mimoFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<ModelTokenRecord[]>
+  zhipuFetchUsageStats: (accountId: string) => Promise<ZhipuUsageStats>
   showFeedback: () => void
 }
 

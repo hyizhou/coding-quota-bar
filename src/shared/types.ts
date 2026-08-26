@@ -70,6 +70,31 @@ export interface McpUsageRecord {
 }
 
 /**
+ * 智谱每日用量历史（credit-usage/activity 接口）
+ */
+export interface ZhipuDailyUsageItem {
+  date: string;          // 'YYYY-MM-DD'
+  totalTokens: number;   // 当日 Token 消耗
+  totalCredits: number;  // 当日 Credits 消耗（Coding Plan 实测恒为 0）
+  mcpCalls: number;      // 当日 MCP 调用次数
+}
+
+export interface ZhipuUsageActivitySummary {
+  totalTokens: number;             // 区间总 Token
+  peakDailyTokens: number;         // 单日峰值 Token
+  peakDailyTokensDate: string;     // 峰值日期 'YYYY-MM-DD'
+  totalUsageDurationMs: number;    // 总使用时长（毫秒）
+  currentStreakDays: number;       // 当前连续使用天数
+  longestStreakDays: number;       // 最长连续使用天数
+}
+
+export interface ZhipuUsageStats {
+  summary: ZhipuUsageActivitySummary | null;
+  series: ZhipuDailyUsageItem[];
+  error?: string;
+}
+
+/**
  * 分模型 Token 使用历史记录
  */
 export interface ModelTokenRecord {
