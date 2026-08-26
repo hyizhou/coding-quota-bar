@@ -67,30 +67,30 @@
           </FloatingTooltip>
         </div>
 
-        <!-- 本周 / 本月用量 -->
+        <!-- 本月 / 本周用量：一行一个周期，左 Token 右 MCP -->
         <div class="period-grid">
-          <FloatingTooltip :rows="[{ label: $t('zhipuStats.weekTokens'), value: exact(weekTokens) + ' tokens' }]" position="top" align="left">
-            <div class="period-cell">
-              <span class="period-label">{{ $t('zhipuStats.weekTokens') }}</span>
-              <span class="period-value">{{ formatCount(weekTokens) }}</span>
-            </div>
-          </FloatingTooltip>
-          <FloatingTooltip :rows="[{ label: $t('zhipuStats.monthTokens'), value: exact(monthTokens) + ' tokens' }]" position="top" align="right">
+          <FloatingTooltip :rows="[{ label: $t('zhipuStats.monthTokens'), value: exact(monthTokens) + ' tokens' }]" position="top" align="left">
             <div class="period-cell">
               <span class="period-label">{{ $t('zhipuStats.monthTokens') }}</span>
               <span class="period-value">{{ formatCount(monthTokens) }}</span>
             </div>
           </FloatingTooltip>
-          <FloatingTooltip :rows="[{ label: $t('zhipuStats.weekMcp'), value: exact(weekMcpCalls) }]" position="bottom" align="left">
-            <div class="period-cell">
-              <span class="period-label">{{ $t('zhipuStats.weekMcp') }}</span>
-              <span class="period-value">{{ weekMcpCalls }}</span>
-            </div>
-          </FloatingTooltip>
-          <FloatingTooltip :rows="[{ label: $t('zhipuStats.monthMcp'), value: exact(monthMcpCalls) }]" position="bottom" align="right">
+          <FloatingTooltip :rows="[{ label: $t('zhipuStats.monthMcp'), value: exact(monthMcpCalls) }]" position="top" align="right">
             <div class="period-cell">
               <span class="period-label">{{ $t('zhipuStats.monthMcp') }}</span>
               <span class="period-value">{{ monthMcpCalls }}</span>
+            </div>
+          </FloatingTooltip>
+          <FloatingTooltip :rows="[{ label: $t('zhipuStats.weekTokens'), value: exact(weekTokens) + ' tokens' }]" position="bottom" align="left">
+            <div class="period-cell">
+              <span class="period-label">{{ $t('zhipuStats.weekTokens') }}</span>
+              <span class="period-value">{{ formatCount(weekTokens) }}</span>
+            </div>
+          </FloatingTooltip>
+          <FloatingTooltip :rows="[{ label: $t('zhipuStats.weekMcp'), value: exact(weekMcpCalls) }]" position="bottom" align="right">
+            <div class="period-cell">
+              <span class="period-label">{{ $t('zhipuStats.weekMcp') }}</span>
+              <span class="period-value">{{ weekMcpCalls }}</span>
             </div>
           </FloatingTooltip>
         </div>
@@ -356,6 +356,8 @@ const selectedDayLabel = computed(() => {
   flex-direction: column;
   gap: 2px;
   padding: 8px 10px;
+  /* 外层 FloatingTooltip 包裹层为 grid item 会拉伸到行高，卡片撑满以保持同排等高 */
+  height: 100%;
   background: var(--bg-card);
   border-radius: 8px;
   box-shadow: var(--shadow-card);
