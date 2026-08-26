@@ -1,13 +1,13 @@
 import type { Provider, ProviderConfig, QuotaItem, UsageResult } from '../shared/types';
-import { netFetch } from '../main/net-http';
+import { HttpClient } from '../main/http';
 
 /**
  * OpenCode Go 订阅用量查询
  * 文档：https://opencode.ai/zen/go/v1/usage
  * 鉴权：Bearer <OPENCODE_API_KEY>
  * 响应：{ usage: { rolling|weekly|monthly: { status, percent, resetsAt } } }
- * 网络层走 Electron net（Chromium 网络栈）：海外端点，需自动遵循系统代理（含 PAC），
- * 与 Codex provider 同款方案；定时刷新兜底瞬时失败，此处不做额外重试。
+ * 网络层走 HttpClient（src/main/http，Chromium 网络栈，自动遵循系统代理含 PAC）；
+ * 定时刷新兜底瞬时失败，此处不做额外重试。
  */
 
 // 60s 进程级缓存：避免多账号 / 短刷新间隔下重复请求。
@@ -78,11 +78,9 @@ export class OpenCodeGoProvider implements Provider {
     // 先查 60s 缓存
     let resp = getCached(apiKey);
     if (!resp) {
-      const httpResp = await netFetch(OPENCODE_GO_USAGE_URL, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Accept': 'application/json',
-        },
+      const httpResp = await HttpClient.get(OPENCODE_GO_USAGE_URL, {
+        'Authorization': `Bearer ${apiKey}`,
+        'Accept': 'application/json',
       });
       if (httpResp.status >= 400) {
         throw new Error(`[OpenCode Go] HTTP ${httpResp.status}: ${httpResp.body.slice(0, 120)}`);

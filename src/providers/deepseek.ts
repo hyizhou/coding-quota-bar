@@ -1,6 +1,5 @@
 import type { Provider, ProviderConfig, QuotaItem, UsageResult, DeepSeekServiceComponent, DayStatus, ModelCostRecord } from '../shared/types';
-import { HttpClientWithRetry } from '../main/http';
-import { netFetch } from '../main/net-http';
+import { HttpClient, HttpClientWithRetry } from '../main/http';
 
 interface BalanceInfo {
   currency: string;
@@ -20,22 +19,6 @@ let statusCache: { data: DeepSeekServiceComponent[]; ts: number } | null = null;
 const STATUS_DAYS = 90;
 
 const TOKEN_EXPIRED = 'TOKEN_EXPIRED';
-
-/**
- * 使用 Electron net 模块请求 JSON（走 Chromium 网络栈，自动遵循系统代理，兼容性更好）
- * Node 的 https 模块在 Electron 中使用 BoringSSL，部分 CDN 会拒绝其 TLS 握手
- */
-async function netGetJson<T>(url: string, headers?: Record<string, string>): Promise<T> {
-  const resp = await netFetch(url, { headers });
-  if (resp.status >= 400) {
-    throw new Error(`HTTP ${resp.status}: ${resp.body}`);
-  }
-  try {
-    return JSON.parse(resp.body) as T;
-  } catch (e) {
-    throw new Error(`Failed to parse JSON: ${e}`);
-  }
-}
 
 function parseModelRecords(days: UsageAmountDayEntry[]): import('../shared/types').ModelTokenRecord[] {
   const records: import('../shared/types').ModelTokenRecord[] = [];
@@ -110,7 +93,7 @@ interface UsageCostDayEntry {
   }>;
 }
 
-export async function fetchServiceStatus(httpClient?: HttpClientWithRetry): Promise<DeepSeekServiceComponent[]> {
+export async function fetchServiceStatus(): Promise<DeepSeekServiceComponent[]> {
   if (statusCache && Date.now() - statusCache.ts < STATUS_CACHE_TTL) {
     return statusCache.data;
   }
@@ -129,10 +112,10 @@ export async function fetchServiceStatus(httpClient?: HttpClientWithRetry): Prom
       'Accept': 'application/json',
     };
 
-    // 使用 Electron net 模块（Chromium 网络栈），避免 Node https 的 TLS 兼容性问题
+    // 状态页请求走 HttpClient（Chromium 网络栈，自动遵循系统代理）
     const [activeResp, structureResp] = await Promise.all([
-      netGetJson<FlashcatActiveResponse>(`${baseUrl}/${PAGE_ID}/summary/active`, statusHeaders),
-      netGetJson<FlashcatStructureResponse>(
+      HttpClient.getJson<FlashcatActiveResponse>(`${baseUrl}/${PAGE_ID}/summary/active`, statusHeaders),
+      HttpClient.getJson<FlashcatStructureResponse>(
         `${baseUrl}/${PAGE_ID}/summary/structure?start_at_from_seconds=${startSeconds}&start_at_to_seconds=${endSeconds}`,
         statusHeaders,
       ),
@@ -352,7 +335,7 @@ export class DeepSeekProvider implements Provider {
       });
     }
 
-    const serviceStatus = await fetchServiceStatus(this.httpClient);
+    const serviceStatus = await fetchServiceStatus();
 
     return {
       used: 0,
@@ -488,7 +471,7 @@ export class DeepSeekProvider implements Provider {
     const sumUsed = (records: import('../shared/types').UsageRecord[]) =>
       records.reduce((sum, r) => sum + r.used, 0);
 
-    const serviceStatus = await fetchServiceStatus(this.httpClient);
+    const serviceStatus = await fetchServiceStatus();
 
     return {
       used: 0,

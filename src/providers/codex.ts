@@ -6,7 +6,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { app, safeStorage } from 'electron';
-import { netFetch } from '../main/net-http';
+import { HttpClient } from '../main/http';
 import type { Provider, ProviderConfig, QuotaItem, UsageResult } from '../shared/types';
 
 const TOKEN_EXPIRED = 'TOKEN_EXPIRED';
@@ -215,17 +215,13 @@ export class CodexProvider implements Provider {
         accessToken = cached.accessToken;
       } else if (tokens.refresh_token && !cached?.rotationDetected) {
         try {
-          const refreshResp = await netFetch(
+          const refreshResp = await HttpClient.post(
             'https://auth.openai.com/oauth/token',
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
+            JSON.stringify({
               grant_type: 'refresh_token',
               refresh_token: tokens.refresh_token,
               client_id: 'app_EMoamEEZ73f0CkXaXp7hrann',
-              }),
-            },
+            }),
           );
           if (refreshResp.status >= 200 && refreshResp.status < 300) {
             const refreshData = JSON.parse(refreshResp.body) as TokenRefreshResponse;
@@ -262,7 +258,7 @@ export class CodexProvider implements Provider {
 
     let resp;
     try {
-      resp = await netFetch('https://chatgpt.com/backend-api/wham/usage', { headers });
+      resp = await HttpClient.get('https://chatgpt.com/backend-api/wham/usage', headers);
     } catch (e) {
       return {
         used: 0, total: 0, expiresAt: '',

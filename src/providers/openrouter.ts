@@ -2,7 +2,7 @@
  * OpenRouter 用量查询 Provider
  */
 import type { Provider, ProviderConfig, QuotaItem, UsageResult } from '../shared/types';
-import { netFetch } from '../main/net-http';
+import { HttpClient } from '../main/http';
 
 interface OpenRouterCreditsResponse {
   data?: {
@@ -207,7 +207,7 @@ export class OpenRouterProvider implements Provider {
     const cached = getCached(cacheKey);
     if (cached) return cached as T;
 
-    const httpResp = await netFetch(url, { headers });
+    const httpResp = await HttpClient.get(url, headers);
     if (httpResp.status >= 400) {
       throw new Error(`[OpenRouter] HTTP ${httpResp.status} (${url.replace('https://openrouter.ai', '')}): ${httpResp.body.slice(0, 120)}`);
     }
