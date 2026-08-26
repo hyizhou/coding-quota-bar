@@ -237,7 +237,7 @@ const STORAGE_KEY_ACCOUNTS = 'active-accounts'
 const STORAGE_KEY_PROVIDER = 'active-provider'
 const activeAccounts = ref<Record<string, string>>({})
 const activeProviderKey = ref('')
-// 总览 ↔ 服务商详情 切换方向：进入服务商从右滑入，返回总览从左滑入
+// tab 切换方向：总览在最左，按目标 tab 相对当前位置决定左/右滑入
 const viewSlideName = ref<'slide-forward' | 'slide-backward'>('slide-forward')
 
 function saveActiveAccounts() {
@@ -258,8 +258,17 @@ function restoreActiveProvider() {
   } catch {}
 }
 
+/** tab 序号：总览为 0，服务商按 tab 栏顺序排位；未知 key 返回 -1 */
+function providerTabIndex(key: string): number {
+  if (key === OVERVIEW_KEY) return 0
+  return providers.value.findIndex(p => p.key === key) + 1
+}
+
 function setActiveProvider(key: string) {
-  viewSlideName.value = key === OVERVIEW_KEY ? 'slide-backward' : 'slide-forward'
+  const targetIndex = providerTabIndex(key)
+  const currentIndex = providerTabIndex(activeProviderKey.value || OVERVIEW_KEY)
+  // 向左切（含返回总览）反向滑入；首次进入或未知 key 保持前进方向
+  viewSlideName.value = targetIndex >= 0 && targetIndex < currentIndex ? 'slide-backward' : 'slide-forward'
   activeProviderKey.value = key
   try { localStorage.setItem(STORAGE_KEY_PROVIDER, key) } catch {}
 }
