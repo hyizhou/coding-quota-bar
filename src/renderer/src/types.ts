@@ -1,12 +1,13 @@
 /**
  * Renderer 进程共享类型定义
  */
-import type { TrayDisplayRule, WindowPinMode, ZhipuDailyUsageItem, ZhipuUsageActivitySummary, ZhipuUsageStats } from '../../shared/types'
+import type { ResetPackages, ResetPackageSummary, TrayDisplayRule, WindowPinMode, ZhipuDailyUsageItem, ZhipuUsageActivitySummary, ZhipuUsageStats } from '../../shared/types'
 
 export type { WindowPinMode }
 export type { ZhipuDailyUsageItem }
 export type { ZhipuUsageActivitySummary }
 export type { ZhipuUsageStats }
+export type { ResetPackages, ResetPackageSummary }
 
 export interface SubscriptionInfo {
   plan: string
@@ -79,6 +80,7 @@ export interface AccountUsageData {
   level?: string
   currency?: string
   subscription?: SubscriptionInfo
+  resetPackages?: ResetPackages
   error?: string
   quotas: QuotaItem[]
   history1d: UsageRecord[]

@@ -182,6 +182,10 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
           renewPrice: 2400,
           billingCycle: 'annually'
         },
+        resetPackages: {
+          fiveHour: { count: 1, earliestExpireAt: new Date(now + 12 * DAY).toISOString() },
+          week: { count: 2, earliestExpireAt: new Date(now + 20 * DAY).toISOString() }
+        },
         quotas: [
           { label: 'quota.mcpUsage', used: 12, total: 50, usageRate: 24, resetAt: new Date(new Date(now).getFullYear(), new Date(now).getMonth() + 1, 1).toISOString(), limitType: 'mcp' },
           { label: 'quota.tokensLimit', labelParams: { n: 5 }, used: 250000, total: 1000000, usageRate: 25, resetAt: new Date(now + 5 * HOUR).toISOString(), limitType: 'tokens' },

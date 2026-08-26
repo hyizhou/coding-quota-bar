@@ -55,6 +55,10 @@
     "monthFormat": "{year}年{month}月",
     "noUsageData": "本月还未产生使用数据",
     "expired": "已过期",
+    "resetPackageBadge": "×{n}",
+    "resetPackageFiveHour": "5小时重置包",
+    "resetPackageWeek": "周重置包",
+    "resetPackageEarliestExpire": "最早到期",
     "overview": "总览"
   },
   "overview": {

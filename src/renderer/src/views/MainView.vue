@@ -112,6 +112,7 @@
               </button>
             </div>
             <div class="provider-name-actions">
+              <ResetPackageBadge :reset-packages="getActiveAccount(activeProvider)?.resetPackages" />
               <span v-if="isPlanExpired(activeProvider)" class="provider-level-expired">{{ $t('main.expired') }}</span>
               <FloatingTooltip v-if="getActiveAccount(activeProvider)?.level" position="bottom" align="right" :rows="getSubRows(getActiveAccount(activeProvider)!.subscription)">
                 <span class="provider-level">{{ getActiveAccount(activeProvider)!.level }}</span>
@@ -182,6 +183,7 @@ import UpdateBanner from '../components/UpdateBanner.vue'
 import ProviderOverview from '../components/ProviderOverview.vue'
 import ZhipuSection from '../components/ZhipuSection.vue'
 import MiniMaxSection from '../components/MiniMaxSection.vue'
+import ResetPackageBadge from '../components/ResetPackageBadge.vue'
 import DeepSeekServiceStatus from '../components/DeepSeekServiceStatus.vue'
 import OpenCodeGoSection from '../components/OpenCodeGoSection.vue'
 import CodexSection from '../components/CodexSection.vue'
@@ -666,6 +668,19 @@ onUnmounted(() => {
   gap: 4px;
   margin-left: auto;
   flex-shrink: 0;
+  /* 服务商切换栏展开热区（provider-arrow-hit）是 z-index:19 的绝对定位层，
+     盖在本行内容之上；徽章簇必须以更高 z-index 浮在热区上方，
+     否则鼠标落在徽章/等级/并发按钮及其间隙时会穿透热区，触发切换栏展开 */
+  position: relative;
+  z-index: 21;
+}
+
+/* 等级徽章的 tooltip wrapper：转为 inline-flex 后高度=徽章实际高度，
+   行盒基线不再参与布局，父级 align-items: center 才能真正对齐两个不同高度徽章的视觉中心 */
+.provider-name-actions .ft-wrapper {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .provider-level {

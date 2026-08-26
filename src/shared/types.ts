@@ -142,6 +142,22 @@ export interface SubscriptionInfo {
 }
 
 /**
+ * 单类重置包（充值卡）统计
+ */
+export interface ResetPackageSummary {
+  count: number;              // 可用数量（available === true）
+  earliestExpireAt?: string;  // 可用卡中最早过期时间 ISO 8601
+}
+
+/**
+ * 重置包统计（5小时 / 周两类相互独立）
+ */
+export interface ResetPackages {
+  fiveHour: ResetPackageSummary;
+  week: ResetPackageSummary;
+}
+
+/**
  * 用量查询结果
  */
 export interface UsageResult {
@@ -154,6 +170,7 @@ export interface UsageResult {
     quotas?: QuotaItem[];                // 多个额度项
     usageHistory?: UsageRecord[];        // 历史统计
     subscription?: SubscriptionInfo;     // 订阅信息
+    resetPackages?: ResetPackages;       // 重置包（充值卡）统计
     [key: string]: unknown;
   };
 }

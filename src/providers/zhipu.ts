@@ -1,4 +1,4 @@
-import type { Provider, ProviderConfig, SubscriptionInfo, UsageResult } from '../shared/types';
+import type { Provider, ProviderConfig, ResetPackageSummary, ResetPackages, SubscriptionInfo, UsageResult } from '../shared/types';
 import type { ZhipuDailyUsageItem, ZhipuUsageActivitySummary, ZhipuUsageStats } from '../shared/types';
 import { HttpClientWithRetry } from '../main/http';
 import pricingConfig from './zai-pricing.json';
@@ -136,6 +136,25 @@ interface ZhipuSubscriptionResponse {
 }
 
 /**
+ * 智谱 customer-package-reset API 响应类型（重置包/充值卡）
+ */
+interface ZhipuResetPackageItem {
+  recordId: number;
+  expireTime: string;    // 'YYYY-MM-DD HH:mm:ss'
+  available: boolean;
+}
+
+interface ZhipuResetPackageResponse {
+  code: number;
+  data?: {
+    fiveHourResets?: ZhipuResetPackageItem[];
+    weekResets?: ZhipuResetPackageItem[];
+  };
+  msg?: string;
+  success?: boolean;
+}
+
+/**
  * 格式化日期为 API 要求的格式
  */
 function formatDateTime(date: Date): string {
@@ -234,6 +253,11 @@ function calcModelRates(): Record<string, number> {
 const MODEL_RATES = calcModelRates();
 
 /**
+ * 重置包接口挂在 www 主站（bigmodel.cn），与 /api/monitor/* 的 open.bigmodel.cn 不同 host
+ */
+const RESET_PACKAGE_BASE_URL = 'https://bigmodel.cn';
+
+/**
  * 智谱 Coding Plan Provider
  */
 export class ZhipuProvider implements Provider {
@@ -255,6 +279,12 @@ export class ZhipuProvider implements Provider {
 
     const baseUrl = this.getBaseUrl(config);
     const headers = { 'Authorization': `Bearer ${apiKey}` };
+    // customer-package-reset 鉴权方案与 /api/monitor/* 不同：API Key 裸值传递，不加 Bearer
+    const resetHeaders = {
+      'Accept': 'application/json, text/plain, */*',
+      'Authorization': apiKey,
+      'Referer': `${RESET_PACKAGE_BASE_URL}/coding-plan/personal/usage`
+    };
 
     // 1. 获取配额数据（关键请求，单独用更高重试次数的 client）
     const quotaResp = await this.criticalClient.getJson<ZhipuQuotaResponse>(
@@ -318,6 +348,10 @@ export class ZhipuProvider implements Provider {
       () => this.httpClient.getJson<ZhipuSubscriptionResponse>(
         `${baseUrl}/api/biz/subscription/list?pageSize=9999&pageNum=1`,
         headers
+      ),
+      () => this.httpClient.getJson<ZhipuResetPackageResponse>(
+        `${RESET_PACKAGE_BASE_URL}/api/biz/customer-package-reset/list?targetType=PERSONAL`,
+        resetHeaders
       )
     ];
 
@@ -344,6 +378,7 @@ export class ZhipuProvider implements Provider {
     const perfResp15d = pick<ZhipuPerformanceResponse>(7);
     const perfResp30d = pick<ZhipuPerformanceResponse>(8);
     const subResp = pick<ZhipuSubscriptionResponse>(9);
+    const resetResp = pick<ZhipuResetPackageResponse>(10);
 
     // 3. 构建额度列表
     const quotas = quotaResp.data.limits.map(item => {
@@ -390,6 +425,7 @@ export class ZhipuProvider implements Provider {
       details: {
         quotas,
         subscription,
+        resetPackages: this.parseResetPackages(resetResp),
         history1d: this.buildUsageHistory(resp1d),
         history7d: this.buildUsageHistory(resp7d),
         history30d: this.buildUsageHistory(resp30d),
@@ -410,6 +446,31 @@ export class ZhipuProvider implements Provider {
         performanceHistory15d: this.buildPerformanceHistory(perfResp15d),
         performanceHistory30d: this.buildPerformanceHistory(perfResp30d)
       }
+    };
+  }
+
+  /**
+   * 从 customer-package-reset 响应构建重置包摘要
+   * 仅统计 available === true 的卡；两类列表相互独立，任意组合（含空数组）都兼容。
+   * 该接口为辅助数据，失败/业务错误时返回 undefined，不影响主用量。
+   */
+  private parseResetPackages(resp: ZhipuResetPackageResponse | null): ResetPackages | undefined {
+    if (!resp || resp.code !== 200 || !resp.data) return undefined;
+    const summarize = (items?: ZhipuResetPackageItem[]): ResetPackageSummary => {
+      const available = (items ?? []).filter(i => i.available);
+      // expireTime 为北京时间的 'YYYY-MM-DD HH:mm:ss'，显式标记 +08:00 避免跨时区解析偏移
+      const earliest = available
+        .map(i => new Date(`${i.expireTime.replace(' ', 'T')}+08:00`).getTime())
+        .filter(ts => !isNaN(ts))
+        .sort((a, b) => a - b)[0];
+      return {
+        count: available.length,
+        earliestExpireAt: earliest != null ? new Date(earliest).toISOString() : undefined
+      };
+    };
+    return {
+      fiveHour: summarize(resp.data.fiveHourResets),
+      week: summarize(resp.data.weekResets)
     };
   }
 

@@ -1,6 +1,6 @@
 import { getColorByPercent } from './tray';
 import { t as i18nT } from './i18n';
-import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig } from '../shared/types';
+import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, ResetPackages } from '../shared/types';
 import type { Scheduler } from './scheduler';
 import type { ConfigManager } from './config';
 import buildConfig from '../../app.build';
@@ -29,6 +29,7 @@ export interface AccountDisplayData {
   label?: string;
   level?: string;
   subscription?: import('../shared/types').SubscriptionInfo;
+  resetPackages?: ResetPackages;
   error?: string;
   currency?: string;
   quotas: QuotaDisplayItem[];
@@ -183,6 +184,7 @@ function convertAccountData(
     label: getAccountLabel(type, accountId) || undefined,
     level: result.level,
     subscription: result.details?.subscription as import('../shared/types').SubscriptionInfo | undefined,
+    resetPackages: result.details?.resetPackages as ResetPackages | undefined,
     error: result.error,
     currency: (result.details?.currency as string) || undefined,
     quotas,

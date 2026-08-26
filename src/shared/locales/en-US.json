@@ -55,6 +55,10 @@
     "monthFormat": "{month}/{year}",
     "noUsageData": "No usage data for this month",
     "expired": "Expired",
+    "resetPackageBadge": "×{n}",
+    "resetPackageFiveHour": "5-Hour Resets",
+    "resetPackageWeek": "Weekly Resets",
+    "resetPackageEarliestExpire": "Earliest expiry",
     "overview": "Overview"
   },
   "overview": {

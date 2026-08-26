@@ -48,6 +48,9 @@
   --skeleton-b: #f5f5f5;
   --bg-settings-card: #f8f9fa;
   --bg-import-hover: #f0f0f0;
+  /* 重置包徽章 */
+  --reset-badge-text: #20703a;
+  --reset-badge-bg: #eaf7ee;
 }
 
 html.dark {
@@ -91,6 +94,8 @@ html.dark {
   --skeleton-b: #444;
   --bg-settings-card: rgba(50, 50, 50, 0.8);
   --bg-import-hover: rgba(60, 60, 60, 0.9);
+  --reset-badge-text: #76be8f;
+  --reset-badge-bg: #1d3124;
 }
 
 /* ===== Base ===== */
