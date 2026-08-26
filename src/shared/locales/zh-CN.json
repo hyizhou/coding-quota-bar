@@ -273,15 +273,18 @@
     "usageDuration": "使用时长",
     "streak": "连续使用",
     "longestStreak": "最长 {n} 天",
+    "longest": "最长",
     "hoursUnit": "小时",
+    "minutesUnit": "分",
     "daysUnit": "天",
+    "weekTokens": "本周 Token",
+    "weekMcp": "本周 MCP",
     "monthTokens": "本月 Token",
     "monthMcp": "本月 MCP",
+    "peakDate": "峰值日期",
     "calendarTitle": "每日用量",
-    "weekdays": ["一", "二", "三", "四", "五", "六", "日"],
     "tokenView": "Token",
     "mcpView": "MCP",
-    "monthTotal": "合计",
     "detailTokens": "Token",
     "detailMcp": "MCP 调用",
     "detailCredits": "Credits",
@@ -289,6 +292,10 @@
     "noData": "暂无数据",
     "loadFailed": "加载失败",
     "retry": "重试"
+  },
+  "heatmap": {
+    "less": "少",
+    "more": "多"
   },
   "subscription": {
     "plan": "套餐",

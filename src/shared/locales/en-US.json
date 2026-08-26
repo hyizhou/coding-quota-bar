@@ -273,15 +273,18 @@
     "usageDuration": "Time Used",
     "streak": "Streak",
     "longestStreak": "Longest {n}d",
+    "longest": "Longest",
     "hoursUnit": "h",
+    "minutesUnit": "min",
     "daysUnit": "d",
-    "monthTokens": "Tokens (MTD)",
-    "monthMcp": "MCP (MTD)",
+    "weekTokens": "Week Tokens",
+    "weekMcp": "Week MCP",
+    "monthTokens": "Month Tokens",
+    "monthMcp": "Month MCP",
+    "peakDate": "Peak Date",
     "calendarTitle": "Daily Usage",
-    "weekdays": ["M", "T", "W", "T", "F", "S", "S"],
     "tokenView": "Token",
     "mcpView": "MCP",
-    "monthTotal": "Total",
     "detailTokens": "Tokens",
     "detailMcp": "MCP Calls",
     "detailCredits": "Credits",
@@ -289,6 +292,10 @@
     "noData": "No data",
     "loadFailed": "Failed to load",
     "retry": "Retry"
+  },
+  "heatmap": {
+    "less": "Less",
+    "more": "More"
   },
   "subscription": {
     "plan": "Plan",
