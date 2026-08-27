@@ -15,7 +15,10 @@ export class ConfigManager extends EventEmitter {
   private configPath: string;
   private config: AppConfig | null = null;
   private watcher: fsSync.FSWatcher | null = null;
-  private ignoreNextChange = false;
+  /** 上次自身保存完成的时间戳；watcher 在抑制窗口内的事件视为自身写入，避免 reload 自己 */
+  private lastSelfSaveAt = 0;
+  /** 串行化磁盘写入，避免并发 save 竞争同一个临时文件 */
+  private saveQueue: Promise<void> = Promise.resolve();
 
   constructor() {
     super();
@@ -42,8 +45,7 @@ export class ConfigManager extends EventEmitter {
       await this.load();
       console.log('[Config] Loaded configuration from', this.configPath);
     } catch (error) {
-      console.log('[Config] No existing config found, creating default');
-      await this.createDefaultConfig();
+      await this.handleLoadFailure(error);
     }
 
     // 监听配置文件变化
@@ -127,118 +129,197 @@ export class ConfigManager extends EventEmitter {
   }
 
   /**
+   * 启动加载失败分流：
+   * 文件不存在 → 正常首次运行，建默认配置；
+   * JSON 损坏 → 先备份损坏文件再建默认，账户凭证可从备份找回；
+   * 其他 IO 错误（如 EACCES）→ 仅在成功备份后才建默认，绝不覆盖一份没读到的文件
+   */
+  private async handleLoadFailure(error: unknown): Promise<void> {
+    const code = (error as NodeJS.ErrnoException | null)?.code;
+    if (code === 'ENOENT') {
+      console.log('[Config] No existing config found, creating default');
+      await this.createDefaultConfig();
+      return;
+    }
+
+    const isCorruptJson = error instanceof SyntaxError;
+    const backedUp = await this.backupCorruptConfig();
+    if (!isCorruptJson && !backedUp) {
+      throw new Error(`Failed to load config from ${this.configPath}: ${error}`);
+    }
+
+    console.warn(`[Config] ${isCorruptJson ? 'Corrupt' : 'Unreadable'} config backed up, creating default`);
+    await this.createDefaultConfig();
+  }
+
+  /**
+   * 将损坏的配置文件改名备份（config.corrupt-<时间戳>.json），返回是否成功
+   */
+  private async backupCorruptConfig(): Promise<boolean> {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    const baseName = path.basename(this.configPath, '.json');
+    const backupPath = path.join(path.dirname(this.configPath), `${baseName}.corrupt-${stamp}.json`);
+
+    try {
+      await fs.rename(this.configPath, backupPath);
+      console.warn('[Config] Corrupt config backed up to', backupPath);
+      return true;
+    } catch (backupError) {
+      console.warn('[Config] Failed to back up corrupt config:', backupError);
+      return false;
+    }
+  }
+
+  /**
    * 加载配置文件
    */
   private async load(): Promise<AppConfig> {
-    try {
-      const content = await fs.readFile(this.configPath, 'utf-8');
-      const raw = JSON.parse(content) as AppConfig;
-      this.config = this.decryptApiKeys(raw);
+    const content = await fs.readFile(this.configPath, 'utf-8');
+    const raw = JSON.parse(content) as AppConfig;
+    this.config = this.decryptApiKeys(raw);
 
-      // 迁移：旧格式 { enabled, apiKey } → 新格式 { accounts: [...] }
-      let migrated = false;
-      for (const [key, val] of Object.entries(this.config.providers)) {
-        if (val && typeof (val as any).apiKey === 'string' && !Array.isArray((val as any).accounts)) {
-          const old = val as any;
-          (this.config.providers as any)[key] = {
-            accounts: [{
-              id: generateAccountId(),
-              enabled: old.enabled ?? false,
-              apiKey: old.apiKey ?? '',
-              label: '',
-            }]
-          };
-          migrated = true;
-          console.log(`[Config] Migrated: converted provider "${key}" to multi-account format`);
-        }
-      }
-
-      // 迁移：旧配置键 opencodego（网页登录模式）→ opencode-go（官方 API + API Key 模式）
-      const legacyOcg = (this.config.providers as any)['opencodego'] as ProviderTypeConfig | undefined;
-      if (legacyOcg) {
-        const target = (this.config.providers as any)['opencode-go'] as ProviderTypeConfig | undefined;
-        const accounts = (legacyOcg.accounts ?? []).map(acc => ({
-          ...acc,
-          authMode: 'apikey' as const,
-          webToken: undefined,
-          webUserAgent: undefined,
-          opencodegoLoggedIn: undefined,
-        }));
-        if (target?.accounts) {
-          const ids = new Set(target.accounts.map(a => a.id));
-          for (const acc of accounts) {
-            if (!ids.has(acc.id)) target.accounts.push(acc);
-          }
-        } else {
-          (this.config.providers as any)['opencode-go'] = { accounts };
-        }
-        delete (this.config.providers as any)['opencodego'];
+    // 迁移：旧格式 { enabled, apiKey } → 新格式 { accounts: [...] }
+    let migrated = false;
+    for (const [key, val] of Object.entries(this.config.providers)) {
+      if (val && typeof (val as any).apiKey === 'string' && !Array.isArray((val as any).accounts)) {
+        const old = val as any;
+        (this.config.providers as any)[key] = {
+          accounts: [{
+            id: generateAccountId(),
+            enabled: old.enabled ?? false,
+            apiKey: old.apiKey ?? '',
+            label: '',
+          }]
+        };
         migrated = true;
-        console.log('[Config] Migrated: renamed provider "opencodego" to "opencode-go" (API Key mode)');
+        console.log(`[Config] Migrated: converted provider "${key}" to multi-account format`);
       }
-
-      // 迁移：补齐编译时可用但配置文件中缺失的 provider
-      for (const key of getAvailableProviderKeys()) {
-        if (!this.config.providers[key]) {
-          (this.config.providers as any)[key] = { accounts: [] };
-          migrated = true;
-          console.log(`[Config] Migrated: added missing provider "${key}"`);
-        }
-      }
-
-      // 迁移：清除持久化的更新信息（更新数据仅保留在会话内存中）
-      if ('updateInfo' in this.config) {
-        delete (this.config as any).updateInfo;
-        migrated = true;
-        console.log('[Config] Migrated: removed updateInfo from persisted config');
-      }
-
-      // 配置缺失时使用默认开启，保证设置页展示与主进程调度一致
-      if (typeof this.config.autoCheckUpdate !== 'boolean') {
-        this.config.autoCheckUpdate = true;
-        migrated = true;
-        console.log('[Config] Migrated: enabled automatic update checks');
-      }
-
-      // 更新检查为固定调度，不持久化检查频率和调度进度
-      for (const field of ['autoCheckUpdateInterval', 'lastAutoCheckTime'] as const) {
-        if (field in this.config) {
-          delete (this.config as any)[field];
-          migrated = true;
-          console.log(`[Config] Migrated: removed update field "${field}"`);
-        }
-      }
-
-      if (migrated) {
-        await this.save(this.config);
-      }
-
-      this.emit('loaded', this.config);
-      return this.config;
-    } catch (error) {
-      throw new Error(`Failed to load config from ${this.configPath}: ${error}`);
     }
+
+    // 迁移：旧配置键 opencodego（网页登录模式）→ opencode-go（官方 API + API Key 模式）
+    const legacyOcg = (this.config.providers as any)['opencodego'] as ProviderTypeConfig | undefined;
+    if (legacyOcg) {
+      const target = (this.config.providers as any)['opencode-go'] as ProviderTypeConfig | undefined;
+      const accounts = (legacyOcg.accounts ?? []).map(acc => ({
+        ...acc,
+        authMode: 'apikey' as const,
+        webToken: undefined,
+        webUserAgent: undefined,
+        opencodegoLoggedIn: undefined,
+      }));
+      if (target?.accounts) {
+        const ids = new Set(target.accounts.map(a => a.id));
+        for (const acc of accounts) {
+          if (!ids.has(acc.id)) target.accounts.push(acc);
+        }
+      } else {
+        (this.config.providers as any)['opencode-go'] = { accounts };
+      }
+      delete (this.config.providers as any)['opencodego'];
+      migrated = true;
+      console.log('[Config] Migrated: renamed provider "opencodego" to "opencode-go" (API Key mode)');
+    }
+
+    // 迁移：补齐编译时可用但配置文件中缺失的 provider
+    for (const key of getAvailableProviderKeys()) {
+      if (!this.config.providers[key]) {
+        (this.config.providers as any)[key] = { accounts: [] };
+        migrated = true;
+        console.log(`[Config] Migrated: added missing provider "${key}"`);
+      }
+    }
+
+    // 迁移：清除持久化的更新信息（更新数据仅保留在会话内存中）
+    if ('updateInfo' in this.config) {
+      delete (this.config as any).updateInfo;
+      migrated = true;
+      console.log('[Config] Migrated: removed updateInfo from persisted config');
+    }
+
+    // 配置缺失时使用默认开启，保证设置页展示与主进程调度一致
+    if (typeof this.config.autoCheckUpdate !== 'boolean') {
+      this.config.autoCheckUpdate = true;
+      migrated = true;
+      console.log('[Config] Migrated: enabled automatic update checks');
+    }
+
+    // 更新检查为固定调度，不持久化检查频率和调度进度
+    for (const field of ['autoCheckUpdateInterval', 'lastAutoCheckTime'] as const) {
+      if (field in this.config) {
+        delete (this.config as any)[field];
+        migrated = true;
+        console.log(`[Config] Migrated: removed update field "${field}"`);
+      }
+    }
+
+    if (migrated) {
+      await this.save(this.config);
+    }
+
+    this.emit('loaded', this.config);
+    return this.config;
   }
 
   /**
    * 保存配置文件
    */
   async save(config: AppConfig): Promise<void> {
+    // 串行化写入，避免并发 save 竞争同一个临时文件
+    const run = this.saveQueue.then(() => this.writeConfigAtomically(config));
+    this.saveQueue = run.catch(() => {});
+    await run;
+  }
+
+  /**
+   * 原子写入：临时文件写满 + fsync 落盘后 rename 整文件替换，
+   * 保证进程崩溃/断电不会产生半写配置
+   */
+  private async writeConfigAtomically(config: AppConfig): Promise<void> {
+    const tmpPath = `${this.configPath}.tmp`;
     try {
-      this.ignoreNextChange = true;
       const oldConfig = this.config;
       // 内存中保持明文，写入磁盘时加密
       this.config = config;
       const toWrite = this.encryptApiKeys(config);
       const content = JSON.stringify(toWrite, null, 2);
-      await fs.writeFile(this.configPath, content, 'utf-8');
+
+      const fileHandle = await fs.open(tmpPath, 'w');
+      try {
+        await fileHandle.writeFile(content, 'utf-8');
+        await fileHandle.sync();
+      } finally {
+        await fileHandle.close();
+      }
+
+      await this.renameWithRetry(tmpPath, this.configPath);
+      this.lastSelfSaveAt = Date.now();
       console.log('[Config] Saved configuration to', this.configPath);
       this.emit('saved', config);
       this.emit('changed', config, oldConfig);
     } catch (error) {
-      this.ignoreNextChange = false;
+      // 丢弃残留临时文件，避免影响下一次写入
+      await fs.unlink(tmpPath).catch(() => {});
       console.error('[Config] Failed to save config:', error);
       throw error;
+    }
+  }
+
+  /**
+   * rename 带重试：Windows 上杀毒/备份软件可能短暂锁住文件（EPERM/EBUSY）
+   */
+  private async renameWithRetry(from: string, to: string): Promise<void> {
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await fs.rename(from, to);
+        return;
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException | null)?.code;
+        if (attempt === maxAttempts || (code !== 'EPERM' && code !== 'EBUSY')) throw error;
+        await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+      }
     }
   }
 
@@ -331,13 +412,12 @@ export class ConfigManager extends EventEmitter {
   private watch(): void {
     try {
       this.watcher = fsSync.watch(this.configPath, { persistent: false }, (eventType: string) => {
-        if (eventType === 'change') {
+        // 原子写通过 rename 替换文件，Windows 上会触发 change 或 rename 事件
+        if (eventType === 'change' || eventType === 'rename') {
           // 延迟执行，确保文件写入完成
           setTimeout(async () => {
-            if (this.ignoreNextChange) {
-              this.ignoreNextChange = false;
-              return;
-            }
+            // 抑制窗口内视为自身写入；原子替换可能连续产生多个事件，全部忽略
+            if (Date.now() - this.lastSelfSaveAt < 500) return;
             console.log('[Config] Configuration file changed, reloading...');
             try {
               const old = this.config;

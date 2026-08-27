@@ -357,6 +357,8 @@ function updateAutoStart(enabled: boolean): void {
 app.whenReady().then(() => {
   initialize().catch((error) => {
     console.error('[App] Initialization failed:', error);
+    // 初始化失败（如配置不可读且无法备份）时直接退出，避免残留后台空进程
+    app.quit();
   });
 
   app.on('activate', () => {
