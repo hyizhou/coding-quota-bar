@@ -7,7 +7,8 @@
     "output": 0.01
   },
   "models": {
-    "GLM-5.3":          { "cache": 2,    "input": 8,   "output": 28, "tier": "1M", "note": "官方按量价未公布，暂按 GLM-5.2 价格估算" },
+    "GLM-5.3-Flash":    { "cache": 0.23,    "input": 0.8,   "output": 2.8, "tier": "1M"},
+    "GLM-5.3":          { "cache": 2,    "input": 8,   "output": 28, "tier": "1M"},
     "GLM-5.2":          { "cache": 2,    "input": 8,   "output": 28, "tier": "1M" },
     "GLM-5.2-HighSpeed": { "cache": 4,    "input": 16,  "output": 56, "tier": "1M", "note": "官方未公布，按 GLM-5.2 价格 2 倍估算" },
     "GLM-5.1":        { "cache": 2,    "input": 8,   "output": 28, "tier": "[32+)" },
