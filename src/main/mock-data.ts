@@ -220,18 +220,16 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
       details: {
         quotas: [
           {
-            label: 'quota.minimaxDailyUnlimited', used: 0, total: 0, usageRate: 0,
+            label: 'quota.minimaxDaily', used: 40, total: 100, usageRate: 40,
             resetAt: new Date(now + 4 * HOUR).toISOString(),
             startAt: new Date(now - 0 * HOUR).toISOString(),
-            hideBar: true,
             displayUnit: 'percent',
             limitType: 'MiniMax',
           },
           {
-            label: 'quota.minimaxWeeklyUnlimited', used: 0, total: 0, usageRate: 0,
+            label: 'quota.minimaxWeekly', used: 15, total: 100, usageRate: 15,
             resetAt: new Date(now + 5 * DAY).toISOString(),
             startAt: new Date(now - 2 * DAY).toISOString(),
-            hideBar: true,
             displayUnit: 'percent',
             limitType: 'MiniMax',
           },
