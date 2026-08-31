@@ -117,7 +117,8 @@ async function createLoadedWindow(accountId: string): Promise<BrowserWindow> {
     width: 480,
     height: 400,
     show: false,
-    webPreferences: { partition, contextIsolation: true, nodeIntegration: false, webSecurity: true },
+    // spellcheck: false —— Windows 拼写组件在沙箱下会往 CWD 写入乱码空目录（Microsoft\Spelling）
+    webPreferences: { partition, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: false },
   });
 
   // 屏蔽无关请求（小米统计等），避免 SSL 错误噪音输出到主进程控制台

@@ -40,6 +40,8 @@ export function deepseekWebLogin(accountId: string): Promise<{ success: boolean;
         contextIsolation: true,
         nodeIntegration: false,
         webSecurity: true,
+        // 关闭拼写检查：Windows 拼写组件在沙箱下会往 CWD 写入乱码空目录（Microsoft\Spelling）
+        spellcheck: false,
       },
     });
 
@@ -147,6 +149,7 @@ export async function deepseekRefreshToken(accountId: string): Promise<boolean> 
       contextIsolation: true,
       nodeIntegration: false,
       webSecurity: true,
+      spellcheck: false,
     },
   });
 

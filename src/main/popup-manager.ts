@@ -272,7 +272,9 @@ export function createPopupWindow(
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // 关闭拼写检查：Windows 拼写组件在沙箱下会往 CWD 写入乱码空目录（Microsoft\Spelling）
+      spellcheck: false
     }
   });
   // 仅放开纵向调整：最小/最大宽度相同锁死横向，高度下限为默认值、上不封顶
@@ -600,7 +602,8 @@ export function showFeedbackWindow(): void {
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      spellcheck: false
     }
   });
   (win as any)._feedbackId = 'feedback-window';
