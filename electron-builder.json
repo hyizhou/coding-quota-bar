@@ -41,7 +41,7 @@
   "appx": {
     "applicationId": "CodingQuotaBar",
     "identityName": "hyizhou.CodingQuotaBar",
-    "publisher": "CN=TODO-PARTNER-CENTER-PUBLISHER",
+    "publisher": "CN=4C20EF6A-FC48-4302-81F3-B5234E084521",
     "publisherDisplayName": "hyizhou",
     "displayName": "Coding Quota Bar",
     "languages": ["zh-CN", "en-US"],
