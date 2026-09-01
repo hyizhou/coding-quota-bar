@@ -1,4 +1,5 @@
 import { net } from 'electron';
+import { safeErrorMessage } from './utils/security';
 
 /**
  * HTTP 响应
@@ -111,7 +112,7 @@ export class HttpClient {
   static async getJson<T = unknown>(url: string, headers?: Record<string, string>): Promise<T> {
     const response = await this.get(url, headers);
     if (response.status >= 400) {
-      throw new Error(`HTTP ${response.status}: ${response.body}`);
+      throw new Error(`HTTP ${response.status}: ${safeErrorMessage(response.body)}`);
     }
     try {
       return JSON.parse(response.body) as T;
@@ -191,7 +192,7 @@ export class HttpClientWithRetry {
   async getJson<T = unknown>(url: string, headers?: Record<string, string>): Promise<T> {
     const response = await this.get(url, headers);
     if (response.status >= 400) {
-      throw new Error(`HTTP ${response.status}: ${response.body}`);
+      throw new Error(`HTTP ${response.status}: ${safeErrorMessage(response.body)}`);
     }
     try {
       return JSON.parse(response.body) as T;

@@ -10,6 +10,7 @@ import { DeepSeekProvider } from '../providers/deepseek';
 import { MiMoProvider } from '../providers/mimo';
 import { getAvailableProviderKeys, PROVIDER_CLASSES, type ProviderType } from './loader';
 import { buildUsageData } from './data-transform';
+import { isSafeExternalUrl } from './utils/security';
 import buildConfig from '../../app.build';
 import {
   showPopupWindow,
@@ -133,6 +134,13 @@ export function setupIpcHandlers(): void {
 
   // 用系统浏览器打开链接
   ipcMain.handle('open-external', async (_, url: string) => {
+    // 白名单外的链接静默拒绝，防止渲染层被注入后打开任意协议/域名
+    if (!isSafeExternalUrl(url)) {
+      if (process.env.CQB_DEV === '1') {
+        console.log('[IPC] open-external rejected:', url);
+      }
+      return;
+    }
     await shell.openExternal(url);
   });
 
