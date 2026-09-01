@@ -3,7 +3,7 @@ import { app, BrowserWindow } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'path';
 import { TrayManager } from './tray';
-import { isStoreBuild } from './channel';
+import { isStoreBuild, applyStoreDataIsolation } from './channel';
 import { ProviderLoader } from './loader';
 import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
@@ -43,6 +43,9 @@ import {
   setIpcHandlersDeps,
   setupIpcHandlers,
 } from './ipc-handlers';
+
+// 商店版（MSIX）数据隔离：必须在任何模块读取 userData 之前完成重定向
+applyStoreDataIsolation();
 
 app.commandLine.appendSwitch('wm-window-animations-disabled');
 
