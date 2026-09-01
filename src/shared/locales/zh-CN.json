@@ -156,6 +156,8 @@
     "expired": "已过期",
     "expiresToday": "今天到期",
     "expiresTomorrow": "明天到期",
+    "expiresInHours": "{n}小时后到期",
+    "expiresInDaysHours": "{d}天{h}小时后到期",
     "expiresInDays": "{n}天后到期"
   },
   "chart": {

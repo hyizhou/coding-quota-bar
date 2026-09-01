@@ -10,7 +10,7 @@ const props = defineProps<{
   resetPackages?: ResetPackages
 }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 
 /** 重置包可用总数（5小时 + 周），无数据返回 0（徽章隐藏） */
 function getResetPackageCount(): number {
@@ -19,14 +19,14 @@ function getResetPackageCount(): number {
   return (rp.fiveHour?.count ?? 0) + (rp.week?.count ?? 0)
 }
 
-/** 徽章 hover 明细：每类数量一行，有可用卡时附最早到期时间一行 */
+/** 徽章 hover 明细：每类数量一行，有可用卡时附距最早到期剩余时间一行 */
 function getResetPackageRows(): Array<{ label: string; value: string }> {
   const rp = props.resetPackages
   if (!rp) return []
   const rows: Array<{ label: string; value: string }> = []
   const pushType = (label: string, s: ResetPackageSummary | undefined) => {
     rows.push({ label, value: `×${s?.count ?? 0}` })
-    const expire = s?.count ? formatResetExpire(s.earliestExpireAt) : ''
+    const expire = s?.count ? formatResetRemaining(s.earliestExpireAt) : ''
     if (s?.count && expire) rows.push({ label: t('main.resetPackageEarliestExpire'), value: expire })
   }
   pushType(t('main.resetPackageFiveHour'), rp.fiveHour)
@@ -34,16 +34,16 @@ function getResetPackageRows(): Array<{ label: string; value: string }> {
   return rows
 }
 
-/** 到期时间格式化：如 "9月7日 23:59"，无效时间返回空串 */
-function formatResetExpire(iso: string | undefined): string {
+/** 距离到期的剩余时间：如 "2天5小时后到期"、"5小时后到期"，已过期或无效时间返回空串 */
+function formatResetRemaining(iso: string | undefined): string {
   if (!iso) return ''
-  try {
-    const d = new Date(iso)
-    if (isNaN(d.getTime())) return ''
-    const date = d.toLocaleDateString(locale.value, { month: 'short', day: 'numeric' })
-    const time = d.toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit', hour12: false })
-    return `${date} ${time}`
-  } catch { return '' }
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const ms = d.getTime() - Date.now()
+  if (ms <= 0) return t('provider.expired')
+  const hours = ms / 3_600_000
+  if (hours < 24) return t('provider.expiresInHours', { n: Math.max(1, Math.ceil(hours)) })
+  return t('provider.expiresInDaysHours', { d: Math.floor(hours / 24), h: Math.floor(hours % 24) })
 }
 </script>
 

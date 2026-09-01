@@ -156,6 +156,8 @@
     "expired": "Expired",
     "expiresToday": "Expires today",
     "expiresTomorrow": "Expires tomorrow",
+    "expiresInHours": "Expires in {n} hours",
+    "expiresInDaysHours": "Expires in {d}d {h}h",
     "expiresInDays": "Expires in {n} days"
   },
   "chart": {
