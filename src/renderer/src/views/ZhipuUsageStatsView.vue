@@ -69,28 +69,40 @@
 
         <!-- 本月 / 本周用量：一行一个周期，左 Token 右 MCP -->
         <div class="period-grid">
-          <FloatingTooltip :rows="[{ label: $t('zhipuStats.monthTokens'), value: exact(monthTokens) + ' tokens' }]" position="top" align="left">
+          <FloatingTooltip :rows="[
+            { label: $t('zhipuStats.monthTokens'), value: exact(monthTokens) + ' tokens' },
+            { label: $t('zhipuStats.prevMonthTokens'), value: exact(prevMonthTokens) + ' tokens' }
+          ]" position="top" align="left">
             <div class="period-cell">
               <span class="period-label">{{ $t('zhipuStats.monthTokens') }}</span>
-              <span class="period-value">{{ formatCount(monthTokens) }}</span>
+              <span class="period-value">{{ formatCount(monthTokens) }}<TrendArrow :trend="monthTokensTrend" /></span>
             </div>
           </FloatingTooltip>
-          <FloatingTooltip :rows="[{ label: $t('zhipuStats.monthMcp'), value: exact(monthMcpCalls) }]" position="top" align="right">
+          <FloatingTooltip :rows="[
+            { label: $t('zhipuStats.monthMcp'), value: exact(monthMcpCalls) },
+            { label: $t('zhipuStats.prevMonthMcp'), value: exact(prevMonthMcpCalls) }
+          ]" position="top" align="right">
             <div class="period-cell">
               <span class="period-label">{{ $t('zhipuStats.monthMcp') }}</span>
-              <span class="period-value">{{ monthMcpCalls }}</span>
+              <span class="period-value">{{ monthMcpCalls }}<TrendArrow :trend="monthMcpTrend" /></span>
             </div>
           </FloatingTooltip>
-          <FloatingTooltip :rows="[{ label: $t('zhipuStats.weekTokens'), value: exact(weekTokens) + ' tokens' }]" position="bottom" align="left">
+          <FloatingTooltip :rows="[
+            { label: $t('zhipuStats.weekTokens'), value: exact(weekTokens) + ' tokens' },
+            { label: $t('zhipuStats.prevWeekTokens'), value: exact(prevWeekTokens) + ' tokens' }
+          ]" position="bottom" align="left">
             <div class="period-cell">
               <span class="period-label">{{ $t('zhipuStats.weekTokens') }}</span>
-              <span class="period-value">{{ formatCount(weekTokens) }}</span>
+              <span class="period-value">{{ formatCount(weekTokens) }}<TrendArrow :trend="weekTokensTrend" /></span>
             </div>
           </FloatingTooltip>
-          <FloatingTooltip :rows="[{ label: $t('zhipuStats.weekMcp'), value: exact(weekMcpCalls) }]" position="bottom" align="right">
+          <FloatingTooltip :rows="[
+            { label: $t('zhipuStats.weekMcp'), value: exact(weekMcpCalls) },
+            { label: $t('zhipuStats.prevWeekMcp'), value: exact(prevWeekMcpCalls) }
+          ]" position="bottom" align="right">
             <div class="period-cell">
               <span class="period-label">{{ $t('zhipuStats.weekMcp') }}</span>
-              <span class="period-value">{{ weekMcpCalls }}</span>
+              <span class="period-value">{{ weekMcpCalls }}<TrendArrow :trend="weekMcpTrend" /></span>
             </div>
           </FloatingTooltip>
         </div>
@@ -132,6 +144,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import TrendArrow from '../components/TrendArrow.vue'
 import FloatingTooltip from '../components/FloatingTooltip.vue'
 import UsageHeatmap from '../components/UsageHeatmap.vue'
 import type { HeatmapRecord } from '../components/UsageHeatmap.vue'
@@ -286,6 +299,41 @@ const weekTokens = computed(() => sumSince('totalTokens', startOfWeek(new Date()
 const monthTokens = computed(() => sumMonth('totalTokens'))
 const weekMcpCalls = computed(() => sumSince('mcpCalls', startOfWeek(new Date())))
 const monthMcpCalls = computed(() => sumMonth('mcpCalls'))
+
+// ---------- 与上期对比（本月 vs 上一自然月，本周 vs 上一完整周） ----------
+
+function sumPrevMonth(field: 'totalTokens' | 'mcpCalls'): number {
+  const now = new Date()
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const prefix = `${prev.getFullYear()}-${pad(prev.getMonth() + 1)}`
+  return series.value.reduce((sum, r) => r.date.startsWith(prefix) ? sum + r[field] : sum, 0)
+}
+
+function sumPrevWeek(field: 'totalTokens' | 'mcpCalls'): number {
+  const weekStart = startOfWeek(new Date())
+  const from = new Date(weekStart)
+  from.setDate(from.getDate() - 7)
+  const fromStr = localDateStr(from)
+  const toStr = localDateStr(weekStart)
+  return series.value.reduce((sum, r) => r.date >= fromStr && r.date < toStr ? sum + r[field] : sum, 0)
+}
+
+type Trend = 'up' | 'down' | 'flat'
+
+function trendOf(current: number, previous: number): Trend {
+  if (current > previous) return 'up'
+  if (current < previous) return 'down'
+  return 'flat'
+}
+
+const prevMonthTokens = computed(() => sumPrevMonth('totalTokens'))
+const prevMonthMcpCalls = computed(() => sumPrevMonth('mcpCalls'))
+const prevWeekTokens = computed(() => sumPrevWeek('totalTokens'))
+const prevWeekMcpCalls = computed(() => sumPrevWeek('mcpCalls'))
+const monthTokensTrend = computed(() => trendOf(monthTokens.value, prevMonthTokens.value))
+const monthMcpTrend = computed(() => trendOf(monthMcpCalls.value, prevMonthMcpCalls.value))
+const weekTokensTrend = computed(() => trendOf(weekTokens.value, prevWeekTokens.value))
+const weekMcpTrend = computed(() => trendOf(weekMcpCalls.value, prevWeekMcpCalls.value))
 
 // ---------- 热力图 ----------
 
