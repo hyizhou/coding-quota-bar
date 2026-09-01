@@ -12,7 +12,8 @@
     "preview": "electron-vite preview",
     "package": "npm run build && electron-builder",
     "package:dir": "npm run build && electron-builder --dir",
-    "package:win": "npm run build && electron-builder --win"
+    "package:win": "npm run build && electron-builder --win",
+    "package:store": "npm run build && electron-builder --win appx --publish never"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

@@ -265,6 +265,7 @@ export interface ElectronAPI {
   setWindowPinned: (mode: WindowPinMode) => void
   onWindowPinnedState: (callback: (mode: WindowPinMode) => void) => () => void
   getAppVersion: () => Promise<string>
+  getBuildInfo: () => Promise<{ version: string; storeBuild: boolean }>
   concurrencyTestStart: (config: ConcurrencyTestConfig) => Promise<ConcurrencyTestResult>
   concurrencyTestGetHistory: (providerKey: string) => Promise<ConcurrencyTestResult[]>
   concurrencyTestDelete: (providerKey: string, id: string) => Promise<void>

@@ -3,6 +3,7 @@ import { app, BrowserWindow } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'path';
 import { TrayManager } from './tray';
+import { isStoreBuild } from './channel';
 import { ProviderLoader } from './loader';
 import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
@@ -341,6 +342,11 @@ function setupConfigListeners(): void {
 function updateAutoStart(enabled: boolean): void {
   if (!app.isPackaged) {
     console.log('[App] Auto-start skipped: running in development mode');
+    return;
+  }
+  // MSIX 商店版下注册表 Run 键写入会被包容器虚拟化而失效，商店版不提供开机自启
+  if (isStoreBuild()) {
+    console.log('[App] Auto-start skipped: store build');
     return;
   }
   app.setLoginItemSettings({

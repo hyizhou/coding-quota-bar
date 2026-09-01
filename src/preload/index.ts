@@ -66,6 +66,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 
   /**
+   * 获取构建信息（版本号 + 是否商店版）
+   */
+  getBuildInfo: () => ipcRenderer.invoke('get-build-info'),
+
+  /**
    * 检查更新（仅触发，结果通过 onUpdateStatusChanged 推送）
    */
   checkForUpdate: () => ipcRenderer.invoke('check-for-update'),

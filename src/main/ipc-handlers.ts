@@ -24,6 +24,7 @@ import { deepseekWebLogin, deepseekWebLogout } from './deepseek-auth';
 import { mimoWebLogin, mimoWebLogout } from './mimo-auth';
 import { checkForUpdate, downloadUpdate, getUpdateStatus } from './update-manager';
 import { maskApiKey } from '../shared/mask';
+import { isStoreBuild } from './channel';
 
 let _getConfigManager: () => ConfigManager | null = () => null;
 let _getScheduler: () => Scheduler | null = () => null;
@@ -108,6 +109,11 @@ export function setupIpcHandlers(): void {
     return app.getVersion();
   });
 
+  // 获取构建信息（版本号 + 是否商店版）
+  ipcMain.handle('get-build-info', () => {
+    return { version: app.getVersion(), storeBuild: isStoreBuild() };
+  });
+
   // 检查更新
   ipcMain.handle('check-for-update', async () => {
     await checkForUpdate();
@@ -120,6 +126,7 @@ export function setupIpcHandlers(): void {
 
   // 重启并安装更新
   ipcMain.handle('quit-and-install', () => {
+    if (isStoreBuild()) return;
     destroyPopupWindow();
     autoUpdater.quitAndInstall();
   });

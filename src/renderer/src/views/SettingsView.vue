@@ -284,7 +284,8 @@
           </select>
         </div>
         <div v-if="generalTogglesVisible" class="toggle-group">
-          <label v-if="filteredGeneralKeys.has('autoStart')" class="toggle-row">
+          <!-- 商店版（MSIX）下注册表自启动无效，不提供该开关 -->
+          <label v-if="filteredGeneralKeys.has('autoStart') && !storeBuild" class="toggle-row">
             <input type="checkbox" v-model="autoStart" :disabled="!isPackaged" />
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.autoStart') }}</span>
@@ -305,7 +306,7 @@
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.showEstimatedCost') }}</span>
           </label>
-          <label v-if="filteredGeneralKeys.has('autoCheckUpdate')" class="toggle-row" :title="$t('settings.autoCheckUpdateHint')">
+          <label v-if="filteredGeneralKeys.has('autoCheckUpdate') && !storeBuild" class="toggle-row" :title="$t('settings.autoCheckUpdateHint')">
             <input type="checkbox" v-model="autoCheckUpdateEnabled" />
             <span class="toggle-switch"></span>
             <span class="toggle-label">{{ $t('settings.autoCheckUpdate') }}</span>
@@ -321,7 +322,9 @@
           <button class="feedback-link" @click="openFeedback">{{ $t('settings.feedbackGroup') }}</button>
           <span class="version-text">v{{ appVersion }}</span>
         </div>
+        <!-- 商店版更新由微软商店托管（政策 10.2.5），隐藏应用内更新入口 -->
         <button
+          v-if="!storeBuild"
           class="check-update-btn"
           :class="{
             'update-ready': updateState.phase === 'ready',
@@ -387,6 +390,7 @@ const providerList = ref<ProviderInfo[]>([])
 const refreshInterval = ref('300')
 const autoStart = ref(false)
 const isPackaged = ref(true)
+const storeBuild = ref(false)
 const language = ref('zh-CN')
 const popupTrigger = ref<'hover' | 'click'>('hover')
 const memorySavingMode = ref(false)
@@ -715,6 +719,7 @@ function onApiKeyInput(account: AccountInfo, event: Event) {
 
 onMounted(async () => {
   appVersion.value = await window.electronAPI.getAppVersion()
+  storeBuild.value = (await window.electronAPI.getBuildInfo()).storeBuild
   if (disposed) return
   const config = await window.electronAPI.getConfig()
   if (disposed || !config) return
@@ -811,14 +816,14 @@ onMounted(async () => {
   // 监听来自托盘菜单的检查更新事件（兼容旧路径）
   const onTriggerCheckUpdate = () => {
     settingsBodyRef.value?.scrollTo({ top: settingsBodyRef.value.scrollHeight })
-    if (updateState.value.phase === 'idle' || updateState.value.phase === 'noUpdate' || updateState.value.phase === 'error') {
+    if (!storeBuild.value && (updateState.value.phase === 'idle' || updateState.value.phase === 'noUpdate' || updateState.value.phase === 'error')) {
       window.electronAPI.checkForUpdate()
     }
   }
   offTriggerCheckUpdate = window.electronAPI.onTriggerCheckUpdate(onTriggerCheckUpdate)
 
   // 从托盘菜单或更新浮窗进入时，滚到底部；若已有更新信息则不再重复检查
-  if (props.autoCheckUpdate) {
+  if (props.autoCheckUpdate && !storeBuild.value) {
     nextTick(() => {
       if (disposed) return
       settingsBodyRef.value?.scrollTo({ top: settingsBodyRef.value.scrollHeight })

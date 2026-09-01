@@ -37,5 +37,15 @@
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "Coding Quota Bar"
+  },
+  "appx": {
+    "applicationId": "CodingQuotaBar",
+    "identityName": "hyizhou.CodingQuotaBar",
+    "publisher": "CN=TODO-PARTNER-CENTER-PUBLISHER",
+    "publisherDisplayName": "hyizhou",
+    "displayName": "Coding Quota Bar",
+    "languages": ["zh-CN", "en-US"],
+    "backgroundColor": "#1f2430",
+    "addAutoLaunchExtension": false
   }
 }

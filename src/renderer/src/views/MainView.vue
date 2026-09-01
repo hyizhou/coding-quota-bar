@@ -163,7 +163,7 @@
     </div>
 
     <UpdateBanner
-      v-if="updateNotification"
+      v-if="updateNotification && !storeBuild"
       :version="updateNotification.version"
       @click="handleUpdateBannerClick"
       @close="updateNotification = null"
@@ -215,6 +215,7 @@ const lastUpdate = ref('')
 const loading = ref(false)
 const initialLoading = ref(true)
 const updateNotification = ref<{ version: string } | null>(null)
+const storeBuild = ref(false)
 const now = ref(Date.now())
 const pinMode = ref<WindowPinMode>('unpinned')
 const showTabs = ref(false)
@@ -436,7 +437,8 @@ onMounted(async () => {
   })
   // 恢复持久化的更新状态
   const config = await window.electronAPI.getConfig()
-  const version = await window.electronAPI.getAppVersion()
+  const { version, storeBuild: isStore } = await window.electronAPI.getBuildInfo()
+  storeBuild.value = isStore
   const us = config?.updateStatus
   if (us && us.version && us.version > version && us.phase !== 'ready') {
     updateNotification.value = { version: us.version }

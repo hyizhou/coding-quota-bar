@@ -1,6 +1,7 @@
 import { Tray, Menu, nativeImage, MenuItem } from 'electron';
 import * as zlib from 'node:zlib';
 import { t } from './i18n';
+import { isStoreBuild } from './channel';
 
 /**
  * 显示颜色类型
@@ -265,10 +266,11 @@ export class TrayManager {
         label: t('tray.settings'),
         click: () => this.handleSettings()
       },
-      {
+      // 商店版更新由微软商店托管，不显示"检查更新"入口
+      ...(isStoreBuild() ? [] : [{
         label: t('tray.checkUpdate'),
         click: () => this.handleCheckUpdate()
-      },
+      }]),
       {
         label: t('tray.resetPosition'),
         click: () => this.callbacks?.onResetPopupPosition()

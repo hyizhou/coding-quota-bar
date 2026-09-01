@@ -3,6 +3,7 @@ import { autoUpdater } from 'electron-updater';
 import type { ConfigManager } from './config';
 import type { UpdateStatus } from '../shared/types';
 import type { getPopupWindow as GetPopupWindowFn } from './popup-manager';
+import { isStoreBuild } from './channel';
 
 const AUTO_UPDATE_INITIAL_DELAY_MS = 30_000;
 const AUTO_UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000;
@@ -91,6 +92,9 @@ export function getUpdateStatus(): UpdateStatus {
 export function startAutoUpdateChecker(): void {
   stopAutoUpdateChecker();
 
+  // 微软商店版：更新完全由商店托管（政策 10.2.5），应用内不做任何更新检查
+  if (isStoreBuild()) return;
+
   const config = _getConfigManager()?.getConfig();
   if (!config?.autoCheckUpdate || (isDev && !mockUpdate)) return;
 
@@ -174,6 +178,7 @@ export function stopAutoUpdateChecker(): void {
  * 手动触发检查更新（IPC handler 用）
  */
 export async function checkForUpdate(): Promise<void> {
+  if (isStoreBuild()) return;
   if (!app.isPackaged && !mockUpdate) {
     setUpdateStatus({ phase: 'noUpdate' });
     return;
@@ -293,6 +298,7 @@ function compareAsciiText(left: string, right: string): number {
  * 下载更新
  */
 export async function downloadUpdate(): Promise<void> {
+  if (isStoreBuild()) return;
   if (updateStatus.phase === 'downloading') return;
   setUpdateStatus({ phase: 'downloading', version: updateStatus.version, progress: 0 });
   try {

@@ -24,3 +24,13 @@ jobs:
         run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package Store bundle (appx)
+        run: npx electron-builder --win appx --publish never
+
+      - name: Upload appx artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cqb-appx
+          path: release/*.appx
+          retention-days: 3
