@@ -107,6 +107,8 @@ export interface AccountUsageData {
   balance?: { total: string; gift: string; cash: string; frozen: string; currency: string }
   limitReached?: boolean
   codexOrgName?: string
+  qoderRemaining?: number
+  qoderUnit?: string
 }
 
 /**
@@ -132,7 +134,11 @@ export interface AccountConfig {
   label: string
   budget?: number
   authMode?: 'apikey' | 'weblogin'
+  webToken?: string
   hasWebToken?: boolean
+  qoderCookieSource?: 'session' | 'manual'
+  qoderSite?: 'international' | 'china'
+  qoderLoggedIn?: boolean
 }
 
 export interface ProviderTypeConfig {

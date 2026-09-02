@@ -23,6 +23,7 @@ import {
 } from './popup-manager';
 import { deepseekWebLogin, deepseekWebLogout } from './deepseek-auth';
 import { mimoWebLogin, mimoWebLogout } from './mimo-auth';
+import { qoderWebLogin, qoderWebLogout, qoderParseManual } from './qoder-auth';
 import { checkForUpdate, downloadUpdate, getUpdateStatus } from './update-manager';
 import { maskApiKey } from '../shared/mask';
 import { isStoreBuild } from './channel';
@@ -242,6 +243,21 @@ export function setupIpcHandlers(): void {
     }
   });
 
+  // Qoder 网页登录
+  ipcMain.handle('qoder-web-login', async (_, accountId: string, site: string) => {
+    return await qoderWebLogin(accountId, site === 'china' ? 'china' : 'international');
+  });
+
+  // Qoder 网页登出
+  ipcMain.handle('qoder-web-logout', async (_, accountId: string) => {
+    await qoderWebLogout(accountId);
+  });
+
+  // Qoder 手动粘贴内容解析（设置页即时校验）
+  ipcMain.handle('qoder-parse-manual', async (_, text: string) => {
+    return qoderParseManual(text ?? '');
+  });
+
   // 智谱每日用量历史（用量统计页按需加载，避免每次定时刷新都拉一年数据）
   ipcMain.handle('zhipu-fetch-usage-stats', async (_, accountId: string): Promise<ZhipuUsageStats> => {
     const empty: ZhipuUsageStats = { summary: null, series: [] };
@@ -272,6 +288,8 @@ export function setupIpcHandlers(): void {
     authMode?: 'apikey' | 'weblogin';
     webToken?: string;
     webUserAgent?: string;
+    qoderCookieSource?: 'session' | 'manual';
+    qoderSite?: 'international' | 'china';
   }): Promise<{ ok: boolean; error?: string; latencyMs: number; sample?: { used: number; total: number; level: string } }> => {
     const start = Date.now();
     const ProviderClass = PROVIDER_CLASSES[params.providerKey as ProviderType];
@@ -285,14 +303,19 @@ export function setupIpcHandlers(): void {
     let apiKey = params.apiKey || '';
     let webToken = params.webToken;
     let webUserAgent = params.webUserAgent;
+    let qoderCookieSource = params.qoderCookieSource;
+    let qoderSite = params.qoderSite;
     if (params.accountId) {
       const cfg = _getConfigManager()?.getConfig();
       const providerCfg = cfg?.providers?.[params.providerKey] as ProviderTypeConfig | undefined;
       const account = providerCfg?.accounts?.find(a => a.id === params.accountId);
       if (account) {
         if (!apiKey) apiKey = account.apiKey || '';
+        // webToken 入参优先（Qoder 手动模式可测粘贴框里未保存的新捕获），缺省回退已保存值
         if (!webToken) webToken = account.webToken;
         if (!webUserAgent) webUserAgent = account.webUserAgent;
+        if (!qoderCookieSource) qoderCookieSource = (account as any).qoderCookieSource;
+        if (!qoderSite) qoderSite = (account as any).qoderSite;
       }
     }
 
@@ -304,6 +327,8 @@ export function setupIpcHandlers(): void {
       webToken,
       webUserAgent,
       accountId: params.accountId,
+      qoderCookieSource,
+      qoderSite,
     };
 
     try {

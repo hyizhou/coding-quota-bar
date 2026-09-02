@@ -36,6 +36,9 @@ import {
   setMimoAuthDeps,
 } from './mimo-auth';
 import {
+  setQoderAuthDeps,
+} from './qoder-auth';
+import {
   setDataTransformDeps,
   buildUsageData,
 } from './data-transform';
@@ -113,6 +116,7 @@ async function initialize(): Promise<void> {
   setUpdateManagerDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setDeepseekAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setMimoAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
+  setQoderAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setDataTransformDeps({ getConfigManager, getScheduler });
   setIpcHandlersDeps({ getConfigManager, getScheduler });
 
@@ -177,21 +181,29 @@ async function initialize(): Promise<void> {
   scheduler.on('refreshed', async () => {
     trayManager?.stopLoading();
 
-    // 自动刷新 DeepSeek token；同步 MiMo 登录状态
+    // 自动刷新 DeepSeek token；同步 MiMo/Qoder 登录状态
     if (!isAutoRefreshingToken) {
       const aggregated = scheduler!.getAggregatedData();
       if (aggregated) {
         const expiredAccounts: Array<{ provider: string; accountId: string }> = [];
         const mimoSuccessAccounts: string[] = [];
+        const qoderExpiredAccounts: string[] = [];
+        const qoderSuccessAccounts: string[] = [];
         for (const [key, result] of aggregated.results) {
           const [provider, accountId] = key.split(':');
           if (result.error === 'TOKEN_EXPIRED') {
             if (provider === 'deepseek' || provider === 'mimo') {
               expiredAccounts.push({ provider, accountId });
             }
+            if (provider === 'qoder') {
+              qoderExpiredAccounts.push(accountId);
+            }
           } else if (provider === 'mimo' && !result.error) {
             // MiMo 成功获取数据，记录需要同步登录状态的账户
             mimoSuccessAccounts.push(accountId);
+          } else if (provider === 'qoder' && !result.error) {
+            // Qoder 成功获取数据，记录需要同步登录状态的账户
+            qoderSuccessAccounts.push(accountId);
           }
         }
 
@@ -207,6 +219,35 @@ async function initialize(): Promise<void> {
                 const account = mimo.accounts.find(a => a.id === accountId);
                 if (account && !account.mimoLoggedIn) {
                   account.mimoLoggedIn = true;
+                  needSave = true;
+                }
+              }
+              if (needSave) {
+                await configManager!.updateConfig({ providers });
+              }
+            }
+          }
+        }
+
+        // Qoder 登录状态同步：成功置真；TOKEN_EXPIRED（Provider 内已重试一次）置假
+        if (qoderSuccessAccounts.length > 0 || qoderExpiredAccounts.length > 0) {
+          const cfg = configManager?.getConfig();
+          if (cfg) {
+            const providers = structuredClone(cfg.providers);
+            const qoder = providers.qoder as import('../shared/types').ProviderTypeConfig;
+            if (qoder?.accounts) {
+              let needSave = false;
+              for (const accountId of qoderSuccessAccounts) {
+                const account = qoder.accounts.find(a => a.id === accountId);
+                if (account && !account.qoderLoggedIn) {
+                  account.qoderLoggedIn = true;
+                  needSave = true;
+                }
+              }
+              for (const accountId of qoderExpiredAccounts) {
+                const account = qoder.accounts.find(a => a.id === accountId);
+                if (account && account.qoderCookieSource !== 'manual' && account.qoderLoggedIn) {
+                  account.qoderLoggedIn = false;
                   needSave = true;
                 }
               }

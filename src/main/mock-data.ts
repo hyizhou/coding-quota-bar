@@ -307,6 +307,20 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
       },
     },
 
+    qoder: {
+      // 合并主额度 + 共享额度后的单一数字（协议文档 §7.3：120.5+10 / 500+100 = 21.75%）
+      used: 130.5,
+      total: 600,
+      expiresAt: '',
+      details: {
+        qoderRemaining: 469.5,
+        qoderUnit: 'credits',
+        quotas: [
+          { label: 'quota.qoderCredits', used: 130.5, total: 600, usageRate: 21.75, resetAt: new Date(now + 20 * DAY).toISOString(), limitType: 'qoder' },
+        ],
+      },
+    },
+
     // OpenRouter：Key 卡平铺结构，mock 覆盖全部场景（账户卡余额取自第一个场景）
     openrouter: [
       // 场景 1：正常在用——限额 25% + 每日重置 + 未来有效期

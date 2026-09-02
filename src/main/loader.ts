@@ -7,6 +7,7 @@ import { MiMoProvider } from '../providers/mimo';
 import { OpenCodeGoProvider } from '../providers/opencode-go';
 import { CodexProvider } from '../providers/codex';
 import { OpenRouterProvider } from '../providers/openrouter';
+import { QoderProvider } from '../providers/qoder';
 import buildConfig from '../../app.build';
 
 /**
@@ -22,6 +23,7 @@ export const PROVIDER_CLASSES = {
   'opencode-go': OpenCodeGoProvider,
   codex: CodexProvider,
   openrouter: OpenRouterProvider,
+  qoder: QoderProvider,
 } as const;
 
 /**
@@ -89,8 +91,8 @@ export class ProviderLoader {
         if ((authMode === 'apikey' || type === 'opencode-go') && !account.apiKey?.trim()) {
           continue;
         }
-        // MiMo 使用 Cookie 认证，Codex 读取本地 auth 文件，均不需要 webToken
-        if (authMode === 'weblogin' && type !== 'mimo' && type !== 'codex' && !account.webToken?.trim()) {
+        // MiMo/Qoder 使用 Cookie 认证（Qoder session 模式无 webToken），Codex 读取本地 auth 文件
+        if (authMode === 'weblogin' && type !== 'mimo' && type !== 'codex' && type !== 'qoder' && !account.webToken?.trim()) {
           continue;
         }
 
@@ -108,6 +110,8 @@ export class ProviderLoader {
               webToken: account.webToken,
               webUserAgent: account.webUserAgent,
               accountId: account.id,
+              ...(account.qoderCookieSource ? { qoderCookieSource: account.qoderCookieSource } : {}),
+              ...(account.qoderSite ? { qoderSite: account.qoderSite } : {}),
               ...(account.budget != null ? { budget: account.budget } : {}),
             },
           });
