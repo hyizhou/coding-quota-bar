@@ -145,6 +145,72 @@
                 </button>
               </div>
 
+              <!-- Qoder: 网页登录（session 持久化 Cookie）或手动粘贴捕获 -->
+              <div v-else-if="info.key === 'qoder'" class="web-login-section qoder-section">
+                <div class="qoder-source-row">
+                  <label class="mode-option" :class="{ active: account.qoderCookieSource !== 'manual' }">
+                    <input type="radio" value="session" v-model="account.qoderCookieSource" />
+                    <span>{{ $t('settings.qoderSourceSession') }}</span>
+                  </label>
+                  <label class="mode-option" :class="{ active: account.qoderCookieSource === 'manual' }">
+                    <input type="radio" value="manual" v-model="account.qoderCookieSource" />
+                    <span>{{ $t('settings.qoderSourceManual') }}</span>
+                  </label>
+                </div>
+
+                <template v-if="account.qoderCookieSource !== 'manual'">
+                  <div class="qoder-site-row">
+                    <span class="qoder-site-label">{{ $t('settings.qoderSiteLabel') }}</span>
+                    <label class="mode-option" :class="{ active: account.qoderSite !== 'china' }">
+                      <input type="radio" value="international" v-model="account.qoderSite" />
+                      <span>{{ $t('settings.qoderSiteInternational') }}</span>
+                    </label>
+                    <label class="mode-option" :class="{ active: account.qoderSite === 'china' }">
+                      <input type="radio" value="china" v-model="account.qoderSite" />
+                      <span>{{ $t('settings.qoderSiteChina') }}</span>
+                    </label>
+                  </div>
+                  <div class="qoder-login-row">
+                    <button
+                      class="web-login-btn"
+                      :class="{ active: account.webTokenStatus === 'active' }"
+                      @click="handleQoderWebLogin(account)"
+                    >
+                      {{ account.webTokenStatus === 'active'
+                         ? $t('settings.webLoginActive')
+                         : $t('settings.qoderLoginBtn') }}
+                    </button>
+                    <button
+                      v-if="account.webTokenStatus === 'active'"
+                      class="web-logout-btn"
+                      @click="handleQoderWebLogout(account)"
+                    >
+                      {{ $t('settings.webLogoutBtn') }}
+                    </button>
+                  </div>
+                </template>
+
+                <template v-else>
+                  <textarea
+                    class="form-input qoder-capture-input"
+                    rows="3"
+                    :placeholder="$t('settings.qoderManualPlaceholder')"
+                    v-model="account.qoderManualCapture"
+                    @input="onQoderCaptureInput(account)"
+                    @blur="validateQoderCapture(account)"
+                  ></textarea>
+                  <div v-if="account.qoderParse" class="qoder-parse-hint" :class="{ ok: account.qoderParse.ok }">
+                    <template v-if="account.qoderParse.ok">
+                      {{ $t('settings.qoderManualDetected', { site: qoderSiteName(account.qoderParse.site), n: account.qoderParse.cookieCount ?? 0 }) }}
+                    </template>
+                    <template v-else>{{ $t('settings.qoderManualInvalid') }}</template>
+                  </div>
+                  <div v-else-if="account.qoderHasWebToken && !account.qoderCaptureDirty" class="qoder-parse-hint ok">
+                    {{ $t('settings.qoderManualSaved') }}
+                  </div>
+                </template>
+              </div>
+
               <!-- DeepSeek 认证模式选择 -->
               <template v-else>
                 <div v-if="info.key === 'deepseek'" class="auth-mode-row">
@@ -377,6 +443,12 @@ interface AccountInfo {
   authMode: 'apikey' | 'weblogin'
   webTokenStatus: 'none' | 'active' | 'expired'
   apiKeyDirty: boolean
+  qoderCookieSource?: 'session' | 'manual'
+  qoderSite?: 'international' | 'china'
+  qoderManualCapture: string
+  qoderCaptureDirty: boolean
+  qoderHasWebToken: boolean
+  qoderParse?: { ok: boolean; site?: string; cookieCount?: number }
 }
 
 interface ProviderInfo {
@@ -493,17 +565,23 @@ function generateId(): string {
 function addAccount(providerKey: string) {
   const provider = providerList.value.find(p => p.key === providerKey)
   if (!provider) return
-  provider.accounts.push({
+  const account: AccountInfo = {
     id: generateId(),
     label: '',
     enabled: true,
     apiKey: '',
     maskedApiKey: '',
     showKey: false,
-    authMode: (providerKey === 'mimo' || providerKey === 'codex') ? 'weblogin' : 'apikey',
+    authMode: (providerKey === 'mimo' || providerKey === 'codex' || providerKey === 'qoder') ? 'weblogin' : 'apikey',
     webTokenStatus: 'none',
     apiKeyDirty: false,
-  })
+    qoderCookieSource: 'session',
+    qoderSite: 'international',
+    qoderManualCapture: '',
+    qoderCaptureDirty: false,
+    qoderHasWebToken: false,
+  }
+  provider.accounts.push(account)
 }
 
 function removeAccount(providerKey: string, index: number) {
@@ -605,6 +683,14 @@ async function testConnection(info: ProviderInfo, account: AccountInfo) {
     if (account.apiKeyDirty && account.apiKey) {
       params.apiKey = account.apiKey
     }
+    // Qoder：按当前 UI 模式测试；手动模式粘贴内容变更时直接测新捕获
+    if (info.key === 'qoder') {
+      params.qoderCookieSource = account.qoderCookieSource ?? 'session'
+      params.qoderSite = account.qoderSite ?? 'international'
+      if (account.qoderCookieSource === 'manual' && account.qoderCaptureDirty && account.qoderManualCapture.trim()) {
+        params.webToken = account.qoderManualCapture
+      }
+    }
     const result = await Promise.race([
       window.electronAPI.testProviderConnection(params),
       timeoutPromise,
@@ -664,6 +750,46 @@ async function handleMimoWebLogout(account: AccountInfo) {
   account.webTokenStatus = 'none'
   const freshConfig = await window.electronAPI.getConfig()
   if (freshConfig) currentConfig.value = freshConfig
+}
+
+async function handleQoderWebLogin(account: AccountInfo) {
+  const site = account.qoderSite === 'china' ? 'china' : 'international'
+  const result = await window.electronAPI.qoderWebLogin(account.id, site)
+  if (result.success) {
+    // 登录在主进程写入了配置，同步本地状态避免自动保存回退字段
+    account.qoderCookieSource = 'session'
+    account.qoderSite = site
+    account.webTokenStatus = 'active'
+    const freshConfig = await window.electronAPI.getConfig()
+    if (freshConfig) currentConfig.value = freshConfig
+  }
+}
+
+async function handleQoderWebLogout(account: AccountInfo) {
+  await window.electronAPI.qoderWebLogout(account.id)
+  account.webTokenStatus = 'none'
+  const freshConfig = await window.electronAPI.getConfig()
+  if (freshConfig) currentConfig.value = freshConfig
+}
+
+function onQoderCaptureInput(account: AccountInfo) {
+  account.qoderCaptureDirty = true
+}
+
+/** 失焦时解析粘贴内容，即时反馈识别站点与 Cookie 数量 */
+async function validateQoderCapture(account: AccountInfo) {
+  if (!account.qoderCaptureDirty) return
+  if (!account.qoderManualCapture.trim()) {
+    account.qoderParse = undefined
+    return
+  }
+  account.qoderParse = await window.electronAPI.qoderParseManual(account.qoderManualCapture)
+}
+
+function qoderSiteName(site?: string): string {
+  if (site === 'china') return t('settings.qoderSiteChina')
+  if (site === 'international') return t('settings.qoderSiteInternational')
+  return site ?? ''
 }
 
 function scheduleSave() {
@@ -742,13 +868,21 @@ onMounted(async () => {
       apiKey: '',
       showKey: false,
       budget: (account as any).budget ?? undefined,
-      authMode: (key === 'mimo' || key === 'codex') ? (account.authMode ?? 'weblogin') : (account.authMode ?? 'apikey'),
+      authMode: (key === 'mimo' || key === 'codex' || key === 'qoder') ? (account.authMode ?? 'weblogin') : (account.authMode ?? 'apikey'),
       webTokenStatus: key === 'mimo'
         ? ((account as any).mimoLoggedIn ? 'active' : 'none')
         : key === 'codex'
           ? 'none'
-          : (account.hasWebToken ? 'active' : 'none'),
+          : key === 'qoder'
+            ? ((account as any).qoderCookieSource !== 'manual' && (account as any).qoderLoggedIn ? 'active' : 'none')
+            : (account.hasWebToken ? 'active' : 'none'),
       apiKeyDirty: false,
+      qoderCookieSource: (account as any).qoderCookieSource ?? 'session',
+      qoderSite: (account as any).qoderSite ?? 'international',
+      qoderManualCapture: '',
+      qoderCaptureDirty: false,
+      qoderHasWebToken: !!account.hasWebToken,
+      qoderParse: undefined,
     }))
 
     // Codex: 确保始终有一个默认账户
@@ -876,6 +1010,15 @@ async function saveConfig() {
           update.apiKey = a.apiKey
           pendingKeys.push({ account: a, key: a.apiKey })
         }
+        if (info.key === 'qoder') {
+          update.qoderCookieSource = a.qoderCookieSource ?? 'session'
+          update.qoderSite = a.qoderSite ?? 'international'
+          // 粘贴内容存于 webToken（主进程加密）；仅在变更时发送，
+          // 或从 manual 切回 session 时清除残留捕获
+          if (a.qoderCaptureDirty || (a.qoderCookieSource !== 'manual' && a.qoderHasWebToken)) {
+            update.webToken = a.qoderCookieSource === 'manual' ? a.qoderManualCapture : ''
+          }
+        }
         return update
       })
     }
@@ -902,6 +1045,15 @@ async function saveConfig() {
       account.maskedApiKey = maskApiKey(key)
       account.apiKey = ''
       account.apiKeyDirty = false
+    }
+    // Qoder：保存成功后重置捕获编辑状态，回填"已保存"标记
+    for (const info of providerList.value) {
+      if (info.key !== 'qoder') continue
+      for (const account of info.accounts) {
+        if (!account.qoderCaptureDirty) continue
+        account.qoderCaptureDirty = false
+        account.qoderHasWebToken = account.qoderCookieSource === 'manual' && account.qoderManualCapture.trim() !== ''
+      }
     }
     locale.value = language.value
     saveStatus.value = t('settings.saved')
@@ -1221,6 +1373,45 @@ function handleUpdateClick() {
   display: flex;
   gap: 6px;
   align-items: center;
+}
+
+.qoder-section {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.qoder-source-row,
+.qoder-site-row,
+.qoder-login-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.qoder-site-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-right: 2px;
+}
+
+.qoder-capture-input {
+  width: 100%;
+  resize: vertical;
+  font-size: 11px;
+  line-height: 1.5;
+  font-family: inherit;
+  min-height: 0;
+}
+
+.qoder-parse-hint {
+  font-size: 10px;
+  color: #dc2626;
+  margin-top: -2px;
+}
+
+.qoder-parse-hint.ok {
+  color: #16a34a;
 }
 
 .web-login-btn {
