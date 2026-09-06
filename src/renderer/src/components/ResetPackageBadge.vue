@@ -34,15 +34,23 @@ function getResetPackageRows(): Array<{ label: string; value: string }> {
   return rows
 }
 
-/** 距离到期的剩余时间：如 "2天5小时后到期"、"5小时后到期"，已过期或无效时间返回空串 */
+/** 距离到期的剩余时间：不足一天时展示小时和分钟，已过期或无效时间返回空串 */
 function formatResetRemaining(iso: string | undefined): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (isNaN(d.getTime())) return ''
   const ms = d.getTime() - Date.now()
   if (ms <= 0) return t('provider.expired')
-  const hours = ms / 3_600_000
-  if (hours < 24) return t('provider.expiresInHours', { n: Math.max(1, Math.ceil(hours)) })
+  const totalMinutes = Math.ceil(ms / 60_000)
+  if (totalMinutes < 60) return t('provider.expiresInMinutes', { n: totalMinutes })
+
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (hours < 24) {
+    return minutes > 0
+      ? t('provider.expiresInHoursMinutes', { h: hours, m: minutes })
+      : t('provider.expiresInHours', { n: hours })
+  }
   return t('provider.expiresInDaysHours', { d: Math.floor(hours / 24), h: Math.floor(hours % 24) })
 }
 </script>

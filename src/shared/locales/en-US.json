@@ -156,7 +156,9 @@
     "expired": "Expired",
     "expiresToday": "Expires today",
     "expiresTomorrow": "Expires tomorrow",
+    "expiresInMinutes": "Expires in {n} min",
     "expiresInHours": "Expires in {n} hours",
+    "expiresInHoursMinutes": "Expires in {h} hr {m} min",
     "expiresInDaysHours": "Expires in {d}d {h}h",
     "expiresInDays": "Expires in {n} days"
   },
