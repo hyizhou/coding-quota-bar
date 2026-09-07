@@ -60,6 +60,19 @@ export interface UsageRecord {
 }
 
 /**
+ * Codex 使用统计（profiles 接口，日级 Token 用量）
+ */
+export interface CodexUsageStats {
+  todayTokens: number;
+  yesterdayTokens: number;
+  last30dTokens: number;
+  lifetimeTokens?: number;
+  peakDailyTokens?: number;
+  currentStreakDays?: number;
+  longestStreakDays?: number;
+}
+
+/**
  * MCP 工具调用历史记录
  */
 export interface McpUsageRecord {
@@ -171,6 +184,7 @@ export interface UsageResult {
     usageHistory?: UsageRecord[];        // 历史统计
     subscription?: SubscriptionInfo;     // 订阅信息
     resetPackages?: ResetPackages;       // 重置包（充值卡）统计
+    codexStats?: CodexUsageStats;        // Codex 使用统计
     [key: string]: unknown;
   };
 }

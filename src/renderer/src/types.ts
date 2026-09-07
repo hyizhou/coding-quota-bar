@@ -1,13 +1,14 @@
 /**
  * Renderer 进程共享类型定义
  */
-import type { ResetPackages, ResetPackageSummary, TrayDisplayRule, WindowPinMode, ZhipuDailyUsageItem, ZhipuUsageActivitySummary, ZhipuUsageStats } from '../../shared/types'
+import type { CodexUsageStats, ResetPackages, ResetPackageSummary, TrayDisplayRule, WindowPinMode, ZhipuDailyUsageItem, ZhipuUsageActivitySummary, ZhipuUsageStats } from '../../shared/types'
 
 export type { WindowPinMode }
 export type { ZhipuDailyUsageItem }
 export type { ZhipuUsageActivitySummary }
 export type { ZhipuUsageStats }
 export type { ResetPackages, ResetPackageSummary }
+export type { CodexUsageStats }
 
 export interface SubscriptionInfo {
   plan: string
@@ -107,6 +108,7 @@ export interface AccountUsageData {
   balance?: { total: string; gift: string; cash: string; frozen: string; currency: string }
   limitReached?: boolean
   codexOrgName?: string
+  codexStats?: CodexUsageStats
 }
 
 /**

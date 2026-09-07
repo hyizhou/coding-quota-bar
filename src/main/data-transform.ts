@@ -1,6 +1,6 @@
 import { getColorByPercent } from './tray';
 import { t as i18nT } from './i18n';
-import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, ResetPackages } from '../shared/types';
+import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, ResetPackages, CodexUsageStats } from '../shared/types';
 import type { Scheduler } from './scheduler';
 import type { ConfigManager } from './config';
 import buildConfig from '../../app.build';
@@ -59,6 +59,7 @@ export interface AccountDisplayData {
   balance?: { total: string; gift: string; cash: string; frozen: string; currency: string };
   limitReached?: boolean;
   codexOrgName?: string;
+  codexStats?: CodexUsageStats;
 }
 
 /**
@@ -215,6 +216,7 @@ function convertAccountData(
     balance: (result.details?.balance as { total: string; gift: string; cash: string; frozen: string; currency: string }) ?? undefined,
     limitReached: (result.details?.limitReached as boolean) ?? undefined,
     codexOrgName: (result.details?.codexOrgName as string) ?? undefined,
+    codexStats: (result.details?.codexStats as CodexUsageStats | undefined) ?? undefined,
   };
 }
 
