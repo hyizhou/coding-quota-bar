@@ -371,6 +371,14 @@ const chartOptions = computed(() => ({
       displayColors: true,
       boxWidth: 8,
       boxHeight: 8,
+      // 只显示当前时间点用量 > 0 的模型：Chart.js 默认不过滤 0 值项，
+      // 模型较多时 tooltip 超出画布高度会被裁剪，部分模型将不可见
+      filter: (item: { parsed: { y: number | null } }) => (item.parsed.y ?? 0) > 0,
+      // 按当前时间点用量降序排列，高用量模型优先展示
+      itemSort: (
+        a: { parsed: { y: number | null } },
+        b: { parsed: { y: number | null } }
+      ) => (b.parsed.y ?? 0) - (a.parsed.y ?? 0),
       callbacks: {
         label: (ctx: { dataset: { label?: string }; parsed: { y: number | null } }) =>
           `${ctx.dataset.label}: ${formatCount(ctx.parsed.y ?? 0)}`

@@ -265,7 +265,11 @@ const chartOptions = computed(() => ({
       cornerRadius: 4,
       displayColors: true,
       boxWidth: 8,
-      boxHeight: 8
+      boxHeight: 8,
+      // 悬浮时只显示当前时间点调用次数 > 0 的工具，并按次数降序排列，
+      // 与 TokenChart 的 tooltip 行为保持一致
+      filter: (item: any) => (item.raw as number) > 0,
+      itemSort: (a: any, b: any) => (b.raw as number) - (a.raw as number)
     }
   },
   scales: {

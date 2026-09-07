@@ -538,6 +538,10 @@ const costChartOpts = computed(() => ({
     },
     tooltip: {
       ...baseTooltipOpts(),
+      // 只显示当天花费 > 0 的模型并按花费降序：Chart.js 默认不过滤 0 值项，
+      // 模型较多时 tooltip 超出画布高度会被裁剪，部分模型将不可见
+      filter: (item: any) => (item.raw as number) > 0,
+      itemSort: (a: any, b: any) => (b.raw as number) - (a.raw as number),
       callbacks: {
         title(items: any) {
           const year = selectedYear.value
