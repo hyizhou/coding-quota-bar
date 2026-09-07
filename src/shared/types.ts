@@ -11,6 +11,9 @@ export interface AccountConfig {
   webToken?: string;                  // 加密的网页 session token（weblogin 模式）
   webUserAgent?: string;              // 登录时的浏览器 User-Agent，用于 API 请求伪装
   mimoLoggedIn?: boolean;             // MiMo 网页登录状态（Cookie 认证，无需 webToken）
+  qoderCookieSource?: 'session' | 'manual'; // Qoder 凭据来源：弹窗登录会话 / 手动粘贴捕获（默认 session）
+  qoderSite?: 'international' | 'china';    // Qoder 站点（账号不互通，默认 international）
+  qoderLoggedIn?: boolean;                  // Qoder 网页登录状态（Cookie 认证，无需 webToken）
 }
 
 /**
@@ -31,6 +34,8 @@ export interface ProviderConfig {
   webToken?: string;
   webUserAgent?: string;
   accountId?: string;
+  qoderCookieSource?: 'session' | 'manual';
+  qoderSite?: 'international' | 'china';
   [key: string]: unknown;
 }
 

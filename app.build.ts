@@ -13,5 +13,6 @@ export default {
     { key: 'opencode-go', available: true, envVar: 'OPENCODE_API_KEY', baseUrl: 'https://opencode.ai', websiteUrl: 'https://opencode.ai/auth' },
     { key: 'codex', available: true, envVar: '', baseUrl: 'https://chatgpt.com', websiteUrl: 'https://chatgpt.com/' },
     { key: 'openrouter', available: true, envVar: 'OPENROUTER_API_KEY', baseUrl: 'https://openrouter.ai', websiteUrl: 'https://openrouter.ai/settings/keys' },
+    { key: 'qoder', available: true, envVar: '', baseUrl: 'https://qoder.com', websiteUrl: 'https://qoder.com/account/usage' },
   ],
 } as const;

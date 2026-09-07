@@ -60,6 +60,8 @@ export interface AccountDisplayData {
   limitReached?: boolean;
   codexOrgName?: string;
   codexStats?: CodexUsageStats;
+  qoderRemaining?: number;
+  qoderUnit?: string;
 }
 
 /**
@@ -103,8 +105,8 @@ function hasEnabledProviders(): boolean {
     return Array.isArray(accounts) && accounts.some(a => {
       if (!a.enabled) return false;
       if (a.authMode === 'weblogin') {
-        // MiMo 使用 Cookie 认证，Codex 读取本地 auth 文件，均不需要 webToken
-        if (type === 'mimo' || type === 'codex') return true;
+        // MiMo/Qoder 使用 Cookie 认证（Qoder session 模式无 webToken），Codex 读取本地 auth 文件
+        if (type === 'mimo' || type === 'codex' || type === 'qoder') return true;
         return !!a.webToken?.trim();
       }
       return !!a.apiKey?.trim();
@@ -217,6 +219,8 @@ function convertAccountData(
     limitReached: (result.details?.limitReached as boolean) ?? undefined,
     codexOrgName: (result.details?.codexOrgName as string) ?? undefined,
     codexStats: (result.details?.codexStats as CodexUsageStats | undefined) ?? undefined,
+    qoderRemaining: (result.details?.qoderRemaining as number) ?? undefined,
+    qoderUnit: (result.details?.qoderUnit as string) ?? undefined,
   };
 }
 

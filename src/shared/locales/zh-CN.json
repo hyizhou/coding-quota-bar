@@ -45,6 +45,7 @@
     "updateAvailableBanner": "发现新版本 v{version}，点击查看",
     "deepseekTokenExpired": "DeepSeek 登录已过期，请重新登录",
     "mimoTokenExpired": "MiMo 登录已过期，请重新登录",
+    "qoderTokenExpired": "Qoder 会话无效或已过期，请重新登录或更新 Cookie",
     "opencodegoTokenExpired": "未登录 OpenCode Go",
     "codexTokenExpired": "未找到 Codex CLI 登录信息，请先安装并登录 Codex CLI",
     "reloginBtn": "重新登录",
@@ -140,6 +141,16 @@
     "authModeWebloginHint": "通过网页接口查询余额、用量和费用明细",
     "webLoginBtn": "登录 DeepSeek",
     "mimoLoginBtn": "登录 MiMo 平台",
+    "qoderLoginBtn": "登录 Qoder",
+    "qoderSourceSession": "网页登录",
+    "qoderSourceManual": "手动粘贴",
+    "qoderSiteLabel": "站点",
+    "qoderSiteInternational": "国际站",
+    "qoderSiteChina": "国内站",
+    "qoderManualPlaceholder": "粘贴 Cookie 头、cURL 命令或原始 HTTP 请求",
+    "qoderManualInvalid": "无法识别粘贴内容，请从 qoder.com / qoder.com.cn 抓包复制",
+    "qoderManualDetected": "已识别：{site}（{n} 个 Cookie）",
+    "qoderManualSaved": "已保存捕获内容",
     "webLoginActive": "已登录",
     "webLogoutBtn": "退出登录",
     "webTokenExpired": "登录已过期，点击重新登录",
@@ -238,7 +249,8 @@
     "openrouterTotalUsage": "累计消费",
     "openrouterResetDaily": "每日重置",
     "openrouterNoLimit": "未设置限额",
-    "openrouterKeyTitle": "Key {n}"
+    "openrouterKeyTitle": "Key {n}",
+    "qoderCredits": "额度"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",
@@ -260,7 +272,8 @@
     "mimo": "MiMo",
     "opencode-go": "OpenCode Go",
     "codex": "Codex",
-    "openrouter": "OpenRouter"
+    "openrouter": "OpenRouter",
+    "qoder": "Qoder"
   },
   "concurrencyTest": {
     "title": "并发测试",

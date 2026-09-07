@@ -109,6 +109,8 @@ export interface AccountUsageData {
   limitReached?: boolean
   codexOrgName?: string
   codexStats?: CodexUsageStats
+  qoderRemaining?: number
+  qoderUnit?: string
 }
 
 /**
@@ -134,7 +136,11 @@ export interface AccountConfig {
   label: string
   budget?: number
   authMode?: 'apikey' | 'weblogin'
+  webToken?: string
   hasWebToken?: boolean
+  qoderCookieSource?: 'session' | 'manual'
+  qoderSite?: 'international' | 'china'
+  qoderLoggedIn?: boolean
 }
 
 export interface ProviderTypeConfig {
@@ -278,6 +284,8 @@ export interface ElectronAPI {
     authMode?: 'apikey' | 'weblogin'
     webToken?: string
     webUserAgent?: string
+    qoderCookieSource?: 'session' | 'manual'
+    qoderSite?: 'international' | 'china'
   }) => Promise<ProviderConnectionTestResult>
   onConcurrencyTestProgress: (callback: (progress: ConcurrencyTestProgress) => void) => () => void
   onConcurrencyTestStream: (callback: (info: ConcurrencyTestStreamInfo) => void) => () => void
@@ -290,6 +298,10 @@ export interface ElectronAPI {
   mimoWebLogout: (accountId: string) => Promise<void>
   onMimoWebLoginSuccess: (callback: (accountId: string) => void) => () => void
   mimoFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<ModelTokenRecord[]>
+  qoderWebLogin: (accountId: string, site: string) => Promise<{ success: boolean; error?: string }>
+  qoderWebLogout: (accountId: string) => Promise<void>
+  onQoderLoginSuccess: (callback: (accountId: string) => void) => () => void
+  qoderParseManual: (text: string) => Promise<{ ok: boolean; site?: string; cookieCount?: number; error?: string }>
   zhipuFetchUsageStats: (accountId: string) => Promise<ZhipuUsageStats>
   showFeedback: () => void
 }

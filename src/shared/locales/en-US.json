@@ -45,6 +45,7 @@
     "updateAvailableBanner": "New version v{version} available, click to view",
     "deepseekTokenExpired": "DeepSeek login expired, please re-login",
     "mimoTokenExpired": "MiMo login expired, please re-login",
+    "qoderTokenExpired": "Qoder session invalid or expired, please re-login or update the Cookie",
     "opencodegoTokenExpired": "Not logged in to OpenCode Go",
     "codexTokenExpired": "Codex CLI auth not found. Please install and login to Codex CLI first",
     "reloginBtn": "Re-login",
@@ -140,6 +141,16 @@
     "authModeWebloginHint": "Query balance, usage and cost details via web API",
     "webLoginBtn": "Login to DeepSeek",
     "mimoLoginBtn": "Login to MiMo",
+    "qoderLoginBtn": "Login to Qoder",
+    "qoderSourceSession": "Web login",
+    "qoderSourceManual": "Paste Cookie",
+    "qoderSiteLabel": "Site",
+    "qoderSiteInternational": "International",
+    "qoderSiteChina": "China",
+    "qoderManualPlaceholder": "Paste a Cookie header, cURL command, or raw HTTP request",
+    "qoderManualInvalid": "Unrecognized capture. Copy it from qoder.com / qoder.com.cn DevTools",
+    "qoderManualDetected": "Detected: {site} ({n} cookies)",
+    "qoderManualSaved": "Capture saved",
     "webLoginActive": "Logged In",
     "webLogoutBtn": "Log Out",
     "webTokenExpired": "Login expired, click to re-login",
@@ -238,7 +249,8 @@
     "openrouterTotalUsage": "Total Spend",
     "openrouterResetDaily": "Resets daily",
     "openrouterNoLimit": "No limit set",
-    "openrouterKeyTitle": "Key {n}"
+    "openrouterKeyTitle": "Key {n}",
+    "qoderCredits": "Credits"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",
@@ -260,7 +272,8 @@
     "mimo": "MiMo",
     "opencode-go": "OpenCode Go",
     "codex": "Codex",
-    "openrouter": "OpenRouter"
+    "openrouter": "OpenRouter",
+    "qoder": "Qoder"
   },
   "concurrencyTest": {
     "title": "Concurrency Test",

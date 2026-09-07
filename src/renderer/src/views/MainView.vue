@@ -138,7 +138,7 @@
                 <template v-if="getActiveAccount(activeProvider)!.error === 'TOKEN_EXPIRED'">
                   <template v-if="activeProvider.key === 'codex'">{{ $t('main.codexTokenExpired') }}</template>
                   <template v-else>
-                    {{ activeProvider.key === 'mimo' ? $t('main.mimoTokenExpired') : activeProvider.key === 'opencode-go' ? $t('main.opencodegoTokenExpired') : $t('main.deepseekTokenExpired') }}
+                    {{ activeProvider.key === 'mimo' ? $t('main.mimoTokenExpired') : activeProvider.key === 'opencode-go' ? $t('main.opencodegoTokenExpired') : activeProvider.key === 'qoder' ? $t('main.qoderTokenExpired') : $t('main.deepseekTokenExpired') }}
                     <button class="relogin-btn" @click="$emit('open-settings')">{{ $t('main.reloginBtn') }}</button>
                   </template>
                 </template>
@@ -152,6 +152,7 @@
               <MiMoSection v-else-if="activeProvider.key === 'mimo'" :account="getActiveAccount(activeProvider)!" />
               <OpenCodeGoSection v-else-if="activeProvider.key === 'opencode-go'" :account="getActiveAccount(activeProvider)!" />
               <CodexSection v-else-if="activeProvider.key === 'codex'" :account="getActiveAccount(activeProvider)!" />
+              <QoderSection v-else-if="activeProvider.key === 'qoder'" :account="getActiveAccount(activeProvider)!" />
               <OpenRouterSection v-else-if="activeProvider.key === 'openrouter'" :accounts="activeProvider.accounts" />
               <DeepSeekServiceStatus v-if="activeProvider.key === 'deepseek' && !getActiveAccount(activeProvider)!.error" :account="getActiveAccount(activeProvider)!" />
             </template>
@@ -188,6 +189,7 @@ import DeepSeekServiceStatus from '../components/DeepSeekServiceStatus.vue'
 import OpenCodeGoSection from '../components/OpenCodeGoSection.vue'
 import CodexSection from '../components/CodexSection.vue'
 import OpenRouterSection from '../components/OpenRouterSection.vue'
+import QoderSection from '../components/QoderSection.vue'
 import type { ProviderUsageData, AccountUsageData, UsageState, WindowPinMode } from '../types'
 import { useTheme } from '../composables/useTheme'
 

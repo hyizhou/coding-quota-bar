@@ -123,6 +123,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     authMode?: 'apikey' | 'weblogin';
     webToken?: string;
     webUserAgent?: string;
+    qoderCookieSource?: 'session' | 'manual';
+    qoderSite?: 'international' | 'china';
   }) => ipcRenderer.invoke('test-provider-connection', params),
 
   /**
@@ -189,6 +191,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   mimoFetchMonthUsage: (accountId: string, year: number, month: number) =>
     ipcRenderer.invoke('mimo-fetch-month-usage', accountId, year, month),
+
+  /**
+   * Qoder 网页登录
+   */
+  qoderWebLogin: (accountId: string, site: string) =>
+    ipcRenderer.invoke('qoder-web-login', accountId, site),
+  qoderWebLogout: (accountId: string) => ipcRenderer.invoke('qoder-web-logout', accountId),
+  onQoderLoginSuccess: (callback: (accountId: string) => void) =>
+    subscribe('qoder-login-success', callback),
+
+  /**
+   * Qoder 手动粘贴内容解析（识别站点/Cookie 数量/错误原因）
+   */
+  qoderParseManual: (text: string) =>
+    ipcRenderer.invoke('qoder-parse-manual', text),
 
   /**
    * 智谱每日用量历史（用量统计页按需加载）
