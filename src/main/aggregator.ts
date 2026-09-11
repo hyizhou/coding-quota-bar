@@ -144,6 +144,8 @@ export class UsageAggregator {
    * 计算单个 result 的剩余百分比
    */
   static calcPercent(result: UsageResult): number {
+    // noQuota：服务端明确返回无额度，剩余按 0% 计
+    if (result.noQuota) return 0;
     // total 为 0 表示额度刚重置或无法计算，视为 100%（充足）
     return result.total > 0 ? ((result.total - result.used) / result.total) * 100 : 100;
   }

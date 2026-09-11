@@ -56,12 +56,15 @@ function mapApiResponse(status: number, body: string): UsageResult {
       used: snapshot.usedCredits,
       total: snapshot.totalCredits,
       expiresAt: '',
+      // 协议解析保证 total=0 时 used/remaining 必为 0（否则抛错），此处即"无套餐账户"
+      noQuota: snapshot.totalCredits === 0,
       details: {
         quotas: [{
           label: 'quota.qoderCredits',
           used: snapshot.usedCredits,
           total: snapshot.totalCredits,
-          usageRate: snapshot.usagePercentage,
+          // 无套餐时统一显示 100%（红色），与托盘 0% 剩余保持一致
+          usageRate: snapshot.totalCredits === 0 ? 100 : snapshot.usagePercentage,
           resetAt: snapshot.resetsAt ?? '',
         }],
         qoderRemaining: snapshot.remainingCredits,

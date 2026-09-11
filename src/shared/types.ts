@@ -184,6 +184,7 @@ export interface UsageResult {
   expiresAt: string;     // 到期时间 ISO 8601
   level?: string;        // 套餐等级，如 "lite"、"pro"、"max"；智谱为代际组合 "V1 PRO"、"V3 PRO"
   error?: string;        // 错误信息（如 key 无效、网络异常等）
+  noQuota?: boolean;     // 服务端明确返回无额度（如 Qoder 无套餐账户），托盘按 0% 剩余计算
   details?: {
     quotas?: QuotaItem[];                // 多个额度项
     usageHistory?: UsageRecord[];        // 历史统计
