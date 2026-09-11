@@ -179,6 +179,8 @@
   "quota": {
     "tokensLimit": "{n}小时额度",
     "tokensLimitDaily": "周额度",
+    "creditsLimit": "{n}小时积分",
+    "creditsLimitWeekly": "周积分",
     "mcpUsage": "MCP 用量",
     "minimaxDaily": "5小时额度",
     "minimaxDailyUnlimited": "5小时额度（∞）",

@@ -57,7 +57,7 @@ function hasPerformanceData(acc: AccountUsageData): boolean {
   return acc.performanceHistory7d.length > 0 || acc.performanceHistory15d.length > 0 || acc.performanceHistory30d.length > 0
 }
 
-const LIMIT_TYPE_ORDER: Record<string, number> = { mcp: 0, tokens: 1 }
+const LIMIT_TYPE_ORDER: Record<string, number> = { mcp: 0, tokens: 1, credits: 1 }
 
 function getQuotaRows(quotas: QuotaItem[]): QuotaItem[][] {
   const groupMap = new Map<string, QuotaItem[]>()
@@ -73,17 +73,18 @@ function getQuotaRows(quotas: QuotaItem[]): QuotaItem[][] {
     }
   }
 
-  // 按 LIMIT_TYPE_ORDER 排序分组，确保 mcp 始终在 tokens 前面
+  // 按 LIMIT_TYPE_ORDER 排序分组，确保 mcp 始终在 tokens/credits 前面
   const sortedTypes = [...groupMap.keys()].sort(
     (a, b) => (LIMIT_TYPE_ORDER[a] ?? 99) - (LIMIT_TYPE_ORDER[b] ?? 99)
   )
   for (const type of sortedTypes) {
     const group = groupMap.get(type)!
-    // tokens 组内：小时额度在前，周额度在后
-    if (type === 'tokens') {
+    // tokens/credits 组内：小时窗口在前，周窗口在后
+    if (type === 'tokens' || type === 'credits') {
+      const hourlyLabel = type === 'tokens' ? 'quota.tokensLimit' : 'quota.creditsLimit'
       group.sort((a, b) => {
-        if (a.label === 'quota.tokensLimit' && b.label !== 'quota.tokensLimit') return -1
-        if (a.label !== 'quota.tokensLimit' && b.label === 'quota.tokensLimit') return 1
+        if (a.label === hourlyLabel && b.label !== hourlyLabel) return -1
+        if (a.label !== hourlyLabel && b.label === hourlyLabel) return 1
         return 0
       })
     }

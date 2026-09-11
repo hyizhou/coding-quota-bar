@@ -166,14 +166,14 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
 
   return {
     zhipu: {
-      used: 250000,
-      total: 1000000,
+      used: 2585,
+      total: 28000,
       expiresAt: new Date(now + 5 * HOUR).toISOString(),
-      level: 'pro',
+      level: 'V3 PRO',
       details: {
         remainingPercent: 75,
         subscription: {
-          plan: '老 Pro',
+          plan: 'V3 PRO',
           status: 'VALID',
           currentRenewTime: '2026-03-03',
           nextRenewTime: '2027-03-03',
@@ -188,8 +188,8 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
         },
         quotas: [
           { label: 'quota.mcpUsage', used: 12, total: 50, usageRate: 24, resetAt: new Date(new Date(now).getFullYear(), new Date(now).getMonth() + 1, 1).toISOString(), limitType: 'mcp' },
-          { label: 'quota.tokensLimit', labelParams: { n: 5 }, used: 250000, total: 1000000, usageRate: 25, resetAt: new Date(now + 5 * HOUR).toISOString(), limitType: 'tokens' },
-          { label: 'quota.tokensLimitDaily', labelParams: { n: 7 }, used: 6000, total: 15000, usageRate: 40, resetAt: new Date(now + 7 * DAY).toISOString(), limitType: 'tokens' }
+          { label: 'quota.creditsLimit', labelParams: { n: 5 }, used: 2585, total: 28000, usageRate: 9, resetAt: new Date(now + 5 * HOUR).toISOString(), limitType: 'credits' },
+          { label: 'quota.creditsLimitWeekly', used: 58386, total: 140000, usageRate: 42, resetAt: new Date(now + 3 * DAY).toISOString(), limitType: 'credits' }
         ],
         history1d: generateZhipuHourlyHistory(24),
         history7d: generateZhipuHourlyHistory(168),

@@ -149,7 +149,7 @@ export interface PerformanceRecord {
  * 订阅信息
  */
 export interface SubscriptionInfo {
-  plan: string;             // 套餐标识，如 "新 pro"、"老 lite"
+  plan: string;             // 套餐标识，如 "V1 PRO"、"V3 PRO"（代际 + 等级）
   status: string;           // 订阅状态，如 "VALID"
   currentRenewTime: string;  // 当前订阅日期
   nextRenewTime: string;    // 下次续费日期
@@ -182,7 +182,7 @@ export interface UsageResult {
   used: number;          // 已用 token 数（兼容旧逻辑）
   total: number;         // 总量
   expiresAt: string;     // 到期时间 ISO 8601
-  level?: string;        // 套餐等级，如 "lite"、"pro"、"max"
+  level?: string;        // 套餐等级，如 "lite"、"pro"、"max"；智谱为代际组合 "V1 PRO"、"V3 PRO"
   error?: string;        // 错误信息（如 key 无效、网络异常等）
   details?: {
     quotas?: QuotaItem[];                // 多个额度项

@@ -8,11 +8,11 @@ import pricingConfig from './zai-pricing.json';
  */
 interface ZhipuLimitItem {
   type: string;
-  unit: number;            // 重置周期单位（3=小时, 5=月）
+  unit: number;            // 重置周期单位（1=天, 3=小时, 5=月, 6=周）
   number: number;          // 重置周期数值
-  usage?: number;          // 总额度（TIME_LIMIT 有此字段）
-  currentValue?: number;   // 已用量（TIME_LIMIT 有此字段）
-  remaining?: number;      // 剩余量（TIME_LIMIT 有此字段）
+  usage?: number;          // 总额度（TIME_LIMIT / CREDIT_LIMIT 有此字段）
+  currentValue?: number;   // 已用量（TIME_LIMIT / CREDIT_LIMIT 有此字段）
+  remaining?: number;      // 剩余量（TIME_LIMIT / CREDIT_LIMIT 有此字段）
   percentage: number;      // 已用百分比 0-100
   nextResetTime: number;   // 下次重置时间 (毫秒时间戳)
   usageDetails?: Array<{ modelCode: string; usage: number }>;
@@ -136,6 +136,13 @@ interface ZhipuSubscriptionResponse {
 }
 
 /**
+ * quota/limit 响应存在两种顶层形态：
+ * - v1/v2 套餐：{code, data: {limits, level}} 包裹结构
+ * - v3 积分套餐：直接返回 limits 顶层数组（无 code/data 包裹、无 level）
+ */
+type ZhipuQuotaBody = ZhipuQuotaResponse | ZhipuLimitItem[];
+
+/**
  * 智谱 customer-package-reset API 响应类型（重置包/充值卡）
  */
 interface ZhipuResetPackageItem {
@@ -189,10 +196,24 @@ function getLimitLabel(item: ZhipuLimitItem): { label: string; labelParams?: Rec
     }
     return { label: 'quota.tokensLimitDaily' };
   }
+  if (item.type === 'CREDIT_LIMIT') {
+    if (item.unit === 3) {
+      return { label: 'quota.creditsLimit', labelParams: { n: item.number } };
+    }
+    return { label: 'quota.creditsLimitWeekly' };
+  }
   if (item.type === 'TIME_LIMIT') {
     return { label: 'quota.mcpUsage' };
   }
   return { label: item.type };
+}
+
+/**
+ * 判断是否为周窗口。v1/v2 周额度编码为 unit=1（天）× number=7；
+ * v3 积分周窗口编码为 unit=6（周）× number=1，两种编码并存需同时兼容
+ */
+function isWeeklyWindow(item: ZhipuLimitItem): boolean {
+  return (item.unit === 1 && item.number === 7) || (item.unit === 6 && item.number === 1);
 }
 
 /**
@@ -287,14 +308,21 @@ export class ZhipuProvider implements Provider {
     };
 
     // 1. 获取配额数据（关键请求，单独用更高重试次数的 client）
-    const quotaResp = await this.criticalClient.getJson<ZhipuQuotaResponse>(
+    const quotaBody = await this.criticalClient.getJson<ZhipuQuotaBody>(
       `${baseUrl}/api/monitor/usage/quota/limit`,
       headers
     );
 
-    if (quotaResp.code !== 200 || !quotaResp.data?.limits?.length) {
-      throw new Error(`[Zhipu] Quota API error: ${quotaResp.msg || 'Unknown error'}`);
+    // 两种顶层形态归一化：包裹结构校验业务 code，顶层数组校验非空
+    if (Array.isArray(quotaBody)) {
+      if (!quotaBody.length) {
+        throw new Error('[Zhipu] Quota API error: Empty limits');
+      }
+    } else if (quotaBody.code !== 200 || !quotaBody.data?.limits?.length) {
+      throw new Error(`[Zhipu] Quota API error: ${quotaBody.msg || 'Unknown error'}`);
     }
+    const limits = Array.isArray(quotaBody) ? quotaBody : quotaBody.data!.limits!;
+    const quotaLevel = Array.isArray(quotaBody) ? undefined : quotaBody.data?.level;
 
     // 2. 并发请求三个时间范围的模型使用记录
     // ≤7天返回小时级数据，>7天返回天级数据
@@ -381,7 +409,7 @@ export class ZhipuProvider implements Provider {
     const resetResp = pick<ZhipuResetPackageResponse>(10);
 
     // 3. 构建额度列表
-    const quotas = quotaResp.data.limits.map(item => {
+    const quotas = limits.map(item => {
       const { label, labelParams } = getLimitLabel(item);
       if (item.type === 'TOKENS_LIMIT') {
         const used = resp1d?.data?.totalUsage?.totalModelCallCount ?? 0;
@@ -396,6 +424,18 @@ export class ZhipuProvider implements Provider {
           limitType: 'tokens' as const
         };
       }
+      // v3 积分额度：usage/currentValue 即积分总量/已用积分，直接取值
+      if (item.type === 'CREDIT_LIMIT') {
+        return {
+          label,
+          labelParams,
+          used: item.currentValue ?? 0,
+          total: item.usage ?? 0,
+          usageRate: item.percentage,
+          resetAt: toISODate(item.nextResetTime),
+          limitType: 'credits' as const
+        };
+      }
       return {
         label,
         labelParams,
@@ -408,20 +448,24 @@ export class ZhipuProvider implements Provider {
     });
 
     // 4. 构建各时间范围的历史记录和总量
-    const tokenLimit = quotaResp.data.limits.find(item => item.type === 'TOKENS_LIMIT');
-    const tokenQuota = tokenLimit ? quotas[quotaResp.data.limits.indexOf(tokenLimit)] : undefined;
+    // 主指标（托盘/顶层 used/total）：v1/v2 取 TOKENS_LIMIT（次数额度），v3 取 CREDIT_LIMIT（积分额度），均取首个（5 小时窗口）
+    const primaryLimit = limits.find(item => item.type === 'TOKENS_LIMIT' || item.type === 'CREDIT_LIMIT');
+    const primaryQuota = primaryLimit ? quotas[limits.indexOf(primaryLimit)] : undefined;
 
     // 5. 解析订阅信息
-    const hasWeeklyLimit = quotaResp.data.limits.some(
-      item => item.type === 'TOKENS_LIMIT' && item.unit === 1 && item.number === 7
-    );
-    const subscription = this.parseSubscription(subResp, quotaResp.data.level ?? '', hasWeeklyLimit);
+    // 套餐代际：v3 积分制 → V3；v1/v2 按有无周窗口区分（v1 仅 5 小时额度，v2 增加周额度）
+    const planVersion = limits.some(item => item.type === 'CREDIT_LIMIT') ? 'V3'
+      : limits.some(item => item.type === 'TOKENS_LIMIT' && isWeeklyWindow(item)) ? 'V2'
+      : 'V1';
+    // 展示名 = 代际 + 等级，如 "V3 PRO"；v3 顶层数组无 level 时仅显示代际 "V3"
+    const planLabel = quotaLevel ? `${planVersion} ${quotaLevel.toUpperCase()}` : planVersion;
+    const subscription = this.parseSubscription(subResp, planLabel);
 
     return {
-      used: tokenQuota?.used ?? 0,
-      total: tokenQuota?.total ?? 0,
-      expiresAt: tokenLimit ? toISODate(tokenLimit.nextResetTime) : '',
-      level: quotaResp.data.level,
+      used: primaryQuota?.used ?? 0,
+      total: primaryQuota?.total ?? 0,
+      expiresAt: primaryLimit ? toISODate(primaryLimit.nextResetTime) : '',
+      level: planLabel,
       details: {
         quotas,
         subscription,
@@ -635,8 +679,9 @@ export class ZhipuProvider implements Provider {
    * status='VALID' 是确定的取值，优先用它定位当前订阅。
    * 找不到 VALID 时，因 status 其他取值含义未知，用 nextRenewTime 兜底
    * 判断是否已过期，到期即标记为 EXPIRED，让 UI 显示"已过期"徽章。
+   * planLabel 为代际 + 等级的展示名（如 "V3 PRO"），由调用方基于配额接口代际识别组装。
    */
-  private parseSubscription(resp: ZhipuSubscriptionResponse | null, level: string, hasWeeklyLimit: boolean): SubscriptionInfo | undefined {
+  private parseSubscription(resp: ZhipuSubscriptionResponse | null, planLabel: string): SubscriptionInfo | undefined {
     if (!resp?.data?.length) return undefined;
 
     // 优先 status='VALID'；找不到时取 nextRenewTime 最晚且有效的一条
@@ -658,7 +703,7 @@ export class ZhipuProvider implements Provider {
       && !isNaN(renewTime.getTime()) && renewTime.getTime() < Date.now();
 
     return {
-      plan: hasWeeklyLimit ? `新 ${level.toUpperCase()}` : `老 ${level.toUpperCase()}`,
+      plan: planLabel,
       status: isExpired ? 'EXPIRED' : 'VALID',
       currentRenewTime: sub.currentRenewTime,
       nextRenewTime: sub.nextRenewTime,

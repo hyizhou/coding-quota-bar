@@ -179,6 +179,8 @@
   "quota": {
     "tokensLimit": "{n}-Hour Quota",
     "tokensLimitDaily": "Weekly Quota",
+    "creditsLimit": "{n}-Hour Credits",
+    "creditsLimitWeekly": "Weekly Credits",
     "mcpUsage": "MCP Usage",
     "minimaxDaily": "5-Hour Quota",
     "minimaxDailyUnlimited": "5-Hour Quota (∞)",
