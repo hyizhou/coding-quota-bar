@@ -34,6 +34,7 @@ async function checkLoginInPage(win: BrowserWindow): Promise<boolean> {
 
 /**
  * MiMo 网页登录：弹出 BrowserWindow 让用户登录，通过 Cookie 认证
+ * 打开时已登录则进入浏览模式：仅同步登录状态、保留窗口，不自动关闭。
  */
 export function mimoWebLogin(accountId: string): Promise<{ success: boolean; error?: string }> {
   return new Promise((resolve) => {
@@ -89,62 +90,86 @@ export function mimoWebLogin(accountId: string): Promise<{ success: boolean; err
 
     let resolved = false;
     let checkInterval: ReturnType<typeof setInterval> | null = null;
+    // 首次加载的检测结果用于区分"打开时已登录"与"打开后登录"
+    let firstCheck = true;
+    let checking = false;
+
+    const stopInterval = () => {
+      if (checkInterval) {
+        clearInterval(checkInterval);
+        checkInterval = null;
+      }
+    };
+
+    /** 保存认证状态到配置 */
+    const saveLoginState = async (): Promise<void> => {
+      if (!_getConfigManager()) return;
+      const config = _getConfigManager()!.getConfig();
+      if (!config) return;
+      const providers = structuredClone(config.providers);
+      const mimo = providers.mimo as ProviderTypeConfig;
+      if (!mimo?.accounts) return;
+      const account = mimo.accounts.find(a => a.id === accountId);
+      if (!account) return;
+      account.authMode = 'weblogin';
+      account.mimoLoggedIn = true;
+      await _getConfigManager()!.updateConfig({ providers });
+    };
+
+    const notifyLoginSuccess = () => {
+      const popup = _getPopupWindow();
+      if (popup && !popup.isDestroyed()) {
+        popup.webContents.send('mimo-web-login-success', accountId);
+      }
+    };
 
     // 登录成功后的处理
     const onLoginSuccess = async () => {
       console.log('[MiMo] Login detected!');
       resolved = true;
-      if (checkInterval) clearInterval(checkInterval);
-
-      // 保存认证状态到配置
-      if (_getConfigManager()) {
-        const config = _getConfigManager()!.getConfig();
-        if (config) {
-          const providers = structuredClone(config.providers);
-          const mimo = providers.mimo as ProviderTypeConfig;
-          if (mimo?.accounts) {
-            const account = mimo.accounts.find(a => a.id === accountId);
-            if (account) {
-              account.authMode = 'weblogin';
-              account.mimoLoggedIn = true;
-              await _getConfigManager()!.updateConfig({ providers });
-            }
-          }
-        }
-      }
-
+      stopInterval();
+      await saveLoginState();
       win.close();
       loginWindows.delete(accountId);
-
-      const popup = _getPopupWindow();
-      if (popup && !popup.isDestroyed()) {
-        popup.webContents.send('mimo-web-login-success', accountId);
-      }
-
+      notifyLoginSuccess();
       resolve({ success: true });
     };
 
-    // 页面加载完成后轮询检测登录
+    // 页面加载后检测登录：打开时已登录 → 浏览模式（仅同步状态，窗口保留不自动关闭）；
+    // 打开后登录 → 保存状态并关闭窗口
     win.webContents.on('did-finish-load', () => {
+      if (resolved || win.isDestroyed()) return;
       const url = win.webContents.getURL();
       console.log(`[MiMo] did-finish-load: ${url}`);
 
-      if (checkInterval) clearInterval(checkInterval);
+      stopInterval();
+      if (checking) return;
+      checking = true;
+      const atOpen = firstCheck;
+      firstCheck = false;
 
       // 立即检查一次
-      checkLoginInPage(win).then((loggedIn) => {
+      checkLoginInPage(win).then(async (loggedIn) => {
+        checking = false;
         if (loggedIn && !resolved) {
-          onLoginSuccess();
+          if (atOpen) {
+            resolved = true;
+            await saveLoginState();
+            notifyLoginSuccess();
+            resolve({ success: true });
+          } else {
+            await onLoginSuccess();
+          }
           return;
         }
         // 没登录则开始轮询
         checkInterval = setInterval(async () => {
           if (resolved || win.isDestroyed()) {
-            if (checkInterval) clearInterval(checkInterval);
+            stopInterval();
             return;
           }
           const ok = await checkLoginInPage(win);
-          if (ok) await onLoginSuccess();
+          if (ok && !resolved) await onLoginSuccess();
         }, 2000);
       });
     });

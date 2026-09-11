@@ -64,7 +64,10 @@ async function updateAccount(accountId: string, patch: Partial<import('../shared
   await configManager.updateConfig({ providers });
 }
 
-/** Qoder 网页登录：弹出 BrowserWindow 让用户登录，通过 Cookie 认证 */
+/**
+ * Qoder 网页登录：弹出 BrowserWindow 让用户登录，通过 Cookie 认证。
+ * 打开时已登录则进入浏览模式：仅同步登录状态、保留窗口，不自动关闭。
+ */
 export function qoderWebLogin(accountId: string, site: QoderSite): Promise<{ success: boolean; error?: string }> {
   return new Promise((resolve) => {
     const existing = loginWindows.get(accountId);
@@ -99,43 +102,68 @@ export function qoderWebLogin(accountId: string, site: QoderSite): Promise<{ suc
 
     let resolved = false;
     let checkInterval: ReturnType<typeof setInterval> | null = null;
+    // 首次站内加载的检测结果用于区分"打开时已登录"与"打开后登录"
+    let firstCheck = true;
+    let checking = false;
 
-    const onLoginSuccess = async () => {
-      console.log('[Qoder] Login detected!');
-      resolved = true;
-      if (checkInterval) clearInterval(checkInterval);
+    const stopInterval = () => {
+      if (checkInterval) {
+        clearInterval(checkInterval);
+        checkInterval = null;
+      }
+    };
 
-      await updateAccount(accountId, {
-        authMode: 'weblogin',
-        qoderCookieSource: 'session',
-        qoderSite: site,
-        qoderLoggedIn: true,
-      });
+    const saveLoginState = () => updateAccount(accountId, {
+      authMode: 'weblogin',
+      qoderCookieSource: 'session',
+      qoderSite: site,
+      qoderLoggedIn: true,
+    });
 
-      win.close();
-      loginWindows.delete(accountId);
-
+    const notifyLoginSuccess = () => {
       const popup = _getPopupWindow();
       if (popup && !popup.isDestroyed()) {
         popup.webContents.send('qoder-login-success', accountId);
       }
+    };
 
+    const onLoginSuccess = async () => {
+      console.log('[Qoder] Login detected!');
+      resolved = true;
+      stopInterval();
+      await saveLoginState();
+      win.close();
+      loginWindows.delete(accountId);
+      notifyLoginSuccess();
       resolve({ success: true });
     };
 
-    // 页面加载完成后轮询检测登录（仅当窗口停在 Qoder 站点时）
+    // 页面加载后检测登录（仅当窗口停在 Qoder 站点时）：
+    // 打开时已登录 → 浏览模式（仅同步状态，窗口保留不自动关闭）；打开后登录 → 保存状态并关闭窗口
     win.webContents.on('did-finish-load', () => {
-      if (checkInterval) clearInterval(checkInterval);
-      if (resolved || !onQoderSite(win)) return;
+      if (resolved || win.isDestroyed() || !onQoderSite(win)) return;
+      stopInterval();
+      if (checking) return;
+      checking = true;
+      const atOpen = firstCheck;
+      firstCheck = false;
 
-      checkLoginInPage(win).then((loggedIn) => {
+      checkLoginInPage(win).then(async (loggedIn) => {
+        checking = false;
         if (loggedIn && !resolved) {
-          onLoginSuccess();
+          if (atOpen) {
+            resolved = true;
+            await saveLoginState();
+            notifyLoginSuccess();
+            resolve({ success: true });
+          } else {
+            await onLoginSuccess();
+          }
           return;
         }
         checkInterval = setInterval(async () => {
           if (resolved || win.isDestroyed() || !onQoderSite(win)) {
-            if (checkInterval) clearInterval(checkInterval);
+            stopInterval();
             return;
           }
           const ok = await checkLoginInPage(win);

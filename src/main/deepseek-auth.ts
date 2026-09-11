@@ -17,7 +17,8 @@ export function setDeepseekAuthDeps(deps: {
 }
 
 /**
- * DeepSeek 网页登录：弹出 BrowserWindow 让用户登录，提取 session token
+ * DeepSeek 网页登录：弹出 BrowserWindow 让用户登录，提取 session token。
+ * 打开时已登录则进入浏览模式：仅同步 token、保留窗口，不自动关闭。
  */
 export function deepseekWebLogin(accountId: string): Promise<{ success: boolean; error?: string }> {
   return new Promise((resolve) => {
@@ -61,72 +62,102 @@ export function deepseekWebLogin(accountId: string): Promise<{ success: boolean;
     });
 
     let resolved = false;
+    // 登录模式：宽限期后仍无 token 才进入，此后检测到 token 视为用户完成登录，保存并关闭窗口
+    let loginMode = false;
+    let checkInterval: ReturnType<typeof setInterval> | null = null;
+    const openedAt = Date.now();
+    // token 由 SPA 加载后异步写入 localStorage，打开后宽限期内出现 token 一律视为"打开时已登录"
+    const BROWSE_GRACE_MS = 5000;
 
-    // 检查并保存 token
-    async function checkAndSaveToken(): Promise<boolean> {
-      if (resolved || win.isDestroyed()) return false;
+    const stopInterval = () => {
+      if (checkInterval) {
+        clearInterval(checkInterval);
+        checkInterval = null;
+      }
+    };
+
+    /** 读取页面 localStorage 中的 session token */
+    async function readToken(): Promise<string | null> {
       try {
         const tokenJson = await win.webContents.executeJavaScript(
           `localStorage.getItem('userToken')`
         );
-        if (!tokenJson) return false;
-
+        if (!tokenJson) return null;
         const parsed = JSON.parse(tokenJson);
         const token = parsed?.value;
-        if (!token) return false;
-
-        resolved = true;
-
-        if (_getConfigManager()) {
-          const config = _getConfigManager()!.getConfig();
-          if (config) {
-            const providers = structuredClone(config.providers);
-            const ds = providers.deepseek as ProviderTypeConfig;
-            if (ds?.accounts) {
-              const account = ds.accounts.find(a => a.id === accountId);
-              if (account) {
-                account.webToken = token;
-                account.authMode = 'weblogin';
-                account.webUserAgent = win.webContents.getUserAgent();
-                await _getConfigManager()!.updateConfig({ providers });
-              }
-            }
-          }
-        }
-
-        win.close();
-        loginWindows.delete(accountId);
-
-        const popup = _getPopupWindow();
-        if (popup && !popup.isDestroyed()) {
-          popup.webContents.send('deepseek-web-login-success', accountId);
-        }
-
-        resolve({ success: true });
-        return true;
+        return typeof token === 'string' && token ? token : null;
       } catch {
-        return false;
+        return null;
       }
     }
 
-    // 页面加载完成后立即检查 token
+    /** 保存 token 到配置 */
+    async function saveToken(token: string): Promise<void> {
+      if (!_getConfigManager()) return;
+      const config = _getConfigManager()!.getConfig();
+      if (!config) return;
+      const providers = structuredClone(config.providers);
+      const ds = providers.deepseek as ProviderTypeConfig;
+      if (!ds?.accounts) return;
+      const account = ds.accounts.find(a => a.id === accountId);
+      if (!account) return;
+      account.webToken = token;
+      account.authMode = 'weblogin';
+      account.webUserAgent = win.webContents.getUserAgent();
+      await _getConfigManager()!.updateConfig({ providers });
+    }
+
+    // 检测 token：宽限期内出现 → 浏览模式（同步 token、保留窗口）；登录模式下出现 → 保存并关闭
+    async function pollToken(): Promise<void> {
+      if (resolved || win.isDestroyed()) return;
+      const token = await readToken();
+      if (!token) return;
+
+      if (!loginMode) {
+        resolved = true;
+        stopInterval();
+        // 已登录：仅同步可能轮换过的 token，窗口保留供浏览
+        const stored = _getConfigManager()?.getConfig()
+          ?.providers?.deepseek?.accounts?.find(a => a.id === accountId)?.webToken;
+        if (token !== stored) await saveToken(token);
+        resolve({ success: true });
+        return;
+      }
+
+      resolved = true;
+      stopInterval();
+      await saveToken(token);
+
+      win.close();
+      loginWindows.delete(accountId);
+
+      const popup = _getPopupWindow();
+      if (popup && !popup.isDestroyed()) {
+        popup.webContents.send('deepseek-web-login-success', accountId);
+      }
+
+      resolve({ success: true });
+    }
+
+    // 页面（含登录后跳转）加载完成立即检测一次，缩短登录成功的响应延迟
     win.webContents.on('did-finish-load', () => {
-      checkAndSaveToken();
+      pollToken();
     });
 
-    // 轮询检查（兜底）
-    const checkInterval = setInterval(() => {
+    // 轮询检测 token，并驱动宽限期结束后切入登录模式
+    checkInterval = setInterval(async () => {
       if (win.isDestroyed()) {
-        clearInterval(checkInterval);
+        stopInterval();
         loginWindows.delete(accountId);
         if (!resolved) resolve({ success: false, error: 'Window closed' });
         return;
       }
-      checkAndSaveToken();
+      if (!loginMode && Date.now() - openedAt >= BROWSE_GRACE_MS) loginMode = true;
+      await pollToken();
     }, 1000);
 
     win.on('closed', () => {
-      clearInterval(checkInterval);
+      stopInterval();
       loginWindows.delete(accountId);
       if (!resolved) resolve({ success: false, error: 'Window closed' });
     });
