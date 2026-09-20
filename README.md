@@ -41,6 +41,7 @@ Hover over or click the icon to pop up the detail panel and view the usage detai
 | **Codex** | Reads the local Codex CLI login | Primary/secondary rate-limit windows, code review quota, credits balance, rate-limit resets, usage stats, subscription expiry |
 | **OpenRouter** | API Key (multiple keys) | Per-key limits and expiry, total balance, today/week/month spend, lifetime top-ups and spend |
 | **Qoder** | Web login / pasted cookie | big model credits quota (primary + shared quotas merged), reset countdown; supports the global and China sites |
+| **StepFun** | Web login / pasted token | Step Plan quotas (rate windows or credits + top-up packs), account balance, credit usage charts |
 
 ### Multi-Account Management
 

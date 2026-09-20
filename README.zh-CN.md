@@ -41,6 +41,7 @@ Windows 托盘工具，实时监控各 AI 平台 Coding Plan 用量。
 | **Codex** | 读取本机 Codex CLI 登录 | 主窗口/次窗口限流、代码审查额度、Credits 余额、限流重置次数、使用统计、订阅到期 |
 | **OpenRouter** | API Key（多 Key） | Key 限额与有效期、总余额、今日/本周/本月消费、累计充值与消费 |
 | **Qoder** | 网页登录 / 手动粘贴 Cookie | big model credits 额度（主额度 + 共享额度合并）、重置倒计时，支持国际站/国内站 |
+| **阶跃星辰（StepFun）** | 网页登录 / 手动粘贴 Token | Step Plan 套餐额度（速率窗口 / 积分+加油包）、账户余额、积分用量图表 |
 
 ### 多账户管理
 
