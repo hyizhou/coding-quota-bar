@@ -267,8 +267,8 @@
     "stepfunGiftBalance": "赠送金额",
     "stepfunCashBalance": "充值金额",
     "stepfunTopupPack": "加油包",
-    "stepfunTopupRemaining": "剩余 {n}%",
-    "stepfunTopupExpire": "到期时间: {time}",
+    "stepfunTopupAmounts": "已用 {used} · 未用 {left}",
+    "stepfunCreditAmounts": "已用 {used} · 未用 {left}",
     "stepfunCreditsUsage": "积分用量"
   },
   "tray": {

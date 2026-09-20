@@ -267,8 +267,8 @@
     "stepfunGiftBalance": "Gift",
     "stepfunCashBalance": "Top-up",
     "stepfunTopupPack": "Top-up pack",
-    "stepfunTopupRemaining": "Remaining {n}%",
-    "stepfunTopupExpire": "Expires: {time}",
+    "stepfunTopupAmounts": "Used {used} · Left {left}",
+    "stepfunCreditAmounts": "Used {used} · Left {left}",
     "stepfunCreditsUsage": "Credits usage"
   },
   "tray": {

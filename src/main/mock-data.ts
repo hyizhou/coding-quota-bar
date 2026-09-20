@@ -391,6 +391,8 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
         stepfunTopupBuckets: [
           { total: 200000000, residual: 50000000, expireAt: new Date(now + 29 * DAY + 11 * HOUR).toISOString() },
         ],
+        // 订阅桶绝对量（Credit 总卡左下角具体用量）：1,564,025,076 / 1,600,000,000 = 剩余 97.75%
+        stepfunCreditAmounts: { total: 1600000000, residual: 1564025076 },
         subscription: {
           plan: 'Plus',
           status: 'VALID',

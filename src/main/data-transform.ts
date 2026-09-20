@@ -63,6 +63,7 @@ export interface AccountDisplayData {
   qoderRemaining?: number;
   qoderUnit?: string;
   stepfunTopupBuckets?: Array<{ total: number; residual: number; expireAt: string }>;
+  stepfunCreditAmounts?: { total: number; residual: number };
 }
 
 /**
@@ -223,6 +224,7 @@ function convertAccountData(
     qoderRemaining: (result.details?.qoderRemaining as number) ?? undefined,
     qoderUnit: (result.details?.qoderUnit as string) ?? undefined,
     stepfunTopupBuckets: (result.details?.stepfunTopupBuckets as AccountDisplayData['stepfunTopupBuckets']) ?? undefined,
+    stepfunCreditAmounts: (result.details?.stepfunCreditAmounts as AccountDisplayData['stepfunCreditAmounts']) ?? undefined,
   };
 }
 

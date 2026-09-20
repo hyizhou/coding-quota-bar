@@ -302,9 +302,11 @@ interface StepFunPlanSnapshot {
   mainUsed: number;
   mainTotal: number;
   topupBuckets: StepFunTopupBucket[];
+  creditAmounts?: { total: number; residual: number };
 }
 
 /** PlanCreditBucket.Type 枚举：0=UNSPECIFIED, 1=SUBSCRIPTION(订阅), 2=TOPUP(加油包) */
+const SUBSCRIPTION_BUCKET_TYPE = 1;
 const TOPUP_BUCKET_TYPE = 2;
 
 /**
@@ -378,8 +380,8 @@ function parseRateLimit(body: string): StepFunPlanSnapshot {
       });
     }
 
-    // 总额度卡直接取响应的 subscription_credit_left_rate（官方页「Credit用量」同款字段），
-    // 不自行合并桶；仅当订阅比例缺失时才退回 Σ桶比例 → 充值比例
+    // 总额度卡取响应的 subscription_credit_left_rate（官方页「Credit用量」同款字段）；
+    // 订阅比例缺失时依次退回 Σ桶比例 → 充值比例
     let remaining: number | null = null;
     const subscriptionRate = credit ? toNumber(credit.subscription_credit_left_rate) : null;
     if (subscriptionRate != null) {
@@ -408,12 +410,19 @@ function parseRateLimit(body: string): StepFunPlanSnapshot {
         limitType: 'stepfun-credits',
     }];
 
-    // 加油包桶单独下发（对齐官方：只取 TYPE_TOPUP，订阅桶不参与展示）
+    // 加油包桶单独下发（对齐官方：仅 TYPE_TOPUP 桶展示为加油包；
+    // 订阅桶的量经 subscription_credit_left_rate 与 creditAmounts 下发）
     const topupBuckets = buckets
       .filter(b => b.type === TOPUP_BUCKET_TYPE)
       .map(b => ({ total: b.total, residual: b.residual, expireAt: b.expireAt }));
 
-    return { quotas, mainUsed: used, mainTotal: 100, topupBuckets };
+    // 订阅桶（type=1）的绝对量：供 Credit 总卡显示具体用量数值；订阅桶缺失时不显示数值
+    const subscriptionBucket = buckets.find(b => b.type === SUBSCRIPTION_BUCKET_TYPE);
+    const creditAmounts = subscriptionBucket
+      ? { total: subscriptionBucket.total, residual: subscriptionBucket.residual }
+      : undefined;
+
+    return { quotas, mainUsed: used, mainTotal: 100, topupBuckets, creditAmounts };
   }
 
   // 无法判定套餐形态：不渲染额度，避免误报已用尽
@@ -502,6 +511,7 @@ function buildUsageResult(
   if (planStatus) details.subscription = planStatus.subscription;
   if (balance) details.balance = balance;
   if (snapshot.topupBuckets.length > 0) details.stepfunTopupBuckets = snapshot.topupBuckets;
+  if (snapshot.creditAmounts) details.stepfunCreditAmounts = snapshot.creditAmounts;
 
   return {
     used: snapshot.mainUsed,

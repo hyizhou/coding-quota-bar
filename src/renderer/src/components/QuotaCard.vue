@@ -9,6 +9,7 @@
       <div class="progress-fill" :class="color" :style="{ width: usageRate + '%' }"></div>
     </div>
     <div class="card-bottom">
+      <span v-if="infoText" class="card-info">{{ infoText }}</span>
       <span class="reset-text">{{ resetText ?? formatReset(resetAt) }}</span>
     </div>
   </div>
@@ -25,6 +26,7 @@ const props = defineProps<{
   color: 'green' | 'yellow' | 'red'
   hideBar?: boolean
   resetText?: string   // 自定义重置时间文案；传入时优先于内置 formatReset（如需带时分的完整时间）
+  infoText?: string    // 左下角附加文案（如已用/未用额度）；不传时完全不影响现有布局
 }>()
 
 const { t, locale } = useI18n()
@@ -100,6 +102,13 @@ function formatReset(iso: string): string {
   display: flex;
   justify-content: flex-end;
   align-items: center;
+}
+
+.card-info {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  margin-right: auto;
 }
 
 .reset-text {
