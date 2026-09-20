@@ -366,22 +366,19 @@ function parseRateLimit(body: string): StepFunPlanSnapshot {
       });
     }
 
-    // 总额度卡对齐官方「Credit 用量」口径：合并剩余率（桶 → 订阅比例 → 充值比例），
-    // 重置时间取订阅积分重置时间（官方页同一字段）
+    // 总额度卡直接取响应的 subscription_credit_left_rate（官方页「Credit用量」同款字段），
+    // 不自行合并桶；仅当订阅比例缺失时才退回 Σ桶比例 → 充值比例
     let remaining: number | null = null;
-    if (allBucketsValid && buckets.length > 0) {
+    const subscriptionRate = credit ? toNumber(credit.subscription_credit_left_rate) : null;
+    if (subscriptionRate != null) {
+      remaining = subscriptionRate;
+    } else if (allBucketsValid && buckets.length > 0) {
       const totalSum = buckets.reduce((sum, b) => sum + b.total, 0);
       const residualSum = buckets.reduce((sum, b) => sum + b.residual, 0);
       if (totalSum > 0) remaining = residualSum / totalSum;
-    }
-    if (remaining == null) {
-      const subscription = credit ? toNumber(credit.subscription_credit_left_rate) : null;
-      if (subscription != null) {
-        remaining = subscription;
-      } else {
-        const topup = credit ? toNumber(credit.topup_credit_left_rate) : null;
-        if (topup != null) remaining = topup;
-      }
+    } else {
+      const topup = credit ? toNumber(credit.topup_credit_left_rate) : null;
+      if (topup != null) remaining = topup;
     }
 
     if (remaining == null) {

@@ -376,16 +376,16 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
     },
 
     stepfun: {
-      // 积分型套餐示例：「Credit 用量」总卡（Σresidual/Σtotal 合并口径）+ 订阅桶/加油包桶明细，
+      // 积分型套餐示例：「Credit 用量」总卡直接取 subscription_credit_left_rate（不含加油包）+ 桶明细，
       // 含余额与按小时×模型用量历史
-      used: 10.33,
+      used: 2.25,
       total: 100,
       expiresAt: new Date(now + 44 * DAY).toISOString(),
       level: 'Plus',
       details: {
         quotas: [
-          // 总卡：Σ剩余 1,614M / Σ总量 1,800M = 剩余 89.67% → 已用 10.33%
-          { label: 'quota.stepfunCredits', used: 10.33, total: 100, usageRate: 10.33, resetAt: new Date(now + 30 * DAY).toISOString(), displayUnit: 'percent', limitType: 'stepfun-credits' },
+          // 总卡：subscription_credit_left_rate = 0.9775 → 剩余 97.75%（官方页同款字段，不合并桶）
+          { label: 'quota.stepfunCredits', used: 2.25, total: 100, usageRate: 2.25, resetAt: new Date(now + 30 * DAY).toISOString(), displayUnit: 'percent', limitType: 'stepfun-credits' },
           // 订阅桶：1,564M / 1,600M = 剩余 97.75%
           { label: 'quota.stepfunBucketType', labelParams: { n: 1 }, used: 2.25, total: 100, usageRate: 2.25, resetAt: new Date(now + 30 * DAY).toISOString(), displayUnit: 'percent', limitType: 'stepfun-credit-bucket' },
           // 加油包桶：50M / 200M = 剩余 25%，独立 30 天有效期
