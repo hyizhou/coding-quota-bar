@@ -155,6 +155,8 @@
     "stepfunLoginBtn": "登录阶跃星辰",
     "stepfunSourceSession": "网页登录",
     "stepfunSourceManual": "手动粘贴 Token",
+    "stepfunSessionDesc": "弹窗登录平台，登录态自动保持",
+    "stepfunManualDesc": "粘贴浏览器 Cookie 中的 Oasis-Token",
     "stepfunManualPlaceholder": "粘贴浏览器 Cookie 中的 Oasis-Token（三段式 JWT）",
     "stepfunManualInvalid": "Token 格式不正确，应为三段式 JWT",
     "stepfunManualSaved": "已保存 Token",

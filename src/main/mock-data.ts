@@ -388,8 +388,8 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
         subscription: {
           plan: 'Plus',
           status: 'VALID',
-          currentRenewTime: new Date(now - 16 * DAY).toISOString(),
-          nextRenewTime: new Date(now + 44 * DAY).toISOString(),
+          currentRenewTime: new Date(now - 16 * DAY).toISOString().slice(0, 10),
+          nextRenewTime: new Date(now + 44 * DAY).toISOString().slice(0, 10),
           autoRenew: false,
           actualPrice: 99,
           renewPrice: 99,

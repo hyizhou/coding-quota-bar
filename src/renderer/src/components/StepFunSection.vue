@@ -1,6 +1,7 @@
 <!--
   StepFun（阶跃星辰）额度区块：额度卡片（速率窗口/积分双形态自适应）+ 积分桶明细
-  + 订阅信息 + 账户余额 + 按小时×模型的积分用量图表（7/30 天，30 天按需加载）。
+  + 账户余额 + 按小时×模型的积分用量图表（7/30 天，30 天按需加载）。
+  订阅信息由 MainView 顶部的套餐徽章 + 悬停浮窗统一展示。
 -->
 <template>
   <div>
@@ -40,26 +41,6 @@
         <span v-if="bucket.expireAt" class="bucket-expire">
           {{ t('quota.stepfunBucketExpire', { date: formatDate(bucket.expireAt) }) }}
         </span>
-      </div>
-    </div>
-
-    <!-- 订阅信息 -->
-    <div v-if="account.subscription" class="subscription-card card">
-      <div class="sub-row">
-        <span class="sub-label">{{ t('subscription.plan') }}</span>
-        <span class="sub-value">{{ account.subscription.plan || '-' }}</span>
-      </div>
-      <div class="sub-row" v-if="account.subscription.nextRenewTime">
-        <span class="sub-label">{{ t('subscription.nextRenew') }}</span>
-        <span class="sub-value">{{ formatDate(account.subscription.nextRenewTime) }}</span>
-      </div>
-      <div class="sub-row">
-        <span class="sub-label">{{ t('subscription.autoRenew') }}</span>
-        <span class="sub-value">{{ account.subscription.autoRenew ? t('subscription.yes') : t('subscription.no') }}</span>
-      </div>
-      <div class="sub-row" v-if="account.subscription.actualPrice">
-        <span class="sub-label">{{ t('subscription.actualPrice') }}</span>
-        <span class="sub-value">{{ currencySymbol }}{{ account.subscription.actualPrice }}</span>
       </div>
     </div>
 
@@ -196,8 +177,7 @@ onMounted(() => {
 
 <style scoped>
 .balance-card,
-.buckets-card,
-.subscription-card {
+.buckets-card {
   margin-bottom: 6px;
 }
 
@@ -265,24 +245,6 @@ onMounted(() => {
 .bucket-expire {
   font-size: 10px;
   color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-.sub-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 2px 0;
-}
-
-.sub-label {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.sub-value {
-  font-size: 11px;
-  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 

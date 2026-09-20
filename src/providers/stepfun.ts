@@ -282,6 +282,12 @@ function formatLocalHour(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}`;
 }
 
+/** 本地日期字符串 YYYY-MM-DD（订阅卡片/浮窗展示用，去除时分秒噪音） */
+function formatLocalDate(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 /** ---------- 数据映射 ---------- */
 
 interface StepFunPlanSnapshot {
@@ -422,14 +428,16 @@ function parseSubscription(body: string | null): {
     const level = typeof subscription.name === 'string' ? subscription.name : '';
     const durationDays = toNumber(def.duration_days) ?? 0;
     const billingCycle = durationDays >= 360 ? 'yearly' : durationDays >= 28 && durationDays <= 31 ? 'monthly' : (durationDays > 0 ? `${durationDays}d` : '');
+    const activatedAt = toNumber(subscription.activated_at) ?? 0;
+    const expiredAt = toNumber(subscription.expired_at) ?? 0;
     return {
       level,
       expiresAt: secondsToIso(subscription.expired_at),
       subscription: {
         plan: level,
         status: toNumber(subscription.status) === 1 ? 'VALID' : 'EXPIRED',
-        currentRenewTime: secondsToIso(subscription.activated_at),
-        nextRenewTime: secondsToIso(subscription.expired_at),
+        currentRenewTime: activatedAt > 0 ? formatLocalDate(new Date(activatedAt * 1000)) : '',
+        nextRenewTime: expiredAt > 0 ? formatLocalDate(new Date(expiredAt * 1000)) : '',
         autoRenew: subscription.auto_renew === true,
         actualPrice: fenToYuan(def.price),
         renewPrice: fenToYuan(def.original_price),

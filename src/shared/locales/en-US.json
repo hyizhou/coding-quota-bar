@@ -155,6 +155,8 @@
     "stepfunLoginBtn": "Login to StepFun",
     "stepfunSourceSession": "Web login",
     "stepfunSourceManual": "Paste token",
+    "stepfunSessionDesc": "Opens the platform login window; session stays signed in",
+    "stepfunManualDesc": "Paste the Oasis-Token from browser cookies",
     "stepfunManualPlaceholder": "Paste the Oasis-Token from browser cookies (three-part JWT)",
     "stepfunManualInvalid": "Invalid token format, expected a three-part JWT",
     "stepfunManualSaved": "Token saved",
