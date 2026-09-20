@@ -262,11 +262,11 @@
     "qoderCredits": "Credits",
     "stepfun5hWindow": "5-hour window",
     "stepfunWeeklyWindow": "Weekly window",
-    "stepfunCredits": "Plan credits",
+    "stepfunCredits": "Credit usage",
     "stepfunBalance": "Account balance",
     "stepfunGiftBalance": "Gift",
     "stepfunCashBalance": "Top-up",
-    "stepfunBucketType": "Bucket {n}",
+    "stepfunBucketType": "Credit bucket {n}",
     "stepfunCreditsUsage": "Credits usage"
   },
   "tray": {

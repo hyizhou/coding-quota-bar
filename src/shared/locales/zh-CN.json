@@ -262,11 +262,11 @@
     "qoderCredits": "额度",
     "stepfun5hWindow": "5小时窗口",
     "stepfunWeeklyWindow": "周窗口",
-    "stepfunCredits": "套餐积分",
+    "stepfunCredits": "Credit 用量",
     "stepfunBalance": "账户余额",
     "stepfunGiftBalance": "赠送金额",
     "stepfunCashBalance": "充值金额",
-    "stepfunBucketType": "积分桶 {n}",
+    "stepfunBucketType": "Credit 桶 {n}",
     "stepfunCreditsUsage": "积分用量"
   },
   "tray": {

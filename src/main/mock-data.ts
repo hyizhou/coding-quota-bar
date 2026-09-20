@@ -376,15 +376,14 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
     },
 
     stepfun: {
-      // 积分型套餐示例：积分桶以额度进度卡展示（Σresidual/Σtotal 供托盘主指标），含余额与按小时×模型用量历史
-      used: 16.87,
+      // 积分型套餐示例：对齐官方「Credit 用量」口径（单桶 Σresidual/Σtotal），含余额与按小时×模型用量历史
+      used: 2.25,
       total: 100,
       expiresAt: new Date(now + 44 * DAY).toISOString(),
       level: 'Plus',
       details: {
         quotas: [
-          { label: 'quota.stepfunBucketType', labelParams: { n: 1 }, used: 3.59, total: 100, usageRate: 3.59, resetAt: new Date(now + 12 * DAY).toISOString(), displayUnit: 'percent', limitType: 'stepfun-credit-bucket' },
-          { label: 'quota.stepfunBucketType', labelParams: { n: 2 }, used: 70, total: 100, usageRate: 70, resetAt: new Date(now + 90 * DAY).toISOString(), displayUnit: 'percent', limitType: 'stepfun-credit-bucket' },
+          { label: 'quota.stepfunCredits', used: 2.25, total: 100, usageRate: 2.25, resetAt: new Date(now + 30 * DAY).toISOString(), displayUnit: 'percent', limitType: 'stepfun-credits' },
         ],
         subscription: {
           plan: 'Plus',

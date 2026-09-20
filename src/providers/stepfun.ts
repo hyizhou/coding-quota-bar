@@ -366,40 +366,22 @@ function parseRateLimit(body: string): StepFunPlanSnapshot {
       });
     }
 
-    // 桶即额度：全部桶合法时每个桶直接生成一张进度卡（比例取桶内 residual/total），
-    // 合并比例仅供托盘主指标（used/total）使用
-    const totalSum = buckets.reduce((sum, b) => sum + b.total, 0);
-    if (allBucketsValid && buckets.length > 0 && totalSum > 0) {
-      const residualSum = buckets.reduce((sum, b) => sum + b.residual, 0);
-      const remaining = residualSum / totalSum;
-      const used = Math.min(100, Math.max(0, (1 - remaining) * 100));
-      return {
-        quotas: buckets.map((bucket, idx) => {
-          const bucketUsed = Math.min(100, Math.max(0, (1 - bucket.residual / bucket.total) * 100));
-          return {
-            label: 'quota.stepfunBucketType',
-            labelParams: { n: idx + 1 },
-            used: bucketUsed,
-            total: 100,
-            usageRate: bucketUsed,
-            resetAt: bucket.nextResetAt || bucket.expireAt,
-            displayUnit: 'percent' as const,
-            limitType: 'stepfun-credit-bucket',
-          };
-        }),
-        mainUsed: used,
-        mainTotal: 100,
-      };
-    }
-
-    // 无桶或桶数据不全时退回订阅比例，再退充值比例
+    // 总额度卡对齐官方「Credit 用量」口径：合并剩余率（桶 → 订阅比例 → 充值比例），
+    // 重置时间取订阅积分重置时间（官方页同一字段）
     let remaining: number | null = null;
-    const subscription = credit ? toNumber(credit.subscription_credit_left_rate) : null;
-    if (subscription != null) {
-      remaining = subscription;
-    } else {
-      const topup = credit ? toNumber(credit.topup_credit_left_rate) : null;
-      if (topup != null) remaining = topup;
+    if (allBucketsValid && buckets.length > 0) {
+      const totalSum = buckets.reduce((sum, b) => sum + b.total, 0);
+      const residualSum = buckets.reduce((sum, b) => sum + b.residual, 0);
+      if (totalSum > 0) remaining = residualSum / totalSum;
+    }
+    if (remaining == null) {
+      const subscription = credit ? toNumber(credit.subscription_credit_left_rate) : null;
+      if (subscription != null) {
+        remaining = subscription;
+      } else {
+        const topup = credit ? toNumber(credit.topup_credit_left_rate) : null;
+        if (topup != null) remaining = topup;
+      }
     }
 
     if (remaining == null) {
@@ -407,8 +389,7 @@ function parseRateLimit(body: string): StepFunPlanSnapshot {
       return { quotas: [], mainUsed: 0, mainTotal: 0 };
     }
     const used = Math.min(100, Math.max(0, (1 - remaining) * 100));
-    return {
-      quotas: [{
+    const quotas: QuotaItem[] = [{
         label: 'quota.stepfunCredits',
         used,
         total: 100,
@@ -416,10 +397,26 @@ function parseRateLimit(body: string): StepFunPlanSnapshot {
         resetAt: credit ? secondsToIso(credit.subscription_credit_reset_time) : '',
         displayUnit: 'percent',
         limitType: 'stepfun-credits',
-      }],
-      mainUsed: used,
-      mainTotal: 100,
-    };
+    }];
+
+    // 多桶时（订阅 + 充值并存）追加桶明细卡；单桶与总数完全相同，不重复展示
+    if (allBucketsValid && buckets.length >= 2) {
+      for (const [idx, bucket] of buckets.entries()) {
+        const bucketUsed = Math.min(100, Math.max(0, (1 - bucket.residual / bucket.total) * 100));
+        quotas.push({
+          label: 'quota.stepfunBucketType',
+          labelParams: { n: idx + 1 },
+          used: bucketUsed,
+          total: 100,
+          usageRate: bucketUsed,
+          resetAt: bucket.nextResetAt || bucket.expireAt,
+          displayUnit: 'percent',
+          limitType: 'stepfun-credit-bucket',
+        });
+      }
+    }
+
+    return { quotas, mainUsed: used, mainTotal: 100 };
   }
 
   // 无法判定套餐形态：不渲染额度，避免误报已用尽
