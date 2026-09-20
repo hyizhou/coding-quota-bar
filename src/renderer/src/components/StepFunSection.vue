@@ -1,6 +1,7 @@
 <!--
-  StepFun（阶跃星辰）额度区块：额度卡片（速率窗口/积分双形态自适应）+ 积分桶明细
-  + 账户余额 + 按小时×模型的积分用量图表（7/30 天，30 天按需加载）。
+  StepFun（阶跃星辰）额度区块：额度卡片（速率窗口型/积分型双形态自适应）
+  + 账户余额 + 按小时×模型的积分用量图表（7/30 天，30 天按需加载）；
+  积分桶直接以额度进度卡形式出现在 quotas 中。
   订阅信息由 MainView 顶部的套餐徽章 + 悬停浮窗统一展示。
 -->
 <template>
@@ -30,18 +31,6 @@
         :reset-at="quota.resetAt"
         :color="quota.color"
       />
-    </div>
-
-    <!-- 积分桶明细（仅积分型套餐返回） -->
-    <div v-if="buckets.length" class="buckets-card card">
-      <div class="buckets-title">{{ t('quota.stepfunCreditBuckets') }}</div>
-      <div v-for="(bucket, idx) in buckets" :key="idx" class="bucket-row">
-        <span class="bucket-name">{{ t('quota.stepfunBucketType', { n: idx + 1 }) }}</span>
-        <span class="bucket-value">{{ formatCount(bucket.residual) }} / {{ formatCount(bucket.total) }}</span>
-        <span v-if="bucket.expireAt" class="bucket-expire">
-          {{ t('quota.stepfunBucketExpire', { date: formatDate(bucket.expireAt) }) }}
-        </span>
-      </div>
     </div>
 
     <!-- 用量图表：按小时×模型的积分消耗 -->
@@ -89,8 +78,6 @@ const props = defineProps<{
   account: AccountUsageData
 }>()
 
-const buckets = computed(() => props.account.stepfunCreditBuckets ?? [])
-
 const currencySymbol = computed(() => {
   const c = props.account.balance?.currency ?? props.account.currency
   return c === 'CNY' ? '¥' : '$'
@@ -101,23 +88,6 @@ const hasBalanceDetail = computed(() => {
   if (!b) return false
   return parseFloat(b.gift) > 0 || parseFloat(b.cash) > 0
 })
-
-function formatCount(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(2)}K`
-  return `${n}`
-}
-
-function formatDate(iso: string): string {
-  try {
-    const d = new Date(iso)
-    if (isNaN(d.getTime())) return iso
-    return d.toLocaleDateString(locale.value, { year: 'numeric', month: 'short', day: 'numeric' })
-  } catch {
-    return iso
-  }
-}
 
 // ===== 用量图表（7d 数据随刷新下发；30d 按需经 IPC 拉取，跨账户重置） =====
 
@@ -176,8 +146,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.balance-card,
-.buckets-card {
+.balance-card {
   margin-bottom: 6px;
 }
 
@@ -214,38 +183,6 @@ onMounted(() => {
 
 .quota-row {
   margin-bottom: 6px;
-}
-
-.buckets-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-heading);
-  margin-bottom: 4px;
-}
-
-.bucket-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-  padding: 2px 0;
-}
-
-.bucket-name {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.bucket-value {
-  font-size: 11px;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.bucket-expire {
-  font-size: 10px;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
 }
 
 .usage-stats {

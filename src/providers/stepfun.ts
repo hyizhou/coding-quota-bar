@@ -294,7 +294,6 @@ interface StepFunPlanSnapshot {
   quotas: QuotaItem[];
   mainUsed: number;
   mainTotal: number;
-  buckets: StepFunCreditBucket[];
 }
 
 /**
@@ -341,7 +340,6 @@ function parseRateLimit(body: string): StepFunPlanSnapshot {
       ],
       mainUsed: Math.max(fiveHourUsed, weeklyUsed),
       mainTotal: 100,
-      buckets: [],
     };
   }
 
@@ -368,25 +366,45 @@ function parseRateLimit(body: string): StepFunPlanSnapshot {
       });
     }
 
-    // 合并规则：全部桶合法 → Σresidual/Σtotal；否则订阅比例；再退充值比例
-    let remaining: number | null = null;
-    if (allBucketsValid && buckets.length > 0) {
-      const totalSum = buckets.reduce((sum, b) => sum + b.total, 0);
+    // 桶即额度：全部桶合法时每个桶直接生成一张进度卡（比例取桶内 residual/total），
+    // 合并比例仅供托盘主指标（used/total）使用
+    const totalSum = buckets.reduce((sum, b) => sum + b.total, 0);
+    if (allBucketsValid && buckets.length > 0 && totalSum > 0) {
       const residualSum = buckets.reduce((sum, b) => sum + b.residual, 0);
-      if (totalSum > 0) remaining = residualSum / totalSum;
+      const remaining = residualSum / totalSum;
+      const used = Math.min(100, Math.max(0, (1 - remaining) * 100));
+      return {
+        quotas: buckets.map((bucket, idx) => {
+          const bucketUsed = Math.min(100, Math.max(0, (1 - bucket.residual / bucket.total) * 100));
+          return {
+            label: 'quota.stepfunBucketType',
+            labelParams: { n: idx + 1 },
+            used: bucketUsed,
+            total: 100,
+            usageRate: bucketUsed,
+            resetAt: bucket.nextResetAt || bucket.expireAt,
+            displayUnit: 'percent' as const,
+            limitType: 'stepfun-credit-bucket',
+          };
+        }),
+        mainUsed: used,
+        mainTotal: 100,
+      };
+    }
+
+    // 无桶或桶数据不全时退回订阅比例，再退充值比例
+    let remaining: number | null = null;
+    const subscription = credit ? toNumber(credit.subscription_credit_left_rate) : null;
+    if (subscription != null) {
+      remaining = subscription;
     } else {
-      const subscription = credit ? toNumber(credit.subscription_credit_left_rate) : null;
-      if (subscription != null) {
-        remaining = subscription;
-      } else {
-        const topup = credit ? toNumber(credit.topup_credit_left_rate) : null;
-        if (topup != null) remaining = topup;
-      }
+      const topup = credit ? toNumber(credit.topup_credit_left_rate) : null;
+      if (topup != null) remaining = topup;
     }
 
     if (remaining == null) {
       // 新套餐尚未产生数据：无额度项，托盘按充足处理
-      return { quotas: [], mainUsed: 0, mainTotal: 0, buckets };
+      return { quotas: [], mainUsed: 0, mainTotal: 0 };
     }
     const used = Math.min(100, Math.max(0, (1 - remaining) * 100));
     return {
@@ -401,12 +419,11 @@ function parseRateLimit(body: string): StepFunPlanSnapshot {
       }],
       mainUsed: used,
       mainTotal: 100,
-      buckets: allBucketsValid ? buckets : [],
     };
   }
 
   // 无法判定套餐形态：不渲染额度，避免误报已用尽
-  return { quotas: [], mainUsed: 0, mainTotal: 0, buckets: [] };
+  return { quotas: [], mainUsed: 0, mainTotal: 0 };
 }
 
 function parseSubscription(body: string | null): {
@@ -490,7 +507,6 @@ function buildUsageResult(
   };
   if (planStatus) details.subscription = planStatus.subscription;
   if (balance) details.balance = balance;
-  if (snapshot.buckets.length > 0) details.stepfunCreditBuckets = snapshot.buckets;
 
   return {
     used: snapshot.mainUsed,

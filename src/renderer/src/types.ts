@@ -111,7 +111,6 @@ export interface AccountUsageData {
   codexStats?: CodexUsageStats
   qoderRemaining?: number
   qoderUnit?: string
-  stepfunCreditBuckets?: Array<{ type: number; total: number; residual: number; expireAt: string; nextResetAt: string }>
 }
 
 /**

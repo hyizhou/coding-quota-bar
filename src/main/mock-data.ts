@@ -376,14 +376,15 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
     },
 
     stepfun: {
-      // 积分型套餐示例：订阅积分剩余 96.41%（积分桶 Σresidual/Σtotal），含余额与按小时×模型用量历史
-      used: 3.59,
+      // 积分型套餐示例：积分桶以额度进度卡展示（Σresidual/Σtotal 供托盘主指标），含余额与按小时×模型用量历史
+      used: 16.87,
       total: 100,
       expiresAt: new Date(now + 44 * DAY).toISOString(),
       level: 'Plus',
       details: {
         quotas: [
-          { label: 'quota.stepfunCredits', used: 3.59, total: 100, usageRate: 3.59, resetAt: new Date(now + 12 * DAY).toISOString(), displayUnit: 'percent', limitType: 'stepfun-credits' },
+          { label: 'quota.stepfunBucketType', labelParams: { n: 1 }, used: 3.59, total: 100, usageRate: 3.59, resetAt: new Date(now + 12 * DAY).toISOString(), displayUnit: 'percent', limitType: 'stepfun-credit-bucket' },
+          { label: 'quota.stepfunBucketType', labelParams: { n: 2 }, used: 70, total: 100, usageRate: 70, resetAt: new Date(now + 90 * DAY).toISOString(), displayUnit: 'percent', limitType: 'stepfun-credit-bucket' },
         ],
         subscription: {
           plan: 'Plus',
@@ -402,9 +403,6 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
           frozen: '0.00',
           currency: 'CNY',
         },
-        stepfunCreditBuckets: [
-          { type: 1, total: 400000000, residual: 385643853, expireAt: new Date(now + 300 * DAY).toISOString(), nextResetAt: new Date(now + 12 * DAY).toISOString() },
-        ],
         history7d: generateStepfunHourlyHistory(7),
         modelHistory7d: generateStepfunModelHistory(7),
       },
