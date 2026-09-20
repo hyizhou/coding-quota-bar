@@ -1,6 +1,6 @@
 <!--
   StepFun（阶跃星辰）额度区块：额度卡片（速率窗口型/积分型双形态自适应）
-  + 加油包卡（TYPE_TOPUP 桶）+ 账户余额 + 按小时×模型的积分用量图表（7/30 天，30 天按需加载）。
+  + 加油包卡（TYPE_TOPUP 桶）+ 账户余额 + 按小时×模型的积分用量图表（24h/7/30 天，24h 由 7 天小时粒度数据筛选，30 天按需加载）。
   订阅信息由 MainView 顶部的套餐徽章 + 悬停浮窗统一展示。
 -->
 <template>
@@ -149,15 +149,15 @@ function usedPercent(bucket: { total: number; residual: number }): number {
 
 
 
-// ===== 用量图表（7d 数据随刷新下发；30d 按需经 IPC 拉取，跨账户重置） =====
+// ===== 用量图表（7d 小时粒度数据随刷新下发，24h 由其筛选；30d 按需经 IPC 拉取，跨账户重置） =====
 
-type TabValue = '7d' | '30d'
+type TabValue = '24h' | '7d' | '30d'
 const STORAGE_KEY_TAB = 'stepfun-usage-tab'
 
 function restoreTab(): TabValue {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_TAB)
-    if (saved === '7d' || saved === '30d') return saved
+    if (saved === '24h' || saved === '7d' || saved === '30d') return saved
   } catch {}
   return '7d'
 }
@@ -169,11 +169,27 @@ const loaded30d = ref(false)
 const loading30d = ref(false)
 
 const tabs = computed(() => [
+  { label: t('main.tab24h'), value: '24h' as TabValue },
   { label: t('main.tab7d'), value: '7d' as TabValue },
   { label: t('main.tab30d'), value: '30d' as TabValue },
 ])
 
-const activeRecords = computed(() => activeTab.value === '7d' ? records7d.value : records30d.value)
+/** 本地小时键 'YYYY-MM-DDTHH'（与 Provider 下发的小时粒度记录键一致） */
+function localHourKey(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}`
+}
+
+/** 24h 视图：从 7 天小时粒度数据中取最近 24 个小时桶（含当前小时），无需额外请求 */
+const records24h = computed(() => {
+  const cutoff = localHourKey(new Date(Date.now() - 23 * 3600000))
+  return records7d.value.filter(r => r.date.length === 13 && r.date >= cutoff)
+})
+
+const activeRecords = computed(() => {
+  if (activeTab.value === '24h') return records24h.value
+  return activeTab.value === '7d' ? records7d.value : records30d.value
+})
 
 async function load30d(): Promise<void> {
   if (loaded30d.value || loading30d.value) return
