@@ -9,7 +9,7 @@
       <div class="progress-fill" :class="color" :style="{ width: usageRate + '%' }"></div>
     </div>
     <div class="card-bottom">
-      <span class="reset-text">{{ formatReset(resetAt) }}</span>
+      <span class="reset-text">{{ resetText ?? formatReset(resetAt) }}</span>
     </div>
   </div>
 </template>
@@ -24,6 +24,7 @@ const props = defineProps<{
   resetAt: string
   color: 'green' | 'yellow' | 'red'
   hideBar?: boolean
+  resetText?: string   // 自定义重置时间文案；传入时优先于内置 formatReset（如需带时分的完整时间）
 }>()
 
 const { t, locale } = useI18n()

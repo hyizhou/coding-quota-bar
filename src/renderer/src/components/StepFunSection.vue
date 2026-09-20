@@ -29,6 +29,7 @@
         :label-params="quota.labelParams"
         :usage-rate="quota.usageRate"
         :reset-at="quota.resetAt"
+        :reset-text="formatResetFull(quota.resetAt)"
         :color="quota.color"
       />
     </div>
@@ -88,6 +89,18 @@ const hasBalanceDetail = computed(() => {
   if (!b) return false
   return parseFloat(b.gift) > 0 || parseFloat(b.cash) > 0
 })
+
+/** 重置时间完整文案：月日 + 时:分（对齐官方「重置时间：2026-10-20 15:42」粒度） */
+function formatResetFull(iso: string): string {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleString(locale.value, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+  } catch {
+    return ''
+  }
+}
 
 // ===== 用量图表（7d 数据随刷新下发；30d 按需经 IPC 拉取，跨账户重置） =====
 
