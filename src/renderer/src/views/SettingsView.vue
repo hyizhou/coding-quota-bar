@@ -212,19 +212,20 @@
               </div>
 
               <!-- StepFun: 网页登录（Oasis Cookie 持久化）或手动粘贴 Oasis-Token -->
-              <div v-else-if="info.key === 'stepfun'" class="web-login-section stepfun-section">
-                <!-- 模式卡片：选中项的操作内嵌在卡片内，从属关系一目了然 -->
-                <div
-                  class="auth-mode-card"
-                  :class="{ active: account.stepfunCookieSource !== 'manual' }"
-                  @click="account.stepfunCookieSource = 'session'"
-                >
-                  <label class="auth-mode-head">
+              <div v-else-if="info.key === 'stepfun'" class="web-login-section qoder-section">
+                <div class="qoder-source-row">
+                  <label class="mode-option" :class="{ active: account.stepfunCookieSource !== 'manual' }">
                     <input type="radio" value="session" v-model="account.stepfunCookieSource" />
-                    <span class="auth-mode-title">{{ $t('settings.stepfunSourceSession') }}</span>
-                    <span class="auth-mode-desc">{{ $t('settings.stepfunSessionDesc') }}</span>
+                    <span>{{ $t('settings.stepfunSourceSession') }}</span>
                   </label>
-                  <div v-if="account.stepfunCookieSource !== 'manual'" class="auth-mode-body">
+                  <label class="mode-option" :class="{ active: account.stepfunCookieSource === 'manual' }">
+                    <input type="radio" value="manual" v-model="account.stepfunCookieSource" />
+                    <span>{{ $t('settings.stepfunSourceManual') }}</span>
+                  </label>
+                </div>
+
+                <template v-if="account.stepfunCookieSource !== 'manual'">
+                  <div class="qoder-login-row">
                     <button
                       class="web-login-btn"
                       :class="{ active: account.webTokenStatus === 'active' }"
@@ -242,19 +243,9 @@
                       {{ $t('settings.webLogoutBtn') }}
                     </button>
                   </div>
-                </div>
+                </template>
 
-                <div
-                  class="auth-mode-card"
-                  :class="{ active: account.stepfunCookieSource === 'manual' }"
-                  @click="account.stepfunCookieSource = 'manual'"
-                >
-                  <label class="auth-mode-head">
-                    <input type="radio" value="manual" v-model="account.stepfunCookieSource" />
-                    <span class="auth-mode-title">{{ $t('settings.stepfunSourceManual') }}</span>
-                    <span class="auth-mode-desc">{{ $t('settings.stepfunManualDesc') }}</span>
-                  </label>
-                  <div v-if="account.stepfunCookieSource === 'manual'" class="auth-mode-body auth-mode-body-column">
+                <template v-else>
                     <textarea
                       class="form-input qoder-capture-input"
                       rows="3"
@@ -268,8 +259,7 @@
                     <div v-else-if="account.stepfunHasWebToken && !account.stepfunTokenDirty" class="qoder-parse-hint ok">
                       {{ $t('settings.stepfunManualSaved') }}
                     </div>
-                  </div>
-                </div>
+                </template>
               </div>
 
               <!-- DeepSeek 认证模式选择 -->
@@ -1518,74 +1508,6 @@ function handleUpdateClick() {
 .qoder-section {
   flex-direction: column;
   align-items: stretch;
-}
-
-.stepfun-section {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-/* StepFun 认证模式卡片：操作内嵌在所属模式内，左侧竖线强化从属关系 */
-.auth-mode-card {
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--bg-input);
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.2s;
-}
-
-.auth-mode-card:hover {
-  border-color: var(--border-focus);
-}
-
-.auth-mode-card.active {
-  border-color: #3B82F6;
-  background: var(--bg-card);
-}
-
-.auth-mode-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  cursor: pointer;
-}
-
-.auth-mode-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.auth-mode-card.active .auth-mode-title {
-  color: #3B82F6;
-}
-
-.auth-mode-desc {
-  font-size: 10px;
-  color: var(--text-tertiary);
-  margin-left: auto;
-  text-align: right;
-}
-
-.auth-mode-body {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 8px 8px 26px;
-  padding: 6px 8px;
-  border-left: 2px solid var(--border-subtle);
-}
-
-.auth-mode-card.active .auth-mode-body {
-  border-left-color: rgba(59, 130, 246, 0.45);
-}
-
-.auth-mode-body-column {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
 }
 
 .qoder-source-row,
