@@ -62,6 +62,7 @@ export interface AccountDisplayData {
   codexStats?: CodexUsageStats;
   qoderRemaining?: number;
   qoderUnit?: string;
+  stepfunTopupBuckets?: Array<{ total: number; residual: number; expireAt: string }>;
 }
 
 /**
@@ -221,6 +222,7 @@ function convertAccountData(
     codexStats: (result.details?.codexStats as CodexUsageStats | undefined) ?? undefined,
     qoderRemaining: (result.details?.qoderRemaining as number) ?? undefined,
     qoderUnit: (result.details?.qoderUnit as string) ?? undefined,
+    stepfunTopupBuckets: (result.details?.stepfunTopupBuckets as AccountDisplayData['stepfunTopupBuckets']) ?? undefined,
   };
 }
 

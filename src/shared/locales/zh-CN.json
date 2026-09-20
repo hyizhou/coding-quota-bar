@@ -266,7 +266,9 @@
     "stepfunBalance": "账户余额",
     "stepfunGiftBalance": "赠送金额",
     "stepfunCashBalance": "充值金额",
-    "stepfunBucketType": "Credit 桶 {n}",
+    "stepfunTopupPack": "加油包",
+    "stepfunTopupRemaining": "剩余 {n}%",
+    "stepfunTopupExpire": "到期时间: {time}",
     "stepfunCreditsUsage": "积分用量"
   },
   "tray": {

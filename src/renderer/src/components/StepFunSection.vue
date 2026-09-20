@@ -34,6 +34,24 @@
       />
     </div>
 
+    <!-- 加油包（对齐官方：仅 TYPE_TOPUP 桶，标题带总量、右侧剩余%、底部到期时间） -->
+    <div v-for="(bucket, idx) in topupBuckets" :key="'topup-' + idx" class="topup-card card">
+      <div class="topup-header">
+        <span class="topup-name">{{ t('quota.stepfunTopupPack') }} · {{ formatCreditsShort(bucket.total) }}</span>
+        <span class="topup-remaining">{{ t('quota.stepfunTopupRemaining', { n: remainingPercent(bucket) }) }}</span>
+      </div>
+      <div class="progress-bar">
+        <div
+          class="progress-fill"
+          :class="usedPercent(bucket) >= 90 ? 'red' : 'green'"
+          :style="{ width: usedPercent(bucket) + '%' }"
+        ></div>
+      </div>
+      <div v-if="bucket.expireAt" class="topup-expire">
+        {{ t('quota.stepfunTopupExpire', { time: formatExpire(bucket.expireAt) }) }}
+      </div>
+    </div>
+
     <!-- 用量图表：按小时×模型的积分消耗 -->
     <div class="usage-stats">
       <div class="stats-tabs-row">
@@ -79,6 +97,8 @@ const props = defineProps<{
   account: AccountUsageData
 }>()
 
+const topupBuckets = computed(() => props.account.stepfunTopupBuckets ?? [])
+
 const currencySymbol = computed(() => {
   const c = props.account.balance?.currency ?? props.account.currency
   return c === 'CNY' ? '¥' : '$'
@@ -100,6 +120,33 @@ function formatResetFull(iso: string): string {
   } catch {
     return ''
   }
+}
+
+/** Credits 总量缩写（官方口径：÷1e6 后保留至多 2 位小数 + M） */
+function formatCreditsShort(total: number): string {
+  const m = total / 1_000_000
+  return `${m.toLocaleString(locale.value, { maximumFractionDigits: 2 })}M`
+}
+
+/** 加油包剩余%（官方：Math.round(rate × 100)） */
+function remainingPercent(bucket: { total: number; residual: number }): number {
+  if (bucket.total <= 0) return 0
+  return Math.round((bucket.residual / bucket.total) * 100)
+}
+
+/** 加油包已用%（官方：Math.round((1 - rate) × 100)，驱动进度条与配色） */
+function usedPercent(bucket: { total: number; residual: number }): number {
+  if (bucket.total <= 0) return 0
+  return Math.round((1 - bucket.residual / bucket.total) * 100)
+}
+
+/** 到期时间（官方格式：YYYY-MM-DD HH:mm:ss） */
+function formatExpire(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
 // ===== 用量图表（7d 数据随刷新下发；30d 按需经 IPC 拉取，跨账户重置） =====
@@ -196,6 +243,54 @@ onMounted(() => {
 
 .quota-row {
   margin-bottom: 6px;
+}
+
+/* 加油包卡（对齐官方两档配色：已用 ≥90% 红，否则绿） */
+.topup-card {
+  margin-bottom: 6px;
+}
+
+.topup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+
+.topup-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.topup-remaining {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.progress-bar {
+  height: 6px;
+  background: var(--border-subtle);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.progress-fill.green { background: linear-gradient(90deg, #4ade80, #22c55e); }
+.progress-fill.red { background: linear-gradient(90deg, #f87171, #ef4444); }
+
+.topup-expire {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .usage-stats {

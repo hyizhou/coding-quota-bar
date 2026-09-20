@@ -38,6 +38,13 @@ interface StepFunCreditBucket {
   nextResetAt: string;
 }
 
+/** 加油包桶（官方前端只展示 type=2 TYPE_TOPUP 的桶） */
+interface StepFunTopupBucket {
+  total: number;
+  residual: number;
+  expireAt: string;
+}
+
 interface StepFunUsageItem {
   fromTime: number;
   modelId: string;
@@ -294,7 +301,11 @@ interface StepFunPlanSnapshot {
   quotas: QuotaItem[];
   mainUsed: number;
   mainTotal: number;
+  topupBuckets: StepFunTopupBucket[];
 }
+
+/** PlanCreditBucket.Type 枚举：0=UNSPECIFIED, 1=SUBSCRIPTION(订阅), 2=TOPUP(加油包) */
+const TOPUP_BUCKET_TYPE = 2;
 
 /**
  * 额度解析（接入指南 §5）：
@@ -340,6 +351,7 @@ function parseRateLimit(body: string): StepFunPlanSnapshot {
       ],
       mainUsed: Math.max(fiveHourUsed, weeklyUsed),
       mainTotal: 100,
+      topupBuckets: [],
     };
   }
 
@@ -383,7 +395,7 @@ function parseRateLimit(body: string): StepFunPlanSnapshot {
 
     if (remaining == null) {
       // 新套餐尚未产生数据：无额度项，托盘按充足处理
-      return { quotas: [], mainUsed: 0, mainTotal: 0 };
+      return { quotas: [], mainUsed: 0, mainTotal: 0, topupBuckets: [] };
     }
     const used = Math.min(100, Math.max(0, (1 - remaining) * 100));
     const quotas: QuotaItem[] = [{
@@ -396,28 +408,16 @@ function parseRateLimit(body: string): StepFunPlanSnapshot {
         limitType: 'stepfun-credits',
     }];
 
-    // 多桶时（订阅 + 充值并存）追加桶明细卡；单桶与总数完全相同，不重复展示
-    if (allBucketsValid && buckets.length >= 2) {
-      for (const [idx, bucket] of buckets.entries()) {
-        const bucketUsed = Math.min(100, Math.max(0, (1 - bucket.residual / bucket.total) * 100));
-        quotas.push({
-          label: 'quota.stepfunBucketType',
-          labelParams: { n: idx + 1 },
-          used: bucketUsed,
-          total: 100,
-          usageRate: bucketUsed,
-          resetAt: bucket.nextResetAt || bucket.expireAt,
-          displayUnit: 'percent',
-          limitType: 'stepfun-credit-bucket',
-        });
-      }
-    }
+    // 加油包桶单独下发（对齐官方：只取 TYPE_TOPUP，订阅桶不参与展示）
+    const topupBuckets = buckets
+      .filter(b => b.type === TOPUP_BUCKET_TYPE)
+      .map(b => ({ total: b.total, residual: b.residual, expireAt: b.expireAt }));
 
-    return { quotas, mainUsed: used, mainTotal: 100 };
+    return { quotas, mainUsed: used, mainTotal: 100, topupBuckets };
   }
 
   // 无法判定套餐形态：不渲染额度，避免误报已用尽
-  return { quotas: [], mainUsed: 0, mainTotal: 0 };
+  return { quotas: [], mainUsed: 0, mainTotal: 0, topupBuckets: [] };
 }
 
 function parseSubscription(body: string | null): {
@@ -501,6 +501,7 @@ function buildUsageResult(
   };
   if (planStatus) details.subscription = planStatus.subscription;
   if (balance) details.balance = balance;
+  if (snapshot.topupBuckets.length > 0) details.stepfunTopupBuckets = snapshot.topupBuckets;
 
   return {
     used: snapshot.mainUsed,
