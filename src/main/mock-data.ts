@@ -190,6 +190,56 @@ function generatePerformanceHistory(days: number): { date: string; liteDecodeSpe
   return records;
 }
 
+/**
+ * 生成 30 天分模型用量记录（DeepSeek / MiMo 月度图表共用）
+ * withCache 为 true 时附带缓存命中/未命中与输出 token 明细（DeepSeek 图表用）
+ */
+function generateMonthlyModelHistory(
+  models: { name: string; base: number }[],
+  withCache = false
+): { date: string; model: string; used: number; requests: number; cacheHitTokens?: number; cacheMissTokens?: number; responseTokens?: number }[] {
+  type Record = { date: string; model: string; used: number; requests: number; cacheHitTokens?: number; cacheMissTokens?: number; responseTokens?: number };
+  const records: Record[] = [];
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * DAY);
+    const dateStr = d.toISOString().slice(0, 10);
+    for (const m of models) {
+      const used = Math.round(m.base * (0.3 + Math.random() * 1.4));
+      const record: Record = {
+        date: dateStr,
+        model: m.name,
+        used,
+        requests: Math.max(1, Math.round(used / 4000))
+      };
+      if (withCache) {
+        record.cacheHitTokens = Math.round(used * 0.55);
+        record.cacheMissTokens = Math.round(used * 0.1);
+        record.responseTokens = Math.round(used * 0.35);
+      }
+      records.push(record);
+    }
+  }
+  return records;
+}
+
+/**
+ * 生成 30 天分模型费用记录（DeepSeek 月度费用图表）
+ */
+function generateMonthlyCostHistory(models: { name: string; base: number; ratePerToken: number }[]): { date: string; model: string; cost: number }[] {
+  const records: { date: string; model: string; cost: number }[] = [];
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * DAY);
+    const dateStr = d.toISOString().slice(0, 10);
+    for (const m of models) {
+      const used = Math.round(m.base * (0.3 + Math.random() * 1.4));
+      records.push({ date: dateStr, model: m.name, cost: +(used * m.ratePerToken).toFixed(4) });
+    }
+  }
+  return records;
+}
+
 // ── 入口 ────────────────────────────────────────────
 
 /**
@@ -228,6 +278,8 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
           week: { count: 2, earliestExpireAt: new Date(now + 20 * DAY).toISOString() }
         },
         quotas: [
+          { label: 'quota.tokensLimit', labelParams: { n: 5 }, used: 34, total: 100, usageRate: 34, resetAt: new Date(now + 5 * HOUR).toISOString(), limitType: 'tokens' },
+          { label: 'quota.tokensLimitDaily', used: 41, total: 100, usageRate: 41, resetAt: new Date(now + 3 * DAY).toISOString(), limitType: 'tokens' },
           { label: 'quota.mcpUsage', used: 12, total: 50, usageRate: 24, resetAt: new Date(new Date(now).getFullYear(), new Date(now).getMonth() + 1, 1).toISOString(), limitType: 'mcp' },
           { label: 'quota.creditsLimit', labelParams: { n: 5 }, used: 2585, total: 28000, usageRate: 9, resetAt: new Date(now + 5 * HOUR).toISOString(), limitType: 'credits' },
           { label: 'quota.creditsLimitWeekly', used: 58386, total: 140000, usageRate: 42, resetAt: new Date(now + 3 * DAY).toISOString(), limitType: 'credits' }
@@ -302,6 +354,34 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
           { label: 'quota.deepseekGranted', used: 0, total: 30, usageRate: 0, resetAt: '', hideBar: true, labelParams: { amount: '30.00' } },
           { label: 'quota.deepseekToppedUp', used: 0, total: 20, usageRate: 0, resetAt: '', hideBar: true, labelParams: { amount: '20.00' } },
         ],
+        modelHistory30d: generateMonthlyModelHistory(
+          [
+            { name: 'deepseek-chat', base: 52000 },
+            { name: 'deepseek-reasoner', base: 31000 }
+          ],
+          true
+        ),
+        modelCostHistory30d: generateMonthlyCostHistory([
+          { name: 'deepseek-chat', base: 52000, ratePerToken: 0.0000011 },
+          { name: 'deepseek-reasoner', base: 31000, ratePerToken: 0.0000044 }
+        ]),
+      },
+    },
+
+    mimo: {
+      used: 3200,
+      total: 10000,
+      expiresAt: new Date(now + 12 * DAY).toISOString(),
+      details: {
+        balance: { total: '12.60', gift: '10.00', cash: '2.60', frozen: '0.00', currency: 'CNY' },
+        quotas: [
+          { label: 'quota.mimoMonthlyUsage', used: 3200, total: 10000, usageRate: 32, resetAt: new Date(now + 12 * DAY).toISOString() },
+          { label: 'quota.mimoCompensation', used: 450, total: 2000, usageRate: 22.5, resetAt: new Date(now + 12 * DAY).toISOString() },
+        ],
+        modelHistory30d: generateMonthlyModelHistory([
+          { name: 'mimo-v2.5-pro', base: 1800 },
+          { name: 'mimo-v2.5', base: 4200 }
+        ], true),
       },
     },
 
