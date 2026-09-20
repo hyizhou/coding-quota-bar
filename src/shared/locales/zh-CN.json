@@ -46,6 +46,7 @@
     "deepseekTokenExpired": "DeepSeek 登录已过期，请重新登录",
     "mimoTokenExpired": "MiMo 登录已过期，请重新登录",
     "qoderTokenExpired": "Qoder 会话无效或已过期，请重新登录或更新 Cookie",
+    "stepfunTokenExpired": "阶跃星辰登录已过期，请重新登录或更新 Token",
     "opencodegoTokenExpired": "未登录 OpenCode Go",
     "codexTokenExpired": "未找到 Codex CLI 登录信息，请先安装并登录 Codex CLI",
     "reloginBtn": "重新登录",
@@ -151,6 +152,12 @@
     "qoderManualInvalid": "无法识别粘贴内容，请从 qoder.com / qoder.com.cn 抓包复制",
     "qoderManualDetected": "已识别：{site}（{n} 个 Cookie）",
     "qoderManualSaved": "已保存捕获内容",
+    "stepfunLoginBtn": "登录阶跃星辰",
+    "stepfunSourceSession": "网页登录",
+    "stepfunSourceManual": "手动粘贴 Token",
+    "stepfunManualPlaceholder": "粘贴浏览器 Cookie 中的 Oasis-Token（三段式 JWT）",
+    "stepfunManualInvalid": "Token 格式不正确，应为三段式 JWT",
+    "stepfunManualSaved": "已保存 Token",
     "webLoginActive": "已登录",
     "webLogoutBtn": "退出登录",
     "webTokenExpired": "登录已过期，点击重新登录",
@@ -252,7 +259,17 @@
     "openrouterResetDaily": "每日重置",
     "openrouterNoLimit": "未设置限额",
     "openrouterKeyTitle": "Key {n}",
-    "qoderCredits": "额度"
+    "qoderCredits": "额度",
+    "stepfun5hWindow": "5小时窗口",
+    "stepfunWeeklyWindow": "周窗口",
+    "stepfunCredits": "套餐积分",
+    "stepfunBalance": "账户余额",
+    "stepfunGiftBalance": "赠送金额",
+    "stepfunCashBalance": "充值金额",
+    "stepfunCreditBuckets": "积分桶明细",
+    "stepfunBucketType": "积分桶 {n}",
+    "stepfunBucketExpire": "有效期至 {date}",
+    "stepfunCreditsUsage": "积分用量"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",
@@ -275,7 +292,8 @@
     "opencode-go": "OpenCode Go",
     "codex": "Codex",
     "openrouter": "OpenRouter",
-    "qoder": "Qoder"
+    "qoder": "Qoder",
+    "stepfun": "阶跃星辰"
   },
   "concurrencyTest": {
     "title": "并发测试",

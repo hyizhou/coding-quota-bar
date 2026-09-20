@@ -211,6 +211,57 @@
                 </template>
               </div>
 
+              <!-- StepFun: 网页登录（Oasis Cookie 持久化）或手动粘贴 Oasis-Token -->
+              <div v-else-if="info.key === 'stepfun'" class="web-login-section stepfun-section">
+                <div class="qoder-source-row">
+                  <label class="mode-option" :class="{ active: account.stepfunCookieSource !== 'manual' }">
+                    <input type="radio" value="session" v-model="account.stepfunCookieSource" />
+                    <span>{{ $t('settings.stepfunSourceSession') }}</span>
+                  </label>
+                  <label class="mode-option" :class="{ active: account.stepfunCookieSource === 'manual' }">
+                    <input type="radio" value="manual" v-model="account.stepfunCookieSource" />
+                    <span>{{ $t('settings.stepfunSourceManual') }}</span>
+                  </label>
+                </div>
+
+                <template v-if="account.stepfunCookieSource !== 'manual'">
+                  <div class="qoder-login-row">
+                    <button
+                      class="web-login-btn"
+                      :class="{ active: account.webTokenStatus === 'active' }"
+                      @click="handleStepfunWebLogin(account)"
+                    >
+                      {{ account.webTokenStatus === 'active'
+                         ? $t('settings.webLoginActive')
+                         : $t('settings.stepfunLoginBtn') }}
+                    </button>
+                    <button
+                      v-if="account.webTokenStatus === 'active'"
+                      class="web-logout-btn"
+                      @click="handleStepfunWebLogout(account)"
+                    >
+                      {{ $t('settings.webLogoutBtn') }}
+                    </button>
+                  </div>
+                </template>
+
+                <template v-else>
+                  <textarea
+                    class="form-input qoder-capture-input"
+                    rows="3"
+                    :placeholder="$t('settings.stepfunManualPlaceholder')"
+                    v-model="account.stepfunManualToken"
+                    @input="onStepfunTokenInput(account)"
+                  ></textarea>
+                  <div v-if="account.stepfunTokenValid === false" class="qoder-parse-hint">
+                    {{ $t('settings.stepfunManualInvalid') }}
+                  </div>
+                  <div v-else-if="account.stepfunHasWebToken && !account.stepfunTokenDirty" class="qoder-parse-hint ok">
+                    {{ $t('settings.stepfunManualSaved') }}
+                  </div>
+                </template>
+              </div>
+
               <!-- DeepSeek 认证模式选择 -->
               <template v-else>
                 <div v-if="info.key === 'deepseek'" class="auth-mode-row">
@@ -449,6 +500,11 @@ interface AccountInfo {
   qoderCaptureDirty: boolean
   qoderHasWebToken: boolean
   qoderParse?: { ok: boolean; site?: string; cookieCount?: number }
+  stepfunCookieSource?: 'session' | 'manual'
+  stepfunManualToken: string
+  stepfunTokenDirty: boolean
+  stepfunHasWebToken: boolean
+  stepfunTokenValid?: boolean
 }
 
 interface ProviderInfo {
@@ -572,7 +628,7 @@ function addAccount(providerKey: string) {
     apiKey: '',
     maskedApiKey: '',
     showKey: false,
-    authMode: (providerKey === 'mimo' || providerKey === 'codex' || providerKey === 'qoder') ? 'weblogin' : 'apikey',
+    authMode: (providerKey === 'mimo' || providerKey === 'codex' || providerKey === 'qoder' || providerKey === 'stepfun') ? 'weblogin' : 'apikey',
     webTokenStatus: 'none',
     apiKeyDirty: false,
     qoderCookieSource: 'session',
@@ -580,6 +636,10 @@ function addAccount(providerKey: string) {
     qoderManualCapture: '',
     qoderCaptureDirty: false,
     qoderHasWebToken: false,
+    stepfunCookieSource: 'session',
+    stepfunManualToken: '',
+    stepfunTokenDirty: false,
+    stepfunHasWebToken: false,
   }
   provider.accounts.push(account)
 }
@@ -691,6 +751,13 @@ async function testConnection(info: ProviderInfo, account: AccountInfo) {
         params.webToken = account.qoderManualCapture
       }
     }
+    // StepFun：按当前 UI 模式测试；手动模式 Token 变更时直接测新粘贴值
+    if (info.key === 'stepfun') {
+      params.stepfunCookieSource = account.stepfunCookieSource ?? 'session'
+      if (account.stepfunCookieSource === 'manual' && account.stepfunTokenDirty && account.stepfunManualToken.trim()) {
+        params.webToken = account.stepfunManualToken
+      }
+    }
     const result = await Promise.race([
       window.electronAPI.testProviderConnection(params),
       timeoutPromise,
@@ -770,6 +837,38 @@ async function handleQoderWebLogout(account: AccountInfo) {
   account.webTokenStatus = 'none'
   const freshConfig = await window.electronAPI.getConfig()
   if (freshConfig) currentConfig.value = freshConfig
+}
+
+async function handleStepfunWebLogin(account: AccountInfo) {
+  const result = await window.electronAPI.stepfunWebLogin(account.id)
+  if (result.success) {
+    // 登录在主进程写入了配置，同步本地状态避免自动保存回退字段
+    account.stepfunCookieSource = 'session'
+    account.webTokenStatus = 'active'
+    const freshConfig = await window.electronAPI.getConfig()
+    if (freshConfig) currentConfig.value = freshConfig
+  }
+}
+
+async function handleStepfunWebLogout(account: AccountInfo) {
+  await window.electronAPI.stepfunWebLogout(account.id)
+  account.webTokenStatus = 'none'
+  const freshConfig = await window.electronAPI.getConfig()
+  if (freshConfig) currentConfig.value = freshConfig
+}
+
+/** Oasis-Token 三段式 JWT 格式校验（header.payload.signature，Base64URL 字符集） */
+function isValidJwtFormat(text: string): boolean {
+  const parts = text.split('.')
+  if (parts.length !== 3 || !parts[0] || !parts[2]) return false
+  return /^[A-Za-z0-9_-]+$/.test(parts[0]) && /^[A-Za-z0-9_-]*$/.test(parts[1]) && /^[A-Za-z0-9_-]+$/.test(parts[2])
+}
+
+function onStepfunTokenInput(account: AccountInfo) {
+  account.stepfunTokenDirty = true
+  const text = account.stepfunManualToken.trim()
+  account.stepfunTokenValid = text ? isValidJwtFormat(text) : undefined
+  scheduleSave()
 }
 
 function onQoderCaptureInput(account: AccountInfo) {
@@ -868,14 +967,16 @@ onMounted(async () => {
       apiKey: '',
       showKey: false,
       budget: (account as any).budget ?? undefined,
-      authMode: (key === 'mimo' || key === 'codex' || key === 'qoder') ? (account.authMode ?? 'weblogin') : (account.authMode ?? 'apikey'),
+      authMode: (key === 'mimo' || key === 'codex' || key === 'qoder' || key === 'stepfun') ? (account.authMode ?? 'weblogin') : (account.authMode ?? 'apikey'),
       webTokenStatus: key === 'mimo'
         ? ((account as any).mimoLoggedIn ? 'active' : 'none')
         : key === 'codex'
           ? 'none'
           : key === 'qoder'
             ? ((account as any).qoderCookieSource !== 'manual' && (account as any).qoderLoggedIn ? 'active' : 'none')
-            : (account.hasWebToken ? 'active' : 'none'),
+            : key === 'stepfun'
+              ? ((account as any).stepfunCookieSource !== 'manual' && (account as any).stepfunLoggedIn ? 'active' : 'none')
+              : (account.hasWebToken ? 'active' : 'none'),
       apiKeyDirty: false,
       qoderCookieSource: (account as any).qoderCookieSource ?? 'session',
       qoderSite: (account as any).qoderSite ?? 'international',
@@ -883,6 +984,11 @@ onMounted(async () => {
       qoderCaptureDirty: false,
       qoderHasWebToken: !!account.hasWebToken,
       qoderParse: undefined,
+      stepfunCookieSource: (account as any).stepfunCookieSource ?? 'session',
+      stepfunManualToken: '',
+      stepfunTokenDirty: false,
+      stepfunHasWebToken: !!account.hasWebToken,
+      stepfunTokenValid: undefined,
     }))
 
     // Codex: 确保始终有一个默认账户
@@ -900,6 +1006,10 @@ onMounted(async () => {
         qoderManualCapture: '',
         qoderCaptureDirty: false,
         qoderHasWebToken: false,
+        stepfunCookieSource: 'session',
+        stepfunManualToken: '',
+        stepfunTokenDirty: false,
+        stepfunHasWebToken: false,
       })
     }
 
@@ -1022,6 +1132,14 @@ async function saveConfig() {
             update.webToken = a.qoderCookieSource === 'manual' ? a.qoderManualCapture : ''
           }
         }
+        if (info.key === 'stepfun') {
+          update.stepfunCookieSource = a.stepfunCookieSource ?? 'session'
+          // Oasis-Token 存于 webToken（主进程加密）；仅在变更时发送，
+          // 或从 manual 切回 session 时清除残留 Token
+          if (a.stepfunTokenDirty || (a.stepfunCookieSource !== 'manual' && a.stepfunHasWebToken)) {
+            update.webToken = a.stepfunCookieSource === 'manual' ? a.stepfunManualToken.trim() : ''
+          }
+        }
         return update
       })
     }
@@ -1056,6 +1174,15 @@ async function saveConfig() {
         if (!account.qoderCaptureDirty) continue
         account.qoderCaptureDirty = false
         account.qoderHasWebToken = account.qoderCookieSource === 'manual' && account.qoderManualCapture.trim() !== ''
+      }
+    }
+    // StepFun：保存成功后重置 Token 编辑状态，回填"已保存"标记
+    for (const info of providerList.value) {
+      if (info.key !== 'stepfun') continue
+      for (const account of info.accounts) {
+        if (!account.stepfunTokenDirty) continue
+        account.stepfunTokenDirty = false
+        account.stepfunHasWebToken = account.stepfunCookieSource === 'manual' && account.stepfunManualToken.trim() !== ''
       }
     }
     locale.value = language.value

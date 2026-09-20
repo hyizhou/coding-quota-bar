@@ -8,6 +8,7 @@ import { OpenCodeGoProvider } from '../providers/opencode-go';
 import { CodexProvider } from '../providers/codex';
 import { OpenRouterProvider } from '../providers/openrouter';
 import { QoderProvider } from '../providers/qoder';
+import { StepFunProvider } from '../providers/stepfun';
 import buildConfig from '../../app.build';
 
 /**
@@ -24,6 +25,7 @@ export const PROVIDER_CLASSES = {
   codex: CodexProvider,
   openrouter: OpenRouterProvider,
   qoder: QoderProvider,
+  stepfun: StepFunProvider,
 } as const;
 
 /**
@@ -91,8 +93,8 @@ export class ProviderLoader {
         if ((authMode === 'apikey' || type === 'opencode-go') && !account.apiKey?.trim()) {
           continue;
         }
-        // MiMo/Qoder 使用 Cookie 认证（Qoder session 模式无 webToken），Codex 读取本地 auth 文件
-        if (authMode === 'weblogin' && type !== 'mimo' && type !== 'codex' && type !== 'qoder' && !account.webToken?.trim()) {
+        // MiMo/Qoder/StepFun 使用 Cookie 认证（session 模式无 webToken），Codex 读取本地 auth 文件
+        if (authMode === 'weblogin' && type !== 'mimo' && type !== 'codex' && type !== 'qoder' && type !== 'stepfun' && !account.webToken?.trim()) {
           continue;
         }
 
@@ -112,6 +114,7 @@ export class ProviderLoader {
               accountId: account.id,
               ...(account.qoderCookieSource ? { qoderCookieSource: account.qoderCookieSource } : {}),
               ...(account.qoderSite ? { qoderSite: account.qoderSite } : {}),
+              ...(account.stepfunCookieSource ? { stepfunCookieSource: account.stepfunCookieSource } : {}),
               ...(account.budget != null ? { budget: account.budget } : {}),
             },
           });

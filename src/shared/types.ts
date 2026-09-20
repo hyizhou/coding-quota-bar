@@ -14,6 +14,8 @@ export interface AccountConfig {
   qoderCookieSource?: 'session' | 'manual'; // Qoder 凭据来源：弹窗登录会话 / 手动粘贴捕获（默认 session）
   qoderSite?: 'international' | 'china';    // Qoder 站点（账号不互通，默认 international）
   qoderLoggedIn?: boolean;                  // Qoder 网页登录状态（Cookie 认证，无需 webToken）
+  stepfunCookieSource?: 'session' | 'manual'; // StepFun 凭据来源：弹窗登录会话 / 手动粘贴 Oasis-Token（默认 session）
+  stepfunLoggedIn?: boolean;                  // StepFun 网页登录状态（Cookie 认证，session 模式无需 webToken）
 }
 
 /**
@@ -36,6 +38,7 @@ export interface ProviderConfig {
   accountId?: string;
   qoderCookieSource?: 'session' | 'manual';
   qoderSite?: 'international' | 'china';
+  stepfunCookieSource?: 'session' | 'manual';
   [key: string]: unknown;
 }
 

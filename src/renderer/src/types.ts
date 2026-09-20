@@ -111,6 +111,7 @@ export interface AccountUsageData {
   codexStats?: CodexUsageStats
   qoderRemaining?: number
   qoderUnit?: string
+  stepfunCreditBuckets?: Array<{ type: number; total: number; residual: number; expireAt: string; nextResetAt: string }>
 }
 
 /**
@@ -141,6 +142,8 @@ export interface AccountConfig {
   qoderCookieSource?: 'session' | 'manual'
   qoderSite?: 'international' | 'china'
   qoderLoggedIn?: boolean
+  stepfunCookieSource?: 'session' | 'manual'
+  stepfunLoggedIn?: boolean
 }
 
 export interface ProviderTypeConfig {
@@ -286,6 +289,7 @@ export interface ElectronAPI {
     webUserAgent?: string
     qoderCookieSource?: 'session' | 'manual'
     qoderSite?: 'international' | 'china'
+    stepfunCookieSource?: 'session' | 'manual'
   }) => Promise<ProviderConnectionTestResult>
   onConcurrencyTestProgress: (callback: (progress: ConcurrencyTestProgress) => void) => () => void
   onConcurrencyTestStream: (callback: (info: ConcurrencyTestStreamInfo) => void) => () => void
@@ -302,6 +306,10 @@ export interface ElectronAPI {
   qoderWebLogout: (accountId: string) => Promise<void>
   onQoderLoginSuccess: (callback: (accountId: string) => void) => () => void
   qoderParseManual: (text: string) => Promise<{ ok: boolean; site?: string; cookieCount?: number; error?: string }>
+  stepfunWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
+  stepfunWebLogout: (accountId: string) => Promise<void>
+  onStepfunWebLoginSuccess: (callback: (accountId: string) => void) => () => void
+  stepfunFetchUsageHistory: (accountId: string, days: 7 | 30) => Promise<ModelTokenRecord[]>
   zhipuFetchUsageStats: (accountId: string) => Promise<ZhipuUsageStats>
   showFeedback: () => void
 }

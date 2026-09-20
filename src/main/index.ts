@@ -39,6 +39,9 @@ import {
   setQoderAuthDeps,
 } from './qoder-auth';
 import {
+  setStepfunAuthDeps,
+} from './stepfun-auth';
+import {
   setDataTransformDeps,
   buildUsageData,
 } from './data-transform';
@@ -117,6 +120,7 @@ async function initialize(): Promise<void> {
   setDeepseekAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setMimoAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setQoderAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
+  setStepfunAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setDataTransformDeps({ getConfigManager, getScheduler });
   setIpcHandlersDeps({ getConfigManager, getScheduler });
 

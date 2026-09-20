@@ -125,6 +125,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     webUserAgent?: string;
     qoderCookieSource?: 'session' | 'manual';
     qoderSite?: 'international' | 'china';
+    stepfunCookieSource?: 'session' | 'manual';
   }) => ipcRenderer.invoke('test-provider-connection', params),
 
   /**
@@ -206,6 +207,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   qoderParseManual: (text: string) =>
     ipcRenderer.invoke('qoder-parse-manual', text),
+
+  /**
+   * StepFun 网页登录
+   */
+  stepfunWebLogin: (accountId: string) => ipcRenderer.invoke('stepfun-web-login', accountId),
+  stepfunWebLogout: (accountId: string) => ipcRenderer.invoke('stepfun-web-logout', accountId),
+  onStepfunWebLoginSuccess: (callback: (accountId: string) => void) =>
+    subscribe('stepfun-web-login-success', callback),
+
+  /**
+   * StepFun 按需获取模型用量历史（7/30 天）
+   */
+  stepfunFetchUsageHistory: (accountId: string, days: 7 | 30) =>
+    ipcRenderer.invoke('stepfun-fetch-usage-history', accountId, days),
 
   /**
    * 智谱每日用量历史（用量统计页按需加载）

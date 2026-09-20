@@ -138,7 +138,7 @@
                 <template v-if="getActiveAccount(activeProvider)!.error === 'TOKEN_EXPIRED'">
                   <template v-if="activeProvider.key === 'codex'">{{ $t('main.codexTokenExpired') }}</template>
                   <template v-else>
-                    {{ activeProvider.key === 'mimo' ? $t('main.mimoTokenExpired') : activeProvider.key === 'opencode-go' ? $t('main.opencodegoTokenExpired') : activeProvider.key === 'qoder' ? $t('main.qoderTokenExpired') : $t('main.deepseekTokenExpired') }}
+                    {{ activeProvider.key === 'mimo' ? $t('main.mimoTokenExpired') : activeProvider.key === 'opencode-go' ? $t('main.opencodegoTokenExpired') : activeProvider.key === 'qoder' ? $t('main.qoderTokenExpired') : activeProvider.key === 'stepfun' ? $t('main.stepfunTokenExpired') : $t('main.deepseekTokenExpired') }}
                     <button class="relogin-btn" @click="$emit('open-settings')">{{ $t('main.reloginBtn') }}</button>
                   </template>
                 </template>
@@ -153,6 +153,7 @@
               <OpenCodeGoSection v-else-if="activeProvider.key === 'opencode-go'" :account="getActiveAccount(activeProvider)!" />
               <CodexSection v-else-if="activeProvider.key === 'codex'" :account="getActiveAccount(activeProvider)!" />
               <QoderSection v-else-if="activeProvider.key === 'qoder'" :account="getActiveAccount(activeProvider)!" />
+              <StepFunSection v-else-if="activeProvider.key === 'stepfun'" :account="getActiveAccount(activeProvider)!" />
               <OpenRouterSection v-else-if="activeProvider.key === 'openrouter'" :accounts="activeProvider.accounts" />
               <DeepSeekServiceStatus v-if="activeProvider.key === 'deepseek' && !getActiveAccount(activeProvider)!.error" :account="getActiveAccount(activeProvider)!" />
             </template>
@@ -193,10 +194,11 @@ import QoderSection from '../components/QoderSection.vue'
 import type { ProviderUsageData, AccountUsageData, UsageState, WindowPinMode } from '../types'
 import { useTheme } from '../composables/useTheme'
 
-// DeepSeekSection / MiMoSection 内部直接引用 chart.js → 异步加载，
+// DeepSeekSection / MiMoSection / StepFunSection 内部直接引用 chart.js → 异步加载，
 // 打开对应 provider tab 时才下载 chart-lib chunk
 const DeepSeekSection = defineAsyncComponent(() => import('../components/DeepSeekSection.vue'))
 const MiMoSection = defineAsyncComponent(() => import('../components/MiMoSection.vue'))
+const StepFunSection = defineAsyncComponent(() => import('../components/StepFunSection.vue'))
 
 const emit = defineEmits<{
   'open-settings': [options?: { checkUpdate?: boolean }]

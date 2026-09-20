@@ -62,6 +62,7 @@ export interface AccountDisplayData {
   codexStats?: CodexUsageStats;
   qoderRemaining?: number;
   qoderUnit?: string;
+  stepfunCreditBuckets?: Array<{ type: number; total: number; residual: number; expireAt: string; nextResetAt: string }>;
 }
 
 /**
@@ -105,8 +106,8 @@ function hasEnabledProviders(): boolean {
     return Array.isArray(accounts) && accounts.some(a => {
       if (!a.enabled) return false;
       if (a.authMode === 'weblogin') {
-        // MiMo/Qoder 使用 Cookie 认证（Qoder session 模式无 webToken），Codex 读取本地 auth 文件
-        if (type === 'mimo' || type === 'codex' || type === 'qoder') return true;
+        // MiMo/Qoder/StepFun 使用 Cookie 认证（session 模式无 webToken），Codex 读取本地 auth 文件
+        if (type === 'mimo' || type === 'codex' || type === 'qoder' || type === 'stepfun') return true;
         return !!a.webToken?.trim();
       }
       return !!a.apiKey?.trim();
@@ -221,6 +222,7 @@ function convertAccountData(
     codexStats: (result.details?.codexStats as CodexUsageStats | undefined) ?? undefined,
     qoderRemaining: (result.details?.qoderRemaining as number) ?? undefined,
     qoderUnit: (result.details?.qoderUnit as string) ?? undefined,
+    stepfunCreditBuckets: (result.details?.stepfunCreditBuckets as AccountDisplayData['stepfunCreditBuckets']) ?? undefined,
   };
 }
 

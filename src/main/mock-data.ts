@@ -131,6 +131,47 @@ function generateZhipuDailyModelHistory(days: number): { date: string; model: st
 }
 
 /**
+ * 生成 StepFun 小时级积分消耗历史（7d 汇总曲线）
+ */
+function generateStepfunHourlyHistory(hours: number): { date: string; used: number }[] {
+  const records: { date: string; used: number }[] = [];
+  const now = new Date();
+  const start = new Date(now.getTime() - hours * 24 * HOUR);
+  start.setMinutes(0, 0, 0);
+  for (let t = start.getTime(); t <= now.getTime(); t += HOUR) {
+    const d = new Date(t);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    records.push({
+      date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}`,
+      used: Math.round(20000 + Math.random() * 180000),
+    });
+  }
+  return records;
+}
+
+/**
+ * 生成 StepFun 小时级分模型积分消耗历史（按小时 × 模型）
+ */
+function generateStepfunModelHistory(hours: number): { date: string; model: string; used: number; requests: number }[] {
+  const models = ['step-5-preview', 'step-router-v1', 'step-3.7-flash'];
+  const records: { date: string; model: string; used: number; requests: number }[] = [];
+  const now = new Date();
+  const start = new Date(now.getTime() - hours * 24 * HOUR);
+  start.setMinutes(0, 0, 0);
+  for (let t = start.getTime(); t <= now.getTime(); t += HOUR) {
+    const d = new Date(t);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}`;
+    for (const model of models) {
+      const used = Math.round(Math.random() * 90000);
+      if (used <= 0) continue;
+      records.push({ date, model, used, requests: Math.max(1, Math.round(used / 12000)) });
+    }
+  }
+  return records;
+}
+
+/**
  * 生成系统健康度历史（天级）
  */
 function generatePerformanceHistory(days: number): { date: string; liteDecodeSpeed: number; proMaxDecodeSpeed: number; liteSuccessRate: number; proMaxSuccessRate: number }[] {
@@ -331,6 +372,41 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
         quotas: [
           { label: 'quota.qoderCredits', used: 130.5, total: 600, usageRate: 21.75, resetAt: new Date(now + 20 * DAY).toISOString(), limitType: 'qoder' },
         ],
+      },
+    },
+
+    stepfun: {
+      // 积分型套餐示例：订阅积分剩余 96.41%（积分桶 Σresidual/Σtotal），含余额与按小时×模型用量历史
+      used: 3.59,
+      total: 100,
+      expiresAt: new Date(now + 44 * DAY).toISOString(),
+      level: 'Plus',
+      details: {
+        quotas: [
+          { label: 'quota.stepfunCredits', used: 3.59, total: 100, usageRate: 3.59, resetAt: new Date(now + 12 * DAY).toISOString(), displayUnit: 'percent', limitType: 'stepfun-credits' },
+        ],
+        subscription: {
+          plan: 'Plus',
+          status: 'VALID',
+          currentRenewTime: new Date(now - 16 * DAY).toISOString(),
+          nextRenewTime: new Date(now + 44 * DAY).toISOString(),
+          autoRenew: false,
+          actualPrice: 99,
+          renewPrice: 99,
+          billingCycle: 'monthly',
+        },
+        balance: {
+          total: '15.00',
+          gift: '15.00',
+          cash: '0.00',
+          frozen: '0.00',
+          currency: 'CNY',
+        },
+        stepfunCreditBuckets: [
+          { type: 1, total: 400000000, residual: 385643853, expireAt: new Date(now + 300 * DAY).toISOString(), nextResetAt: new Date(now + 12 * DAY).toISOString() },
+        ],
+        history7d: generateStepfunHourlyHistory(7),
+        modelHistory7d: generateStepfunModelHistory(7),
       },
     },
 

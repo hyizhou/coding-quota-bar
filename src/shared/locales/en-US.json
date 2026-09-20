@@ -46,6 +46,7 @@
     "deepseekTokenExpired": "DeepSeek login expired, please re-login",
     "mimoTokenExpired": "MiMo login expired, please re-login",
     "qoderTokenExpired": "Qoder session invalid or expired, please re-login or update the Cookie",
+    "stepfunTokenExpired": "StepFun session expired, please re-login or update the token",
     "opencodegoTokenExpired": "Not logged in to OpenCode Go",
     "codexTokenExpired": "Codex CLI auth not found. Please install and login to Codex CLI first",
     "reloginBtn": "Re-login",
@@ -151,6 +152,12 @@
     "qoderManualInvalid": "Unrecognized capture. Copy it from qoder.com / qoder.com.cn DevTools",
     "qoderManualDetected": "Detected: {site} ({n} cookies)",
     "qoderManualSaved": "Capture saved",
+    "stepfunLoginBtn": "Login to StepFun",
+    "stepfunSourceSession": "Web login",
+    "stepfunSourceManual": "Paste token",
+    "stepfunManualPlaceholder": "Paste the Oasis-Token from browser cookies (three-part JWT)",
+    "stepfunManualInvalid": "Invalid token format, expected a three-part JWT",
+    "stepfunManualSaved": "Token saved",
     "webLoginActive": "Logged In",
     "webLogoutBtn": "Log Out",
     "webTokenExpired": "Login expired, click to re-login",
@@ -252,7 +259,17 @@
     "openrouterResetDaily": "Resets daily",
     "openrouterNoLimit": "No limit set",
     "openrouterKeyTitle": "Key {n}",
-    "qoderCredits": "Credits"
+    "qoderCredits": "Credits",
+    "stepfun5hWindow": "5-hour window",
+    "stepfunWeeklyWindow": "Weekly window",
+    "stepfunCredits": "Plan credits",
+    "stepfunBalance": "Account balance",
+    "stepfunGiftBalance": "Gift",
+    "stepfunCashBalance": "Top-up",
+    "stepfunCreditBuckets": "Credit buckets",
+    "stepfunBucketType": "Bucket {n}",
+    "stepfunBucketExpire": "Valid until {date}",
+    "stepfunCreditsUsage": "Credits usage"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",
@@ -275,7 +292,8 @@
     "opencode-go": "OpenCode Go",
     "codex": "Codex",
     "openrouter": "OpenRouter",
-    "qoder": "Qoder"
+    "qoder": "Qoder",
+    "stepfun": "StepFun"
   },
   "concurrencyTest": {
     "title": "Concurrency Test",

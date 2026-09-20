@@ -14,5 +14,6 @@ export default {
     { key: 'codex', available: true, envVar: '', baseUrl: 'https://chatgpt.com', websiteUrl: 'https://chatgpt.com/' },
     { key: 'openrouter', available: true, envVar: 'OPENROUTER_API_KEY', baseUrl: 'https://openrouter.ai', websiteUrl: 'https://openrouter.ai/settings/keys' },
     { key: 'qoder', available: true, envVar: '', baseUrl: 'https://qoder.com', websiteUrl: 'https://qoder.com/account/usage' },
+    { key: 'stepfun', available: true, envVar: '', baseUrl: 'https://platform.stepfun.com', websiteUrl: 'https://platform.stepfun.com/account-overview' },
   ],
 } as const;

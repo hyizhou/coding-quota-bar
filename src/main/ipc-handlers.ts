@@ -8,6 +8,7 @@ import { ConcurrencyTestEngine } from './concurrency-test';
 import { ZhipuProvider } from '../providers/zhipu';
 import { DeepSeekProvider } from '../providers/deepseek';
 import { MiMoProvider } from '../providers/mimo';
+import { StepFunProvider } from '../providers/stepfun';
 import { getAvailableProviderKeys, PROVIDER_CLASSES, type ProviderType } from './loader';
 import { buildUsageData } from './data-transform';
 import { isSafeExternalUrl } from './utils/security';
@@ -24,6 +25,7 @@ import {
 import { deepseekWebLogin, deepseekWebLogout } from './deepseek-auth';
 import { mimoWebLogin, mimoWebLogout } from './mimo-auth';
 import { qoderWebLogin, qoderWebLogout, qoderParseManual } from './qoder-auth';
+import { stepfunWebLogin, stepfunWebLogout } from './stepfun-auth';
 import { checkForUpdate, downloadUpdate, getUpdateStatus } from './update-manager';
 import { maskApiKey } from '../shared/mask';
 import { isStoreBuild } from './channel';
@@ -258,6 +260,31 @@ export function setupIpcHandlers(): void {
     return qoderParseManual(text ?? '');
   });
 
+  // StepFun 网页登录
+  ipcMain.handle('stepfun-web-login', async (_, accountId: string) => {
+    return await stepfunWebLogin(accountId);
+  });
+
+  // StepFun 网页登出
+  ipcMain.handle('stepfun-web-logout', async (_, accountId: string) => {
+    await stepfunWebLogout(accountId);
+  });
+
+  // StepFun 按需获取 7/30 天模型用量历史（带日级缓存）
+  ipcMain.handle('stepfun-fetch-usage-history', async (_, accountId: string, days: number) => {
+    const scheduler = _getScheduler() as any;
+    const loaded = scheduler?.providers as import('./loader').LoadedProvider[] | undefined;
+    if (!loaded) return [];
+    const provider = loaded.find((p: any) => p.accountId === accountId && p.instance instanceof StepFunProvider);
+    if (!provider) return [];
+    try {
+      return await (provider.instance as StepFunProvider).fetchModelHistory(provider.config, days === 30 ? 30 : 7);
+    } catch (e) {
+      console.warn('[StepFun] Failed to fetch usage history:', e);
+      return [];
+    }
+  });
+
   // 智谱每日用量历史（用量统计页按需加载，避免每次定时刷新都拉一年数据）
   ipcMain.handle('zhipu-fetch-usage-stats', async (_, accountId: string): Promise<ZhipuUsageStats> => {
     const empty: ZhipuUsageStats = { summary: null, series: [] };
@@ -290,6 +317,7 @@ export function setupIpcHandlers(): void {
     webUserAgent?: string;
     qoderCookieSource?: 'session' | 'manual';
     qoderSite?: 'international' | 'china';
+    stepfunCookieSource?: 'session' | 'manual';
   }): Promise<{ ok: boolean; error?: string; latencyMs: number; sample?: { used: number; total: number; level: string } }> => {
     const start = Date.now();
     const ProviderClass = PROVIDER_CLASSES[params.providerKey as ProviderType];
@@ -305,6 +333,7 @@ export function setupIpcHandlers(): void {
     let webUserAgent = params.webUserAgent;
     let qoderCookieSource = params.qoderCookieSource;
     let qoderSite = params.qoderSite;
+    let stepfunCookieSource = params.stepfunCookieSource;
     if (params.accountId) {
       const cfg = _getConfigManager()?.getConfig();
       const providerCfg = cfg?.providers?.[params.providerKey] as ProviderTypeConfig | undefined;
@@ -316,6 +345,7 @@ export function setupIpcHandlers(): void {
         if (!webUserAgent) webUserAgent = account.webUserAgent;
         if (!qoderCookieSource) qoderCookieSource = (account as any).qoderCookieSource;
         if (!qoderSite) qoderSite = (account as any).qoderSite;
+        if (!stepfunCookieSource) stepfunCookieSource = (account as any).stepfunCookieSource;
       }
     }
 
@@ -329,6 +359,7 @@ export function setupIpcHandlers(): void {
       accountId: params.accountId,
       qoderCookieSource,
       qoderSite,
+      stepfunCookieSource,
     };
 
     try {
