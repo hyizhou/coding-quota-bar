@@ -2,7 +2,7 @@ import { ipcMain, app, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import type { ConfigManager } from './config';
 import type { Scheduler } from './scheduler';
-import type { ConcurrencyTestConfig, Provider, ProviderConfig, ProviderTypeConfig, WindowPinMode } from '../shared/types';
+import type { AppConfig, ConcurrencyTestConfig, Provider, ProviderConfig, ProviderTypeConfig, WindowPinMode } from '../shared/types';
 import type { ZhipuUsageStats } from '../shared/types';
 import { ConcurrencyTestEngine } from './concurrency-test';
 import { ZhipuProvider } from '../providers/zhipu';
@@ -39,6 +39,25 @@ export function setIpcHandlersDeps(deps: {
 }): void {
   _getConfigManager = deps.getConfigManager;
   _getScheduler = deps.getScheduler;
+}
+
+/**
+ * 配置下发 renderer 前统一脱敏：
+ * apiKey 只传前4后4、webToken 只传布尔存在性，明文凭证不越过 IPC 边界
+ */
+function sanitizeConfigForRenderer<T extends AppConfig>(config: T): T {
+  const sanitized = JSON.parse(JSON.stringify(config)) as T;
+  for (const provider of Object.values(sanitized.providers)) {
+    const accounts = (provider as any).accounts;
+    if (!Array.isArray(accounts)) continue;
+    for (const account of accounts) {
+      account.apiKey = maskApiKey(account.apiKey ?? '');
+      (account as any).hasWebToken = !!(account as any).webToken;
+      delete (account as any).webToken;
+      delete (account as any).webUserAgent;
+    }
+  }
+  return sanitized;
 }
 
 /**
@@ -81,18 +100,7 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('get-config', () => {
     const config = _getConfigManager()?.getConfig();
     if (!config) return null;
-    const sanitized = JSON.parse(JSON.stringify(config)) as typeof config;
-    for (const provider of Object.values(sanitized.providers)) {
-      const accounts = (provider as any).accounts;
-      if (!Array.isArray(accounts)) continue;
-      for (const account of accounts) {
-        account.apiKey = maskApiKey(account.apiKey ?? '');
-        (account as any).hasWebToken = !!(account as any).webToken;
-        delete (account as any).webToken;
-        delete (account as any).webUserAgent;
-      }
-    }
-    return { ...sanitized, isPackaged: app.isPackaged, updateStatus: getUpdateStatus() };
+    return { ...sanitizeConfigForRenderer(config), isPackaged: app.isPackaged, updateStatus: getUpdateStatus() };
   });
 
   // 获取可用的 provider 列表（编译时配置）
@@ -100,12 +108,12 @@ export function setupIpcHandlers(): void {
     return getAvailableProviderKeys();
   });
 
-  // 更新配置
+  // 更新配置（仅回传成功状态，配置数据一律走脱敏后的 get-config，明文凭证不下发 renderer）
   ipcMain.handle('update-config', async (_, updates) => {
     const configManager = _getConfigManager();
-    if (!configManager) return null;
+    if (!configManager) return { success: false };
     await configManager.updateConfig(updates);
-    return configManager.getConfig();
+    return { success: true };
   });
 
   // 获取应用版本号
