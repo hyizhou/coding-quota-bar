@@ -2,11 +2,27 @@ import { BrowserWindow, session, shell } from 'electron';
 import type { ConfigManager } from './config';
 import type { ProviderTypeConfig } from '../shared/types';
 import type { getPopupWindow as GetPopupWindowFn } from './popup-manager';
+import { isSafeHttpUrl } from './utils/security';
 
 const loginWindows = new Map<string, BrowserWindow>();
 
 let _getConfigManager: () => ConfigManager | null = () => null;
 let _getPopupWindow: () => BrowserWindow | null = () => null;
+
+/** 是否为 DeepSeek 官方页面（new URL 精确 host 匹配，防前缀伪造域名） */
+function isDeepseekUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && parsed.hostname === 'platform.deepseek.com';
+  } catch {
+    return false;
+  }
+}
+
+/** 当前窗口是否停在 DeepSeek 官方页面（读取 token 前校验，防离开站点后读错源） */
+function onDeepseekPage(win: BrowserWindow): boolean {
+  return isDeepseekUrl(win.webContents.getURL());
+}
 
 export function setDeepseekAuthDeps(deps: {
   getConfigManager: () => ConfigManager | null;
@@ -49,15 +65,15 @@ export function deepseekWebLogin(accountId: string): Promise<{ success: boolean;
     win.setMenuBarVisibility(false);
     loginWindows.set(accountId, win);
 
-    // 限制导航：只允许 DeepSeek 官方域名
-    const allowedOrigin = 'https://platform.deepseek.com';
-    win.webContents.on('will-navigate', (event, url) => {
-      if (!url.startsWith(allowedOrigin)) {
-        event.preventDefault();
-      }
-    });
+    // 限制导航：只允许 DeepSeek 官方域名（含服务端重定向，精确 host 匹配）
+    const blockForeignNavigation = (event: Electron.Event, url: string): void => {
+      if (!isDeepseekUrl(url)) event.preventDefault();
+    };
+    win.webContents.on('will-navigate', blockForeignNavigation);
+    win.webContents.on('will-redirect', blockForeignNavigation);
     win.webContents.setWindowOpenHandler(({ url }) => {
-      shell.openExternal(url);
+      // 新窗口链接一律转系统浏览器，且仅允许网页协议，拒绝 file:// 等触发本机程序
+      if (isSafeHttpUrl(url)) void shell.openExternal(url);
       return { action: 'deny' };
     });
 
@@ -109,7 +125,7 @@ export function deepseekWebLogin(accountId: string): Promise<{ success: boolean;
 
     // 检测 token：宽限期内出现 → 浏览模式（同步 token、保留窗口）；登录模式下出现 → 保存并关闭
     async function pollToken(): Promise<void> {
-      if (resolved || win.isDestroyed()) return;
+      if (resolved || win.isDestroyed() || !onDeepseekPage(win)) return;
       const token = await readToken();
       if (!token) return;
 
@@ -190,6 +206,7 @@ export async function deepseekRefreshToken(accountId: string): Promise<boolean> 
     // 等待 SPA 设置 localStorage 中的 token（轮询，最多 10 秒）
     let tokenJson: string | null = null;
     for (let i = 0; i < 20; i++) {
+      if (win.isDestroyed() || !onDeepseekPage(win)) return false;
       tokenJson = await win.webContents.executeJavaScript(
         `localStorage.getItem('userToken')`
       );

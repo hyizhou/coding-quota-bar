@@ -1,8 +1,28 @@
 import { BrowserWindow, session, shell } from 'electron';
 import type { ConfigManager } from './config';
 import type { ProviderTypeConfig } from '../shared/types';
+import { isSafeHttpUrl } from './utils/security';
 
 const loginWindows = new Map<string, BrowserWindow>();
+
+/** MiMo 及小米 SSO 允许域（精确 host 匹配，防前缀伪造域名） */
+const ALLOWED_MIMO_HOSTS = new Set([
+  'platform.xiaomimimo.com',
+  'xiaomimimo.com',
+  'account.xiaomi.com',
+  'login.xiaomi.com',
+  'passport.xiaomi.com',
+]);
+
+/** 是否为允许站内导航的 URL（HTTPS + 白名单域名） */
+function isMimoUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && ALLOWED_MIMO_HOSTS.has(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
 
 let _getConfigManager: () => ConfigManager | null = () => null;
 let _getPopupWindow: () => BrowserWindow | null = () => null;
@@ -67,24 +87,18 @@ export function mimoWebLogin(accountId: string): Promise<{ success: boolean; err
     win.setMenuBarVisibility(false);
     loginWindows.set(accountId, win);
 
-    // 限制导航：只允许 MiMo 及小米 SSO 域名
-    const allowedOrigins = [
-      'https://platform.xiaomimimo.com',
-      'https://xiaomimimo.com',
-      'https://account.xiaomi.com',
-      'https://login.xiaomi.com',
-      'https://passport.xiaomi.com',
-    ];
-    win.webContents.on('will-navigate', (event, url) => {
-      if (!allowedOrigins.some(o => url.startsWith(o))) {
-        event.preventDefault();
-      }
-    });
+    // 限制导航：只允许 MiMo 及小米 SSO 域名（含服务端重定向，精确 host 匹配）
+    const blockForeignNavigation = (event: Electron.Event, url: string): void => {
+      if (!isMimoUrl(url)) event.preventDefault();
+    };
+    win.webContents.on('will-navigate', blockForeignNavigation);
+    win.webContents.on('will-redirect', blockForeignNavigation);
     win.webContents.setWindowOpenHandler(({ url }) => {
-      if (allowedOrigins.some(o => url.startsWith(o))) {
+      if (isMimoUrl(url)) {
         return { action: 'allow' };
       }
-      shell.openExternal(url);
+      // 非白名单链接转系统浏览器，且仅允许网页协议，拒绝 file:// 等触发本机程序
+      if (isSafeHttpUrl(url)) void shell.openExternal(url);
       return { action: 'deny' };
     });
 
@@ -138,7 +152,7 @@ export function mimoWebLogin(accountId: string): Promise<{ success: boolean; err
     // 页面加载后检测登录：打开时已登录 → 浏览模式（仅同步状态，窗口保留不自动关闭）；
     // 打开后登录 → 保存状态并关闭窗口
     win.webContents.on('did-finish-load', () => {
-      if (resolved || win.isDestroyed()) return;
+      if (resolved || win.isDestroyed() || !isMimoUrl(win.webContents.getURL())) return;
       const url = win.webContents.getURL();
       console.log(`[MiMo] did-finish-load: ${url}`);
 
@@ -164,7 +178,7 @@ export function mimoWebLogin(accountId: string): Promise<{ success: boolean; err
         }
         // 没登录则开始轮询
         checkInterval = setInterval(async () => {
-          if (resolved || win.isDestroyed()) {
+          if (resolved || win.isDestroyed() || !isMimoUrl(win.webContents.getURL())) {
             stopInterval();
             return;
           }

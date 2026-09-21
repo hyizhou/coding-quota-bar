@@ -6,6 +6,7 @@
 import { BrowserWindow, session, shell } from 'electron';
 import type { ConfigManager } from './config';
 import type { AccountConfig, ProviderTypeConfig } from '../shared/types';
+import { isSafeHttpUrl } from './utils/security';
 
 const loginWindows = new Map<string, BrowserWindow>();
 
@@ -109,17 +110,20 @@ export function stepfunWebLogin(accountId: string): Promise<{ success: boolean; 
     win.setMenuBarVisibility(false);
     loginWindows.set(accountId, win);
 
-    // 限制导航：只允许 stepfun.com 及其子域，其余跳转交系统浏览器
-    win.webContents.on('will-navigate', (event, url) => {
+    // 限制导航：只允许 stepfun.com 及其子域（含服务端重定向），其余跳转交系统浏览器
+    const blockForeignNavigation = (event: Electron.Event, url: string): void => {
       if (!onStepfunSite(win) || !isAllowedUrl(url)) {
         event.preventDefault();
       }
-    });
+    };
+    win.webContents.on('will-navigate', blockForeignNavigation);
+    win.webContents.on('will-redirect', blockForeignNavigation);
     win.webContents.setWindowOpenHandler(({ url }) => {
       if (isAllowedUrl(url)) {
         return { action: 'allow' };
       }
-      shell.openExternal(url);
+      // 非白名单链接转系统浏览器，且仅允许网页协议，拒绝 file:// 等触发本机程序
+      if (isSafeHttpUrl(url)) void shell.openExternal(url);
       return { action: 'deny' };
     });
 

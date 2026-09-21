@@ -34,6 +34,21 @@ export function isSafeExternalUrl(url: string): boolean {
 }
 
 /**
+ * 校验 URL 是否为普通网页协议（http/https）：
+ * 登录窗口内页面的新窗口请求只允许网页协议转交系统浏览器，
+ * 拒绝 file://、smb:、自定义协议等可触发本机程序的危险协议
+ */
+export function isSafeHttpUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 清理进入 UI 的错误文本：打码疑似凭证片段并截断过长内容，
  * 覆盖 Bearer token、sk- 前缀、32 位以上 hex 串、key/token 等字段赋值
  */

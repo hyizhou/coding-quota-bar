@@ -1,11 +1,13 @@
 /**
  * Qoder 网页认证：弹窗登录（Cookie 认证，persist:qoder-{accountId} 持久化）与登出。
  * 登录成功以用量 API 返回 2xx 判定（协议文档：会话有效性仅由服务端响应判定），
- * 不做导航白名单——Qoder 登录可能跳转第三方 SSO，域名无法预先枚举。
+ * 不做导航白名单——Qoder 登录可能跳转第三方 SSO，域名无法预先枚举；
+ * 仅拦截非网页协议的新窗口请求，防 file:// 等触发本机程序。
  */
 import { BrowserWindow, session } from 'electron';
 import type { ConfigManager } from './config';
 import type { ProviderTypeConfig } from '../shared/types';
+import { isSafeHttpUrl } from './utils/security';
 import { QODER_API_PATH, QODER_BX_V, QODER_SITES, parseManualCapture, type QoderSite } from '../providers/qoder-protocol';
 
 const loginWindows = new Map<string, BrowserWindow>();
@@ -99,6 +101,14 @@ export function qoderWebLogin(accountId: string, site: QoderSite): Promise<{ suc
 
     win.setMenuBarVisibility(false);
     loginWindows.set(accountId, win);
+
+    // 不限制导航域名（SSO 无法枚举），仅拒绝危险协议的弹窗请求
+    win.webContents.setWindowOpenHandler(({ url }) => {
+      if (isSafeHttpUrl(url)) {
+        return { action: 'allow' };
+      }
+      return { action: 'deny' };
+    });
 
     let resolved = false;
     let checkInterval: ReturnType<typeof setInterval> | null = null;
