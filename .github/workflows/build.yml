@@ -20,6 +20,14 @@ jobs:
 
       - run: npx electron-vite build
 
+      - name: Pre-create draft release
+        # electron-builder 26 并发上传产物时可能为同一 tag 各自创建草稿 Release；
+        # 提前建好草稿，发布器会统一复用，避免出现重复 Release
+        shell: bash
+        run: gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "${GITHUB_REF_NAME#v}" || echo "release already exists, reusing"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Package & Publish
         run: npx electron-builder --win --publish always
         env:
