@@ -16,11 +16,11 @@
     "package:store": "npm run build && electron-builder --win appx --publish never"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
+    "@types/node": "^24.13.6",
     "@vitejs/plugin-vue": "^6.0.5",
     "chart.js": "^4.5.1",
-    "electron": "^34.0.0",
-    "electron-builder": "^25.1.8",
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "typescript": "^5.7.2",
     "vite": "^7.3.1",
@@ -30,6 +30,6 @@
     "vue-tsc": "^3.2.6"
   },
   "dependencies": {
-    "electron-updater": "^6.8.3"
+    "electron-updater": "^6.8.9"
   }
 }

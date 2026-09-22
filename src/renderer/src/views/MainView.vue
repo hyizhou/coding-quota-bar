@@ -537,6 +537,9 @@ onUnmounted(() => {
   width: 180px;
   height: 14px;
   z-index: 19;
+  /* 交互触发带须显式脱离 header 的 drag 区：Electron 44 起 drag 区域
+     拦截真实鼠标事件，无 no-drag 则 mouseenter 不送达，切换栏无法悬停展开 */
+  -webkit-app-region: no-drag;
 }
 
 .provider-arrow-hit.arrow-hidden {

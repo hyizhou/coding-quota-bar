@@ -445,8 +445,7 @@ function updateAutoStart(enabled: boolean): void {
     return;
   }
   app.setLoginItemSettings({
-    openAtLogin: enabled,
-    openAsHidden: true
+    openAtLogin: enabled
   });
   console.log(`[App] Auto-start: ${enabled ? 'enabled' : 'disabled'}`);
   trayManager?.setAutoStart(enabled);
