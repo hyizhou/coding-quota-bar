@@ -440,6 +440,7 @@
           <button class="icon-btn github-btn" title="GitHub" @click="openGitHub">
             <img src="../assets/github.svg" alt="GitHub" />
           </button>
+          <button class="feedback-link" @click="openFeedback">{{ $t('settings.feedback') }}</button>
           <span class="version-text">v{{ appVersion }}</span>
         </div>
         <!-- 商店版更新由微软商店托管（政策 10.2.5），隐藏应用内更新入口 -->
@@ -1205,6 +1206,10 @@ function openGitHub() {
   window.electronAPI.openExternal('https://github.com/hyizhou/coding-quota-bar')
 }
 
+function openFeedback() {
+  window.electronAPI.openExternal('https://github.com/hyizhou/coding-quota-bar/discussions')
+}
+
 function handleUpdateClick() {
   const phase = updateState.value.phase
   if (phase === 'ready') {
@@ -1605,6 +1610,16 @@ function handleUpdateClick() {
 .version-text {
   font-size: 11px;
   color: var(--text-tertiary);
+}
+
+.feedback-link {
+  font-size: 11px;
+  color: var(--text-primary);
+  text-decoration: underline;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
 }
 
 .github-btn {

@@ -133,6 +133,7 @@
     "removeAccount": "Remove Account",
     "accountLabelPlaceholder": "Account label (e.g. Work)",
     "noAccounts": "No accounts. Click above to add one.",
+    "feedback": "Feedback",
     "checkUpdate": "Check for Updates",
     "checkingUpdate": "Checking...",
     "noUpdate": "You're up to date",

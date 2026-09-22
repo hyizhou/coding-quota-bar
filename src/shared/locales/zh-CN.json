@@ -133,6 +133,7 @@
     "removeAccount": "删除账号",
     "accountLabelPlaceholder": "账号备注（如：工作号）",
     "noAccounts": "暂无账号，点击上方按钮添加",
+    "feedback": "反馈",
     "checkUpdate": "检查更新",
     "checkingUpdate": "检查中...",
     "noUpdate": "已是最新版本",
