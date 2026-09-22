@@ -278,6 +278,7 @@ export interface ElectronAPI {
   openExternal: (url: string) => Promise<void>
   showPopup: () => void
   setWindowPinned: (mode: WindowPinMode) => void
+  getWindowPinned: () => Promise<WindowPinMode>
   onWindowPinnedState: (callback: (mode: WindowPinMode) => void) => () => void
   getAppVersion: () => Promise<string>
   getBuildInfo: () => Promise<{ version: string; storeBuild: boolean }>

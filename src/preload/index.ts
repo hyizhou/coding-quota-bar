@@ -104,6 +104,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   /**
+   * 获取当前窗口固定状态（视图切换重挂载后同步按钮显示）
+   */
+  getWindowPinned: () => ipcRenderer.invoke('get-window-pinned'),
+
+  /**
    * 监听窗口固定状态变化
    */
   onWindowPinnedState: (callback: (mode: WindowPinMode) => void) =>

@@ -514,6 +514,13 @@ export function getPopupMode(): string {
 }
 
 /**
+ * 获取当前窗口固定状态（主进程为唯一状态源，供 renderer 挂载时同步按钮显示）
+ */
+export function getPinMode(): WindowPinMode {
+  return pinMode;
+}
+
+/**
  * 设置窗口固定状态（三态：不固定 / 固定置顶 / 固定不置顶）
  */
 export function setWindowPinMode(mode: WindowPinMode): void {

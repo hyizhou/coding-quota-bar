@@ -431,6 +431,9 @@ onMounted(async () => {
   offWindowPinnedState = window.electronAPI.onWindowPinnedState((mode) => {
     pinMode.value = mode
   })
+  // 视图切换（进设置页等）会卸载并重挂载 MainView，本地 pinMode 随之复位；
+  // 以主进程状态为准拉取一次，保证固定按钮反映窗口真实状态
+  pinMode.value = await window.electronAPI.getWindowPinned()
   // 监听主进程推送的更新状态
   offUpdateStatus = window.electronAPI.onUpdateStatusChanged((status) => {
     if (status.phase === 'available' || status.phase === 'downloading') {

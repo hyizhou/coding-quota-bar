@@ -18,6 +18,7 @@ import {
   getPopupWindow,
   setWindowPinMode,
   getPopupMode,
+  getPinMode,
   notifyHoverState,
   destroyPopupWindow,
   showFeedbackWindow,
@@ -81,6 +82,11 @@ export function setupIpcHandlers(): void {
     }
     setWindowPinMode(mode);
     getPopupWindow()?.webContents.send('window-pinned-state', mode);
+  });
+
+  // 获取当前窗口固定状态（视图切换导致 renderer 重挂载后同步按钮显示）
+  ipcMain.handle('get-window-pinned', () => {
+    return getPinMode();
   });
 
   // 获取当前用量数据
