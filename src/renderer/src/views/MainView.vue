@@ -1,3 +1,7 @@
+<!--
+  主弹窗主页：服务商 tab + 多账户切换 + 各服务商专属区块（Section 组件）分发，
+  含总览卡片（ProviderOverview）、手动刷新、更新横幅与并发测试入口。
+-->
 <template>
   <div class="view-main">
     <header class="header">
@@ -183,22 +187,22 @@ import { useI18n } from 'vue-i18n'
 import FloatingTooltip from '../components/FloatingTooltip.vue'
 import UpdateBanner from '../components/UpdateBanner.vue'
 import ProviderOverview from '../components/ProviderOverview.vue'
-import ZaiSection from '../components/ZaiSection.vue'
-import MiniMaxSection from '../components/MiniMaxSection.vue'
+import ZaiSection from '../components/zai/ZaiSection.vue'
+import MiniMaxSection from '../components/minimax/MiniMaxSection.vue'
 import ResetPackageBadge from '../components/ResetPackageBadge.vue'
-import DeepSeekServiceStatus from '../components/DeepSeekServiceStatus.vue'
-import OpenCodeGoSection from '../components/OpenCodeGoSection.vue'
-import CodexSection from '../components/CodexSection.vue'
-import OpenRouterSection from '../components/OpenRouterSection.vue'
-import QoderSection from '../components/QoderSection.vue'
+import DeepSeekServiceStatus from '../components/deepseek/DeepSeekServiceStatus.vue'
+import OpenCodeGoSection from '../components/opencode-go/OpenCodeGoSection.vue'
+import CodexSection from '../components/codex/CodexSection.vue'
+import OpenRouterSection from '../components/openrouter/OpenRouterSection.vue'
+import QoderSection from '../components/qoder/QoderSection.vue'
 import type { ProviderUsageData, AccountUsageData, UsageState, WindowPinMode } from '../types'
 import { useTheme } from '../composables/useTheme'
 
 // DeepSeekSection / MiMoSection / StepFunSection 内部直接引用 chart.js → 异步加载，
 // 打开对应 provider tab 时才下载 chart-lib chunk
-const DeepSeekSection = defineAsyncComponent(() => import('../components/DeepSeekSection.vue'))
-const MiMoSection = defineAsyncComponent(() => import('../components/MiMoSection.vue'))
-const StepFunSection = defineAsyncComponent(() => import('../components/StepFunSection.vue'))
+const DeepSeekSection = defineAsyncComponent(() => import('../components/deepseek/DeepSeekSection.vue'))
+const MiMoSection = defineAsyncComponent(() => import('../components/mimo/MiMoSection.vue'))
+const StepFunSection = defineAsyncComponent(() => import('../components/stepfun/StepFunSection.vue'))
 
 const emit = defineEmits<{
   'open-settings': [options?: { checkUpdate?: boolean }]

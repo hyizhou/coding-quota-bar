@@ -1,3 +1,7 @@
+<!--
+  DeepSeek 服务状态监控卡：API/Web 服务当前状态徽章 + 90 天可用率色条，
+  点击服务名可打开 status.deepseek.com 状态页。
+-->
 <template>
   <template v-if="account.serviceStatus?.length">
     <div v-for="svc in account.serviceStatus" :key="svc.id" class="status-card">
@@ -26,7 +30,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import type { AccountUsageData, DeepSeekServiceComponent, ComponentStatus } from '../types'
+import type { AccountUsageData, DeepSeekServiceComponent, ComponentStatus } from '../../types'
 
 const { t, locale } = useI18n()
 

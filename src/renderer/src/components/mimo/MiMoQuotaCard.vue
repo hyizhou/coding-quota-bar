@@ -1,3 +1,7 @@
+<!--
+  MiMo 月度 Credits 额度卡：剩余百分比 + 进度条 + 重置倒计时，
+  下方展开各模型 Token 换算估算明细。
+-->
 <template>
   <div class="credits-card">
     <div class="credits-top">

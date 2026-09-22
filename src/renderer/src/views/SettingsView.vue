@@ -1,3 +1,7 @@
+<!--
+  设置页：多服务商多账户管理（API Key / 网页登录认证、测试连接、账户增删）
+  + 通用设置（刷新间隔、开机自启、语言、主题、更新检查）。
+-->
 <template>
   <div class="view-settings" @focusout="onSettingsFocusOut">
     <header class="header">

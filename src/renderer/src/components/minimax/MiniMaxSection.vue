@@ -1,3 +1,6 @@
+<!--
+  MiniMax 专属卡片区块：按 limitType 将额度分组为多窗口卡片（ModelQuotaCard，百分比制）。
+-->
 <template>
   <div v-for="group in getModelGroups(account.quotas)" :key="group[0].limitType!" class="quota-row-single">
     <ModelQuotaCard :title="group[0].limitType!" :quotas="group" />
@@ -5,8 +8,8 @@
 </template>
 
 <script setup lang="ts">
-import ModelQuotaCard from './ModelQuotaCard.vue'
-import type { AccountUsageData, QuotaItem } from '../types'
+import ModelQuotaCard from '../ModelQuotaCard.vue'
+import type { AccountUsageData, QuotaItem } from '../../types'
 
 defineProps<{
   account: AccountUsageData

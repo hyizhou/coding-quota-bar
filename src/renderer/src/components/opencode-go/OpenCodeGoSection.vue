@@ -1,3 +1,7 @@
+<!--
+  OpenCodeGo 专属卡片区块：5h / weekly / monthly 窗口额度卡（ModelQuotaCard），
+  按 5h → weekly → monthly 优先级排序。
+-->
 <template>
   <div v-for="quota in sortedQuotas" :key="quota.limitType!" class="quota-row">
     <ModelQuotaCard :title="quotaTitle(quota)" :quotas="[quota]" />
@@ -7,8 +11,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ModelQuotaCard from './ModelQuotaCard.vue'
-import type { AccountUsageData, QuotaItem } from '../types'
+import ModelQuotaCard from '../ModelQuotaCard.vue'
+import type { AccountUsageData, QuotaItem } from '../../types'
 
 const props = defineProps<{
   account: AccountUsageData

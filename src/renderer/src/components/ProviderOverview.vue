@@ -1,3 +1,7 @@
+<!--
+  服务商总览卡片：每个服务商账户一张卡，按 provider 规则选取主指标与次级指标，
+  点击卡片切换到对应服务商与账户。
+-->
 <template>
   <div class="overview">
     <button

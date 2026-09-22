@@ -1,3 +1,7 @@
+<!--
+  MiMo 专属卡片区块：账户余额卡 + 本月额度与补偿额度（MiMoQuotaCard）
+  + 月度用量图表（Token 消耗 / 请求次数，按月选择器加载）。
+-->
 <template>
   <!-- 账户余额 -->
   <div class="balance-card card" v-if="account.balance">
@@ -72,10 +76,10 @@ import {
   BarElement,
   Tooltip,
 } from 'chart.js'
-import QuotaCard from './QuotaCard.vue'
+import QuotaCard from '../QuotaCard.vue'
 import MiMoQuotaCard from './MiMoQuotaCard.vue'
-import type { AccountUsageData, ModelTokenRecord } from '../types'
-import { useTheme } from '../composables/useTheme'
+import type { AccountUsageData, ModelTokenRecord } from '../../types'
+import { useTheme } from '../../composables/useTheme'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip)
 

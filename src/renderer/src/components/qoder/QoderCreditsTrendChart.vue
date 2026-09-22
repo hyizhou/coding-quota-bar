@@ -38,8 +38,8 @@ import {
   Tooltip
 } from 'chart.js'
 import { useI18n } from 'vue-i18n'
-import type { QoderCreditsTrend } from '../types'
-import { useTheme } from '../composables/useTheme'
+import type { QoderCreditsTrend } from '../../types'
+import { useTheme } from '../../composables/useTheme'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip)
 

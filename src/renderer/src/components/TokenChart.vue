@@ -1,3 +1,7 @@
+<!--
+  通用 Token 用量柱状图（chart.js Bar）：按时间范围展示模型 Token 消耗，
+  头部含总量与估算费用悬浮提示，颜色跟随主题；被智谱（UsageStats）与 StepFun 复用。
+-->
 <template>
   <div class="token-chart">
     <div class="chart-header">

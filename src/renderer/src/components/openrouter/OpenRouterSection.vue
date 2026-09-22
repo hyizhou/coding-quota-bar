@@ -1,3 +1,7 @@
+<!--
+  OpenRouter 专属卡片区块：账户余额卡（多 Key 共用钱包）
+  + 每个 API Key 一张卡（用量/限额/错误，高度随内容自适应）。
+-->
 <template>
   <!-- OpenRouter 渠道：顶部账户余额卡 + 每个 API Key 一张自适应高度卡片（口径由卡片划分） -->
 
@@ -45,8 +49,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import QuotaCard from './QuotaCard.vue'
-import type { AccountUsageData, QuotaItem } from '../types'
+import QuotaCard from '../QuotaCard.vue'
+import type { AccountUsageData, QuotaItem } from '../../types'
 
 const { t, locale } = useI18n()
 

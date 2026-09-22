@@ -1,3 +1,7 @@
+<!--
+  通用窗口额度卡片：标题 + 多行额度（时间范围、剩余百分比、进度条、用量明细），
+  供 MiniMax（按 limitType 分组多行）与 OpenCodeGo（单窗口单行）复用。
+-->
 <template>
   <div class="model-quota-card">
     <div class="model-header">{{ title }}</div>

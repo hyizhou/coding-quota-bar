@@ -1,3 +1,7 @@
+<!--
+  通用悬浮提示框：包裹触发元素，hover 显示 label/value 行列表；
+  支持上/下弹出（position）与左/中/右对齐（align）。
+-->
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
   rows: Array<{ label: string; value: string }>

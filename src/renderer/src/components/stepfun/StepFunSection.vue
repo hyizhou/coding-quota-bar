@@ -86,11 +86,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
-import QuotaCard from './QuotaCard.vue'
-import type { AccountUsageData, ModelTokenRecord } from '../types'
+import QuotaCard from '../QuotaCard.vue'
+import type { AccountUsageData, ModelTokenRecord } from '../../types'
 
 // chart.js 体积大，按需加载：用户打开图表时才下载
-const TokenChart = defineAsyncComponent(() => import('./TokenChart.vue'))
+const TokenChart = defineAsyncComponent(() => import('../TokenChart.vue'))
 
 const { t, locale } = useI18n()
 

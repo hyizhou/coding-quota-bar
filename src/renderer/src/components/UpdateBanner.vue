@@ -1,3 +1,6 @@
+<!--
+  版本更新提示横幅：点击整条横幅触发下载，右侧按钮关闭；更新流程由 MainView 处理。
+-->
 <template>
   <div class="update-banner" @click="$emit('click')">
     <span class="update-banner-text">{{ $t('main.updateAvailableBanner', { version }) }}</span>

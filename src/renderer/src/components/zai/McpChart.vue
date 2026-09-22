@@ -1,3 +1,6 @@
+<!--
+  MCP 工具调用统计柱状图：按时间粒度展示联网搜索/网页阅读/ZRead 调用次数，颜色跟随主题。
+-->
 <template>
   <div class="mcp-chart">
     <div class="chart-header">
@@ -22,8 +25,8 @@ import {
   BarElement,
   Tooltip
 } from 'chart.js'
-import type { McpUsageRecord } from '../types'
-import { useTheme } from '../composables/useTheme'
+import type { McpUsageRecord } from '../../types'
+import { useTheme } from '../../composables/useTheme'
 import { useI18n } from 'vue-i18n'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip)

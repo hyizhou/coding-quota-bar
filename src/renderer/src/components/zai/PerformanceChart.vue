@@ -1,3 +1,6 @@
+<!--
+  模型性能折线图：解码速度与成功率趋势，支持 7/15/30 天时间范围切换，颜色跟随主题。
+-->
 <template>
   <div class="performance-chart">
     <div class="stats-tabs-row">
@@ -30,8 +33,8 @@ import {
   PointElement,
   Tooltip
 } from 'chart.js'
-import type { PerformanceRecord } from '../types'
-import { useTheme } from '../composables/useTheme'
+import type { PerformanceRecord } from '../../types'
+import { useTheme } from '../../composables/useTheme'
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Tooltip)
 

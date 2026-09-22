@@ -1,3 +1,7 @@
+<!--
+  智谱用量统计图表入口：Token / MCP 两类图表 tab + 1d/7d/30d 时间范围 tab，
+  分发到 TokenChart 与 McpChart。
+-->
 <template>
   <div class="usage-stats">
     <div class="stats-tabs-row">
@@ -43,11 +47,11 @@
 <script setup lang="ts">
 import { ref, watch, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { ModelTokenRecord, McpUsageRecord } from '../types'
+import type { ModelTokenRecord, McpUsageRecord } from '../../types'
 
 // chart.js 体积大（构建后 ~350KB），按需加载
 // 首屏不下载，用户点开图表 tab 时才加载
-const TokenChart = defineAsyncComponent(() => import('./TokenChart.vue'))
+const TokenChart = defineAsyncComponent(() => import('../TokenChart.vue'))
 const McpChart = defineAsyncComponent(() => import('./McpChart.vue'))
 
 const { t } = useI18n()

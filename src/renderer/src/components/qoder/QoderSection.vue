@@ -36,9 +36,9 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
-import QuotaCard from './QuotaCard.vue'
-import UsageHeatmap from './UsageHeatmap.vue'
-import type { AccountUsageData } from '../types'
+import QuotaCard from '../QuotaCard.vue'
+import UsageHeatmap from '../UsageHeatmap.vue'
+import type { AccountUsageData } from '../../types'
 
 // chart.js 体积较大，Qoder 页签打开时再加载折线图 chunk
 const QoderCreditsTrendChart = defineAsyncComponent(() => import('./QoderCreditsTrendChart.vue'))

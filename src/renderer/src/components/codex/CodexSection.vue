@@ -1,3 +1,7 @@
+<!--
+  Codex 专属卡片区块：限流警告 + 主/次限流窗口额度 + 额外限额（spark 会话/周等）
+  + 代码审查额度 + Credits 余额与订阅到期信息。
+-->
 <template>
   <!-- 限流警告（页面顶部） -->
   <div v-if="account.limitReached" class="limit-warning">
@@ -79,8 +83,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import QuotaCard from './QuotaCard.vue'
-import type { AccountUsageData } from '../types'
+import QuotaCard from '../QuotaCard.vue'
+import type { AccountUsageData } from '../../types'
 
 const { locale } = useI18n()
 

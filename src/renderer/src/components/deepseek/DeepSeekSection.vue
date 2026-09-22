@@ -1,3 +1,7 @@
+<!--
+  DeepSeek 专属卡片区块：账户余额卡（总额/明细）
+  + 网页登录模式月度用量（费用统计 + 按模型 Token 柱状图，按月选择器加载）。
+-->
 <template>
   <div class="balance-card">
     <div class="balance-header">
@@ -58,8 +62,8 @@ import { Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Filler
 } from 'chart.js'
-import type { AccountUsageData, ModelTokenRecord, ModelCostRecord } from '../types'
-import { useTheme } from '../composables/useTheme'
+import type { AccountUsageData, ModelTokenRecord, ModelCostRecord } from '../../types'
+import { useTheme } from '../../composables/useTheme'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Filler)
 

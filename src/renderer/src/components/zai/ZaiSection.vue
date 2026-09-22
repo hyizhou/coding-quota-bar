@@ -1,3 +1,7 @@
+<!--
+  智谱专属卡片区块：额度卡片（点击进入用量统计页）
+  + Token/MCP 用量图表（UsageStats）+ 模型性能折线图（PerformanceChart）。
+-->
 <template>
   <template v-for="(row, ri) in getQuotaRows(account.quotas)" :key="ri">
     <div v-if="row.length === 1" class="quota-row-single quota-clickable" @click="emit('open-usage-stats', account.id, account.label)">
@@ -27,11 +31,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, defineAsyncComponent } from 'vue'
-import QuotaCard from './QuotaCard.vue'
+import QuotaCard from '../QuotaCard.vue'
 import UsageStats from './UsageStats.vue'
 // PerformanceChart 含 chart.js → 异步加载，避免首屏阻塞
 const PerformanceChart = defineAsyncComponent(() => import('./PerformanceChart.vue'))
-import type { AccountUsageData, QuotaItem } from '../types'
+import type { AccountUsageData, QuotaItem } from '../../types'
 
 defineProps<{
   account: AccountUsageData
