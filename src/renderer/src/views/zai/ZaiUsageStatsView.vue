@@ -144,11 +144,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import TrendArrow from '../components/TrendArrow.vue'
-import FloatingTooltip from '../components/FloatingTooltip.vue'
-import UsageHeatmap from '../components/UsageHeatmap.vue'
-import type { HeatmapRecord } from '../components/UsageHeatmap.vue'
-import type { ZaiDailyUsageItem, ZaiUsageActivitySummary } from '../types'
+import TrendArrow from '../../components/TrendArrow.vue'
+import FloatingTooltip from '../../components/FloatingTooltip.vue'
+import UsageHeatmap from '../../components/UsageHeatmap.vue'
+import type { HeatmapRecord } from '../../components/UsageHeatmap.vue'
+import type { ZaiDailyUsageItem, ZaiUsageActivitySummary } from '../../types'
 
 const props = defineProps<{
   accountId: string

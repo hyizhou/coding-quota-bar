@@ -14,8 +14,8 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MainView from './views/MainView.vue'
 import SettingsView from './views/SettingsView.vue'
-import ZaiConcurrencyTestView from './views/ZaiConcurrencyTestView.vue'
-import ZaiUsageStatsView from './views/ZaiUsageStatsView.vue'
+import ZaiConcurrencyTestView from './views/zai/ZaiConcurrencyTestView.vue'
+import ZaiUsageStatsView from './views/zai/ZaiUsageStatsView.vue'
 
 const { locale } = useI18n()
 

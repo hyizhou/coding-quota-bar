@@ -144,8 +144,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import zaiPricing from '../../../providers/zai-pricing.json'
-import type { ApiFormat, ConcurrencyTestResult } from '../types'
+import zaiPricing from '../../../../providers/zai-pricing.json'
+import type { ApiFormat, ConcurrencyTestResult } from '../../types'
 
 defineEmits<{ 'go-back': [] }>()
 
