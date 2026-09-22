@@ -151,6 +151,23 @@ export interface QoderCreditsHeatmap {
 }
 
 /**
+ * StepFun 加油包桶（官方前端只展示 type=2 TYPE_TOPUP 的桶）
+ */
+export interface StepFunTopupBucket {
+  total: number;       // 桶总量
+  residual: number;    // 桶剩余量
+  expireAt: string;    // 过期时间 ISO 8601
+}
+
+/**
+ * StepFun 订阅桶绝对量（Credit 总卡显示具体用量数值）
+ */
+export interface StepFunCreditAmounts {
+  total: number;       // 订阅桶总量
+  residual: number;    // 订阅桶剩余量
+}
+
+/**
  * 分模型 Token 使用历史记录
  */
 export interface ModelTokenRecord {

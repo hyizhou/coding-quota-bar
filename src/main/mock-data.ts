@@ -185,10 +185,10 @@ function generateZaiDailyModelHistory(days: number): { date: string; model: stri
 /**
  * 生成 StepFun 小时级积分消耗历史（7d 汇总曲线）
  */
-function generateStepfunHourlyHistory(hours: number): { date: string; used: number }[] {
+function generateStepfunHourlyHistory(days: number): { date: string; used: number }[] {
   const records: { date: string; used: number }[] = [];
   const now = new Date();
-  const start = new Date(now.getTime() - hours * 24 * HOUR);
+  const start = new Date(now.getTime() - days * 24 * HOUR);
   start.setMinutes(0, 0, 0);
   for (let t = start.getTime(); t <= now.getTime(); t += HOUR) {
     const d = new Date(t);
@@ -204,11 +204,11 @@ function generateStepfunHourlyHistory(hours: number): { date: string; used: numb
 /**
  * 生成 StepFun 小时级分模型积分消耗历史（按小时 × 模型）
  */
-function generateStepfunModelHistory(hours: number): { date: string; model: string; used: number; requests: number }[] {
+function generateStepfunModelHistory(days: number): { date: string; model: string; used: number; requests: number }[] {
   const models = ['step-5-preview', 'step-router-v1', 'step-3.7-flash'];
   const records: { date: string; model: string; used: number; requests: number }[] = [];
   const now = new Date();
-  const start = new Date(now.getTime() - hours * 24 * HOUR);
+  const start = new Date(now.getTime() - days * 24 * HOUR);
   start.setMinutes(0, 0, 0);
   for (let t = start.getTime(); t <= now.getTime(); t += HOUR) {
     const d = new Date(t);

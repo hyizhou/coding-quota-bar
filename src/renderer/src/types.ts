@@ -1,7 +1,7 @@
 /**
  * Renderer 进程共享类型定义
  */
-import type { CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, ResetPackages, ResetPackageSummary, TrayDisplayRule, WindowPinMode, ZaiDailyUsageItem, ZaiUsageActivitySummary, ZaiUsageStats } from '../../shared/types'
+import type { CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, ResetPackages, ResetPackageSummary, StepFunCreditAmounts, StepFunTopupBucket, TrayDisplayRule, WindowPinMode, ZaiDailyUsageItem, ZaiUsageActivitySummary, ZaiUsageStats } from '../../shared/types'
 
 export type { WindowPinMode }
 export type { ZaiDailyUsageItem }
@@ -10,6 +10,7 @@ export type { ZaiUsageStats }
 export type { ResetPackages, ResetPackageSummary }
 export type { CodexUsageStats }
 export type { QoderCreditsHeatmap, QoderCreditsTrend }
+export type { StepFunCreditAmounts, StepFunTopupBucket }
 
 export interface SubscriptionInfo {
   plan: string
@@ -114,8 +115,8 @@ export interface AccountUsageData {
   qoderUnit?: string
   qoderCreditsTrend?: QoderCreditsTrend
   qoderCreditsHeatmap?: QoderCreditsHeatmap
-  stepfunTopupBuckets?: Array<{ total: number; residual: number; expireAt: string }>
-  stepfunCreditAmounts?: { total: number; residual: number }
+  stepfunTopupBuckets?: StepFunTopupBucket[]
+  stepfunCreditAmounts?: StepFunCreditAmounts
 }
 
 /**

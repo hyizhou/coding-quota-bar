@@ -1,6 +1,6 @@
 import { getColorByPercent } from './tray';
 import { t as i18nT } from './i18n';
-import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, ResetPackages, CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend } from '../shared/types';
+import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, ResetPackages, CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, StepFunCreditAmounts, StepFunTopupBucket } from '../shared/types';
 import type { Scheduler } from './scheduler';
 import type { ConfigManager } from './config';
 import buildConfig from '../../app.build';
@@ -64,8 +64,8 @@ export interface AccountDisplayData {
   qoderUnit?: string;
   qoderCreditsTrend?: QoderCreditsTrend;
   qoderCreditsHeatmap?: QoderCreditsHeatmap;
-  stepfunTopupBuckets?: Array<{ total: number; residual: number; expireAt: string }>;
-  stepfunCreditAmounts?: { total: number; residual: number };
+  stepfunTopupBuckets?: StepFunTopupBucket[];
+  stepfunCreditAmounts?: StepFunCreditAmounts;
 }
 
 /**

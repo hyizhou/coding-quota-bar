@@ -6,7 +6,8 @@
  */
 import { BrowserWindow } from 'electron';
 import { HttpClient } from '../main/http';
-import type { ModelTokenRecord, Provider, ProviderConfig, QuotaItem, UsageResult } from '../shared/types';
+import type { ModelTokenRecord, Provider, ProviderConfig, QuotaItem, StepFunCreditAmounts, StepFunTopupBucket, UsageResult } from '../shared/types';
+import { createLoadedWindow, execInPage, waitForReload } from './page-fetch';
 
 const TOKEN_EXPIRED = 'TOKEN_EXPIRED';
 
@@ -19,8 +20,6 @@ const USAGES_PATH = '/api/step.openapi.devcenter.Dashboard/QueryStepPlanUsages';
 
 /** 请求/页面加载超时（接入指南 §3：建议 15 秒） */
 const REQUEST_TIMEOUT = 15000;
-/** 页内 fetch 超时：防止 executeJavaScript 永久挂起导致窗口无法销毁 */
-const PAGE_FETCH_TIMEOUT = 15000;
 /** 用量明细分页参数（7/30 天按小时×模型聚合足够覆盖） */
 const USAGES_PAGE_SIZE = 200;
 const USAGES_MAX_RECORDS = 2000;
@@ -36,13 +35,6 @@ interface StepFunCreditBucket {
   residual: number;
   expireAt: string;
   nextResetAt: string;
-}
-
-/** 加油包桶（官方前端只展示 type=2 TYPE_TOPUP 的桶） */
-interface StepFunTopupBucket {
-  total: number;
-  residual: number;
-  expireAt: string;
 }
 
 interface StepFunUsageItem {
@@ -104,16 +96,6 @@ function fenToYuanString(value: unknown): string {
   return n == null ? '0.00' : (n / 100).toFixed(2);
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number = PAGE_FETCH_TIMEOUT): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('Page fetch timeout')), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => {
-    if (timer !== undefined) clearTimeout(timer);
-  }) as Promise<T>;
-}
-
 /**
  * 从 Oasis-Token 推导 Oasis-Webid（接入指南 §2 防伪点）：
  * 组合对优先取 refresh 半段的 device_id，取不到再取 access 半段；裸 JWT 取自身。
@@ -140,49 +122,9 @@ export function parseStepFunWebid(token: string): string {
 
 /** ---------- session 模式：隐藏窗口页内 fetch（Cookie 自动携带，webid 头传空串由服务端回退匹配） ---------- */
 
-async function createLoadedWindow(accountId: string): Promise<BrowserWindow> {
-  const partition = `persist:stepfun-${accountId}`;
-  const win = new BrowserWindow({
-    width: 480,
-    height: 400,
-    show: false,
-    // spellcheck: false —— Windows 拼写组件在沙箱下会往 CWD 写入乱码空目录（Microsoft\Spelling）
-    webPreferences: { partition, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: false },
-  });
-
-  // 屏蔽页面 JS 的 console 输出
-  win.webContents.on('console-message', () => {});
-
-  await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      if (!win.isDestroyed()) win.destroy();
-      reject(new Error('Page load timeout'));
-    }, REQUEST_TIMEOUT);
-    const onClosed = () => { clearTimeout(timer); reject(new Error('Window destroyed')); };
-    win.once('closed', onClosed);
-    win.webContents.once('did-finish-load', () => {
-      clearTimeout(timer);
-      win.removeListener('closed', onClosed);
-      resolve();
-    });
-    // 加载结果由 did-finish-load / closed / 超时 Promise 管理，吞掉 loadURL 自身的 rejection
-    win.loadURL(ACCOUNT_PAGE).catch(() => {});
-  });
-
-  return win;
-}
-
-async function reloadWindow(win: BrowserWindow): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Reload timeout')), REQUEST_TIMEOUT);
-    win.webContents.once('did-finish-load', () => { clearTimeout(timer); resolve(); });
-    win.webContents.once('did-fail-load', () => { clearTimeout(timer); resolve(); });
-    win.reload();
-  });
-}
-
 async function callInPage(win: BrowserWindow, path: string, body: Record<string, unknown>): Promise<{ status: number; body: string }> {
-  const json = await withTimeout(win.webContents.executeJavaScript(`
+  // 脚本返回 JSON.stringify 后的字符串，必须 parse 还原 {status, body}
+  const json = await execInPage<string>(win, `
     (function() {
       return fetch('${path}', {
         method: 'POST',
@@ -198,7 +140,7 @@ async function callInPage(win: BrowserWindow, path: string, body: Record<string,
         return r.text().then(function(t) { return JSON.stringify({ status: r.status, body: t }); });
       });
     })()
-  `));
+  `);
   return JSON.parse(json) as { status: number; body: string };
 }
 
@@ -302,7 +244,7 @@ interface StepFunPlanSnapshot {
   mainUsed: number;
   mainTotal: number;
   topupBuckets: StepFunTopupBucket[];
-  creditAmounts?: { total: number; residual: number };
+  creditAmounts?: StepFunCreditAmounts;
 }
 
 /** PlanCreditBucket.Type 枚举：0=UNSPECIFIED, 1=SUBSCRIPTION(订阅), 2=TOPUP(加油包) */
@@ -530,6 +472,18 @@ export class StepFunProvider implements Provider {
   /** 用量历史缓存 key: "accountId:days:YYYY-MM-DD"（日级缓存，跨日自动失效） */
   private historyCache = new Map<string, ModelTokenRecord[]>();
 
+  /** session 模式：创建临时隐藏窗口执行页内请求，结束后销毁窗口（供主额度与历史查询复用） */
+  private async withSessionWindow<T>(accountId: string, fn: (win: BrowserWindow, caller: StepFunCaller) => Promise<T>): Promise<T> {
+    let win: BrowserWindow | null = null;
+    try {
+      win = await createLoadedWindow({ partition: `persist:stepfun-${accountId}`, url: ACCOUNT_PAGE });
+      const caller: StepFunCaller = (path, body) => callInPage(win!, path, body);
+      return await fn(win, caller);
+    } finally {
+      if (win && !win.isDestroyed()) win.destroy();
+    }
+  }
+
   async fetchUsage(config: ProviderConfig): Promise<UsageResult> {
     if (config.stepfunCookieSource === 'manual') return this.fetchViaHttp(config);
     return this.fetchViaSession(config.accountId ?? '');
@@ -555,25 +509,21 @@ export class StepFunProvider implements Provider {
 
   /** session 模式：临时隐藏窗口页内 fetch，鉴权失败时 reload 重试一次 */
   private async fetchViaSession(accountId: string): Promise<UsageResult> {
-    let win: BrowserWindow | null = null;
     try {
-      win = await createLoadedWindow(accountId);
-      const caller: StepFunCaller = (path, body) => callInPage(win!, path, body);
+      return await this.withSessionWindow(accountId, async (win, caller) => {
+        let rateResp = await caller(RATE_LIMIT_PATH, {});
+        if (isAuthFailure(rateResp.status, rateResp.body)) {
+          console.log(`[StepFun] Session expired for ${accountId}, reloading...`);
+          await waitForReload(win);
+          rateResp = await caller(RATE_LIMIT_PATH, {});
+        }
+        if (isAuthFailure(rateResp.status, rateResp.body)) return errorResult(TOKEN_EXPIRED);
+        if (rateResp.status < 200 || rateResp.status >= 300) return errorResult(`HTTP ${rateResp.status}`);
 
-      let rateResp = await caller(RATE_LIMIT_PATH, {});
-      if (isAuthFailure(rateResp.status, rateResp.body)) {
-        console.log(`[StepFun] Session expired for ${accountId}, reloading...`);
-        await reloadWindow(win);
-        rateResp = await caller(RATE_LIMIT_PATH, {});
-      }
-      if (isAuthFailure(rateResp.status, rateResp.body)) return errorResult(TOKEN_EXPIRED);
-      if (rateResp.status < 200 || rateResp.status >= 300) return errorResult(`HTTP ${rateResp.status}`);
-
-      return await this.collectAndTransform(caller, rateResp.body);
+        return await this.collectAndTransform(caller, rateResp.body);
+      });
     } catch (e) {
       return errorResult(`NETWORK_ERROR: ${errorMessage(e)}`);
-    } finally {
-      if (win && !win.isDestroyed()) win.destroy();
     }
   }
 
@@ -609,14 +559,8 @@ export class StepFunProvider implements Provider {
         return usageItemsToRecords(await fetchUsageItems(createHttpCaller(token, webid), days));
       }
 
-      let win: BrowserWindow | null = null;
-      try {
-        win = await createLoadedWindow(config.accountId ?? '');
-        const caller: StepFunCaller = (path, body) => callInPage(win!, path, body);
-        return usageItemsToRecords(await fetchUsageItems(caller, days));
-      } finally {
-        if (win && !win.isDestroyed()) win.destroy();
-      }
+      return await this.withSessionWindow(config.accountId ?? '', async (_win, caller) =>
+        usageItemsToRecords(await fetchUsageItems(caller, days)));
     } catch {
       return [];
     }

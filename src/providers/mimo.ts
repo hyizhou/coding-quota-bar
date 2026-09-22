@@ -1,5 +1,6 @@
 import { BrowserWindow } from 'electron';
 import type { Provider, ProviderConfig, QuotaItem, UsageResult } from '../shared/types';
+import { createLoadedWindow, execInPage, waitForReload } from './page-fetch';
 
 const TOKEN_EXPIRED = 'TOKEN_EXPIRED';
 
@@ -60,38 +61,23 @@ const PLAN_LEVEL_MAP: Record<string, string> = {
   max: 'Max',
 };
 
-/** 页内 fetch 超时时间：防止 executeJavaScript 永久挂起导致窗口无法销毁 */
-const PAGE_FETCH_TIMEOUT = 15000;
-
-/**
- * 为 Promise 加超时保护
- */
-function withTimeout<T>(promise: Promise<T>, ms: number = PAGE_FETCH_TIMEOUT): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('Page fetch timeout')), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => {
-    if (timer !== undefined) clearTimeout(timer);
-  }) as Promise<T>;
-}
+const MIMO_CONSOLE_URL = 'https://platform.xiaomimimo.com/console/balance';
 
 /**
  * 通过页面内 fetch 调用 MiMo API（Cookie 天然携带）
  */
 async function fetchApiInPage<T>(win: BrowserWindow, path: string): Promise<MiMoApiResponse<T>> {
-  const json = await withTimeout(win.webContents.executeJavaScript(`
+  return execInPage<MiMoApiResponse<T>>(win, `
     fetch('${path}', { credentials: 'include' })
       .then(r => r.json())
-  `));
-  return json as MiMoApiResponse<T>;
+  `);
 }
 
 /**
  * 通过页面内 POST fetch 调用 MiMo API（自动从 cookie 读取 api-platform_ph 签名）
  */
 async function postApiInPage<T>(win: BrowserWindow, path: string, body: Record<string, unknown>): Promise<MiMoApiResponse<T>> {
-  const json = await withTimeout(win.webContents.executeJavaScript(`
+  return execInPage<MiMoApiResponse<T>>(win, `
     (function() {
       var cookies = document.cookie.split(';').map(function(c) { return c.trim(); });
       var phCookie = cookies.find(function(c) { return c.startsWith('api-platform_ph='); });
@@ -104,52 +90,19 @@ async function postApiInPage<T>(win: BrowserWindow, path: string, body: Record<s
         body: JSON.stringify(${JSON.stringify(body)})
       }).then(function(r) { return r.json(); });
     })()
-  `));
-  return json as MiMoApiResponse<T>;
+  `);
 }
 
 /**
- * 创建临时隐藏窗口并加载 MiMo 页面
+ * 创建加载完成的 MiMo 页面窗口（屏蔽小米统计请求，等待页面 JS 初始化）
  */
-async function createLoadedWindow(accountId: string): Promise<BrowserWindow> {
-  const partition = `persist:mimo-${accountId}`;
-  const win = new BrowserWindow({
-    width: 480,
-    height: 400,
-    show: false,
-    // spellcheck: false —— Windows 拼写组件在沙箱下会往 CWD 写入乱码空目录（Microsoft\Spelling）
-    webPreferences: { partition, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: false },
+async function createMimoWindow(accountId: string): Promise<BrowserWindow> {
+  const win = await createLoadedWindow({
+    partition: `persist:mimo-${accountId}`,
+    url: MIMO_CONSOLE_URL,
+    // 屏蔽小米统计请求，避免 SSL 错误噪音输出到主进程控制台
+    shouldBlockRequest: url => url.includes('tracking.miui.com'),
   });
-
-  // 屏蔽无关请求（小米统计等），避免 SSL 错误噪音输出到主进程控制台
-  win.webContents.session.webRequest.onBeforeRequest((details, callback) => {
-    if (details.url.includes('tracking.miui.com')) {
-      callback({ cancel: true });
-    } else {
-      callback({});
-    }
-  });
-
-  // 屏蔽页面 JS 的 console 输出
-  win.webContents.on('console-message', () => {});
-
-  await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      // 超时前先销毁窗口，避免 reject 后窗口残留
-      if (!win.isDestroyed()) win.destroy();
-      reject(new Error('Page load timeout'));
-    }, 15000);
-    const onClosed = () => { clearTimeout(timer); reject(new Error('Window destroyed')); };
-    win.once('closed', onClosed);
-    win.webContents.once('did-finish-load', () => {
-      clearTimeout(timer);
-      win.removeListener('closed', onClosed);
-      resolve();
-    });
-    // 加载结果由 did-finish-load / closed / 超时 Promise 管理，吞掉 loadURL 自身的 rejection
-    win.loadURL('https://platform.xiaomimimo.com/console/balance').catch(() => {});
-  });
-
   // 等待页面 JS 初始化
   await new Promise(r => setTimeout(r, 1000));
   return win;
@@ -167,7 +120,7 @@ export class MiMoProvider implements Provider {
 
     try {
       // 创建临时窗口，加载页面（Cookie 自动携带）
-      win = await createLoadedWindow(accountId);
+      win = await createMimoWindow(accountId);
 
       // 第一次请求
       const result = await this.tryFetch(win);
@@ -175,11 +128,7 @@ export class MiMoProvider implements Provider {
 
       // Cookie 可能过期，刷新页面重试
       console.log(`[MiMo] Session expired for ${accountId}, reloading...`);
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Reload timeout')), 15000);
-        win!.webContents.once('did-finish-load', () => { clearTimeout(timer); resolve(); });
-        win!.webContents.reload();
-      });
+      await waitForReload(win);
       await new Promise(r => setTimeout(r, 1000));
 
       const retry = await this.tryFetch(win);
@@ -376,7 +325,7 @@ export class MiMoProvider implements Provider {
 
     let win: BrowserWindow | null = null;
     try {
-      win = await createLoadedWindow(accountId);
+      win = await createMimoWindow(accountId);
       const resp = await postApiInPage<MiMoUsageDailyItem[]>(win, '/api/v1/usage/token-plan/list', { year, month });
       if (resp.code !== 0 || !Array.isArray(resp.data)) return [];
       const records = resp.data.map(item => ({

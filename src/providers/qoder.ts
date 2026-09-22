@@ -7,6 +7,7 @@
 import { BrowserWindow } from 'electron';
 import { HttpClient } from '../main/http';
 import type { Provider, ProviderConfig, QoderCreditsHeatmap, QoderCreditsTrend, UsageResult } from '../shared/types';
+import { createLoadedWindow, execInPage, waitForReload } from './page-fetch';
 import {
   QODER_API_PATH,
   QODER_BROWSER_UA,
@@ -28,19 +29,6 @@ const REQUEST_TIMEOUT = 15000;
 
 /** 增强统计请求超时：图表缺失不影响主数据，避免拖慢连接测试 */
 const STATS_REQUEST_TIMEOUT = 5000;
-
-/** 页内 fetch 超时：防止 executeJavaScript 永久挂起导致窗口无法销毁 */
-const PAGE_FETCH_TIMEOUT = 15000;
-
-function withTimeout<T>(promise: Promise<T>, ms: number = PAGE_FETCH_TIMEOUT): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('Page fetch timeout')), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => {
-    if (timer !== undefined) clearTimeout(timer);
-  }) as Promise<T>;
-}
 
 function errorResult(error: string): UsageResult {
   return { used: 0, total: 0, expiresAt: '', error, details: { quotas: [] } };
@@ -192,48 +180,24 @@ async function fetchViaHttp(site: QoderSite, cookieHeader: string): Promise<Usag
 
 /** ---------- session 模式：隐藏窗口页内 fetch（Cookie/Origin/Referer/UA 自动携带） ---------- */
 
-async function createLoadedWindow(site: QoderSite, accountId: string): Promise<BrowserWindow> {
+async function createQoderWindow(site: QoderSite, accountId: string): Promise<BrowserWindow> {
   const info = QODER_SITES[site];
-  const partition = `persist:qoder-${accountId}`;
-  const win = new BrowserWindow({
-    width: 480,
-    height: 400,
-    show: false,
-    // spellcheck: false —— Windows 拼写组件在沙箱下会往 CWD 写入乱码空目录（Microsoft/Spelling）
-    webPreferences: { partition, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: false },
+  return createLoadedWindow({
+    partition: `persist:qoder-${accountId}`,
+    url: `${info.origin}/account/usage`,
+    timeoutMs: REQUEST_TIMEOUT,
   });
-
-  // 屏蔽页面 JS 的 console 输出
-  win.webContents.on('console-message', () => {});
-
-  await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      if (!win.isDestroyed()) win.destroy();
-      reject(new Error('Page load timeout'));
-    }, REQUEST_TIMEOUT);
-    const onClosed = () => { clearTimeout(timer); reject(new Error('Window destroyed')); };
-    win.once('closed', onClosed);
-    win.webContents.once('did-finish-load', () => {
-      clearTimeout(timer);
-      win.removeListener('closed', onClosed);
-      resolve();
-    });
-    win.loadURL(`${info.origin}/account/usage`).catch(() => {
-      // 加载结果由 did-finish-load / closed / 超时 Promise 管理，吞掉 loadURL 自身的 rejection
-    });
-  });
-
-  return win;
 }
 
 async function fetchInPage(
   win: BrowserWindow,
   path: string = QODER_API_PATH,
-  timeout: number = PAGE_FETCH_TIMEOUT
+  timeout: number = 15000
 ): Promise<PageResponse> {
   const requestPath = JSON.stringify(path);
   const bxVersion = JSON.stringify(QODER_BX_V);
-  const json = await withTimeout(win.webContents.executeJavaScript(`
+  // 脚本返回 JSON.stringify 后的字符串，必须 parse 还原 {status, body}
+  const json = await execInPage<string>(win, `
     (function() {
       return fetch(${requestPath}, {
         credentials: 'include',
@@ -246,9 +210,8 @@ async function fetchInPage(
         return r.text().then(function(t) { return JSON.stringify({ status: r.status, body: t }); });
       });
     })()
-  `), timeout);
-  const parsed = JSON.parse(json) as PageResponse;
-  return parsed;
+  `, timeout);
+  return JSON.parse(json) as PageResponse;
 }
 
 async function attachPageUsageStats(win: BrowserWindow, result: UsageResult): Promise<void> {
@@ -266,7 +229,7 @@ async function attachPageUsageStats(win: BrowserWindow, result: UsageResult): Pr
 async function fetchViaSession(site: QoderSite, accountId: string): Promise<UsageResult> {
   let win: BrowserWindow | null = null;
   try {
-    win = await createLoadedWindow(site, accountId);
+    win = await createQoderWindow(site, accountId);
 
     // 第一次请求
     const first = await fetchInPage(win);
@@ -279,11 +242,7 @@ async function fetchViaSession(site: QoderSite, accountId: string): Promise<Usag
 
     // Cookie 可能过期，刷新页面重试一次（session partition 内自动续期非 httpOnly cookie）
     console.log(`[Qoder] Session expired for ${accountId}, reloading...`);
-    await new Promise<void>((resolve) => {
-      const timer = setTimeout(resolve, REQUEST_TIMEOUT);
-      win!.webContents.once('did-finish-load', () => { clearTimeout(timer); resolve(); });
-      win!.webContents.reload();
-    });
+    await waitForReload(win, REQUEST_TIMEOUT);
 
     const retry = await fetchInPage(win);
     const retryResult = mapApiResponse(retry.status, retry.body);
