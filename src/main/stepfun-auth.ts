@@ -155,9 +155,19 @@ export function stepfunWebLogin(accountId: string): Promise<{ success: boolean; 
 
     const onLoginSuccess = async () => {
       console.log('[StepFun] Login detected!');
-      resolved = true;
       stopInterval();
-      await saveLoginState();
+      // 持久化成功后才关窗；保存失败也要结束 IPC 等待，避免登录按钮永久假死
+      try {
+        await saveLoginState();
+      } catch (e) {
+        console.warn('[StepFun] Failed to save login state:', e);
+        resolved = true;
+        win.close();
+        loginWindows.delete(accountId);
+        resolve({ success: false, error: 'Failed to save login state' });
+        return;
+      }
+      resolved = true;
       win.close();
       loginWindows.delete(accountId);
       notifyLoginSuccess();
@@ -178,8 +188,16 @@ export function stepfunWebLogin(accountId: string): Promise<{ success: boolean; 
         checking = false;
         if (loggedIn && !resolved) {
           if (atOpen) {
+            try {
+              await saveLoginState();
+            } catch (e) {
+              // 浏览模式：同步失败保留窗口供浏览，仅结束 IPC 等待
+              console.warn('[StepFun] Failed to save login state:', e);
+              resolved = true;
+              resolve({ success: false, error: 'Failed to save login state' });
+              return;
+            }
             resolved = true;
-            await saveLoginState();
             notifyLoginSuccess();
             resolve({ success: true });
           } else {

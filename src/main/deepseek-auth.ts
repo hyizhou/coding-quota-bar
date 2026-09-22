@@ -127,22 +127,42 @@ export function deepseekWebLogin(accountId: string): Promise<{ success: boolean;
     async function pollToken(): Promise<void> {
       if (resolved || win.isDestroyed() || !onDeepseekPage(win)) return;
       const token = await readToken();
-      if (!token) return;
+      // await 期间可能已被并发检测处理完
+      if (resolved || !token) return;
 
       if (!loginMode) {
-        resolved = true;
         stopInterval();
         // 已登录：仅同步可能轮换过的 token，窗口保留供浏览
         const stored = _getConfigManager()?.getConfig()
           ?.providers?.deepseek?.accounts?.find(a => a.id === accountId)?.webToken;
-        if (token !== stored) await saveToken(token);
+        if (token !== stored) {
+          try {
+            await saveToken(token);
+          } catch (e) {
+            console.warn('[DeepSeek] Failed to save token:', e);
+            resolved = true;
+            resolve({ success: false, error: 'Failed to save token' });
+            return;
+          }
+        }
+        resolved = true;
         resolve({ success: true });
         return;
       }
 
-      resolved = true;
+      // 登录模式：持久化成功后才关窗；保存失败也要结束 IPC 等待，避免登录按钮永久假死
       stopInterval();
-      await saveToken(token);
+      try {
+        await saveToken(token);
+      } catch (e) {
+        console.warn('[DeepSeek] Failed to save token:', e);
+        resolved = true;
+        win.close();
+        loginWindows.delete(accountId);
+        resolve({ success: false, error: 'Failed to save token' });
+        return;
+      }
+      resolved = true;
 
       win.close();
       loginWindows.delete(accountId);
@@ -200,6 +220,13 @@ export async function deepseekRefreshToken(accountId: string): Promise<boolean> 
     },
   });
 
+  // 兜底超时：loadURL / executeJavaScript 挂起时销毁窗口打破等待，
+  // 防止隐藏窗口永久存活、调用方 isAutoRefreshingToken 永久为 true 导致刷新停摆
+  const REFRESH_TIMEOUT_MS = 20000;
+  const timeoutId = setTimeout(() => {
+    if (!win.isDestroyed()) win.destroy();
+  }, REFRESH_TIMEOUT_MS);
+
   try {
     await win.loadURL('https://platform.deepseek.com');
 
@@ -242,7 +269,8 @@ export async function deepseekRefreshToken(accountId: string): Promise<boolean> 
     console.warn(`[DeepSeek] Auto-refresh token failed for ${accountId}:`, e);
     return false;
   } finally {
-    win.destroy();
+    clearTimeout(timeoutId);
+    if (!win.isDestroyed()) win.destroy();
   }
 }
 
