@@ -17,8 +17,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'src/renderer/index.html'),
-          feedback: resolve(__dirname, 'src/renderer/feedback.html')
+          index: resolve(__dirname, 'src/renderer/index.html')
         },
         output: {
           // chart.js 拆为独立懒加载 chunk；注意不能把 vue-chartjs 一并划入，

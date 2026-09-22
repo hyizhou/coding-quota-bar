@@ -172,8 +172,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   concurrencyTestDelete: (providerKey: string, id: string) => ipcRenderer.invoke('concurrency-test-delete', providerKey, id),
 
-  showFeedback: () => ipcRenderer.send('show-feedback'),
-
   /**
    * DeepSeek 网页登录
    */

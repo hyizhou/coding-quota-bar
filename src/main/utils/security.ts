@@ -9,7 +9,6 @@ import buildConfig from '../../../app.build';
 const FIXED_EXTERNAL_HOSTS = [
   'github.com',
   'status.deepseek.com',
-  'applink.feishu.cn',
 ];
 
 /** open-external 允许打开的外部域名：provider 官网 + 固定域名 */

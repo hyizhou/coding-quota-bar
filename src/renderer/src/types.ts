@@ -316,7 +316,6 @@ export interface ElectronAPI {
   onStepfunWebLoginSuccess: (callback: (accountId: string) => void) => () => void
   stepfunFetchUsageHistory: (accountId: string, days: 7 | 30) => Promise<ModelTokenRecord[]>
   zhipuFetchUsageStats: (accountId: string) => Promise<ZhipuUsageStats>
-  showFeedback: () => void
 }
 
 declare global {

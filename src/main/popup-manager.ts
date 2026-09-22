@@ -588,42 +588,6 @@ export function onTrayClick(): void {
 }
 
 /**
- * 显示反馈群窗口
- */
-export function showFeedbackWindow(): void {
-  console.log('[Feedback] showFeedbackWindow called');
-  const existing = BrowserWindow.getAllWindows().find(w => (w as any)._feedbackId);
-  if (existing) {
-    console.log('[Feedback] focusing existing window');
-    existing.focus();
-    return;
-  }
-
-  const win = new BrowserWindow({
-    width: 320,
-    height: 400,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    autoHideMenuBar: true,
-    webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      spellcheck: false
-    }
-  });
-  (win as any)._feedbackId = 'feedback-window';
-  win.setMenuBarVisibility(false);
-
-  if (process.env.ELECTRON_RENDERER_URL) {
-    win.loadURL(`${process.env.ELECTRON_RENDERER_URL}/feedback.html`);
-  } else {
-    win.loadFile(path.join(__dirname, '../renderer/feedback.html'));
-  }
-}
-
-/**
  * 销毁弹出窗口（用于退出前清理）
  */
 export function destroyPopupWindow(): void {

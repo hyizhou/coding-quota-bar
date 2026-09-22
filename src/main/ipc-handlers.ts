@@ -21,7 +21,6 @@ import {
   getPinMode,
   notifyHoverState,
   destroyPopupWindow,
-  showFeedbackWindow,
 } from './popup-manager';
 import { deepseekWebLogin, deepseekWebLogout } from './deepseek-auth';
 import { mimoWebLogin, mimoWebLogout } from './mimo-auth';
@@ -196,16 +195,6 @@ export function setupIpcHandlers(): void {
   // 并发测试：删除历史记录
   ipcMain.handle('concurrency-test-delete', async (_, providerKey: string, id: string) => {
     await ConcurrencyTestEngine.deleteResult(providerKey, id);
-  });
-
-  // 打开反馈群窗口
-  ipcMain.on('show-feedback', () => {
-    console.log('[Feedback] show-feedback received');
-    try {
-      showFeedbackWindow();
-    } catch (e) {
-      console.error('[Feedback] Error:', e);
-    }
   });
 
   // DeepSeek 网页登录
