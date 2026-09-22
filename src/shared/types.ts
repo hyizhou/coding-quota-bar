@@ -116,6 +116,41 @@ export interface ZhipuUsageStats {
 }
 
 /**
+ * Qoder Credits 日趋势点（账户用量页 daily-trend 接口）
+ */
+export interface QoderCreditsTrendPoint {
+  date: string;              // 'YYYY-MM-DD'
+  credits: number;           // 当日实际消耗 Credits
+  referenceCost: number;     // 参考费用
+  messageCount: number;      // 消息数
+}
+
+export interface QoderCreditsTrend {
+  points: QoderCreditsTrendPoint[];
+  total: number;
+  peak: number;
+  peakDate: string;
+  avgCreditsPerSession: number;
+  avgCreditsPerConversation: number;
+}
+
+/**
+ * Qoder Credits 年度热力图（账户用量页 credits-heatmap 接口）
+ */
+export interface QoderCreditsHeatmapItem {
+  date: string;              // 'YYYY-MM-DD'
+  value: number;             // 当日消耗 Credits
+}
+
+export interface QoderCreditsHeatmap {
+  year: number;
+  unit: string;
+  levels: number[];
+  items: QoderCreditsHeatmapItem[];
+  total: number;
+}
+
+/**
  * 分模型 Token 使用历史记录
  */
 export interface ModelTokenRecord {

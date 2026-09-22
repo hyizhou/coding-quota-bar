@@ -3,6 +3,7 @@
  * 用量响应解析与额度合并。规范来源：docs/qoder/Qoder额度获取实现指南.md
  * 本文件不依赖 Electron，可独立测试（scripts/test-qoder-parse.mjs）。
  */
+import type { QoderCreditsHeatmap, QoderCreditsTrend, QoderCreditsTrendPoint } from '../shared/types';
 
 /** Qoder 站点（国际站 / 国内站，账号不互通） */
 export type QoderSite = 'international' | 'china';
@@ -31,6 +32,12 @@ export const QODER_SITES: Record<QoderSite, QoderSiteInfo> = {
 
 /** 用量 API 路径（两站点相同） */
 export const QODER_API_PATH = '/api/v2/me/usages/big_model_credits';
+
+/** 年度 Credits 热力图 API 路径（两站点按同一 path 使用） */
+export const QODER_HEATMAP_API_PATH = '/api/v1/me/ai-conversations/credits-heatmap';
+
+/** Credits 日趋势 API 路径（两站点按同一 path 使用） */
+export const QODER_TREND_API_PATH = '/api/v1/me/cost-center/credits/daily-trend';
 
 /** 浏览器伪装 UA（协议文档 §6 固定值） */
 export const QODER_BROWSER_UA =
@@ -360,6 +367,8 @@ export function parseManualCapture(raw: string): ManualCaptureResult {
 /** ---------- 用量响应解析与额度合并（§7） ---------- */
 
 export interface QoderUsageSnapshot {
+  /** 服务端返回的用户标识，用于后续统计接口查询 */
+  userId?: string;
   usedCredits: number;
   totalCredits: number;
   remainingCredits: number;
@@ -480,12 +489,91 @@ export function parseQoderUsageBody(body: unknown): QoderUsageSnapshot {
   }
 
   const usagePercentage = Math.min(100, Math.max(0, percent));
+  const userIdRaw = pick(root, 'userId', 'user_id');
   return {
+    userId: typeof userIdRaw === 'string' && userIdRaw.trim() !== '' ? userIdRaw : undefined,
     usedCredits: used,
     totalCredits: total,
     remainingCredits: remaining,
     usagePercentage,
     unit: unit ?? 'credits',
     resetsAt: parseResetAt(pick(root, 'nextResetAt', 'next_reset_at')),
+  };
+}
+
+/** ---------- 账户页统计响应解析（usage-page-apis.md） ---------- */
+
+function asNonNegativeNumber(v: unknown, fallback = 0): number {
+  const n = asNumber(v);
+  return n !== undefined && n >= 0 ? n : fallback;
+}
+
+function asDateString(v: unknown): string | null {
+  return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+}
+
+/**
+ * 解析 Credits 日趋势响应。
+ * 服务端汇总字段缺失或非法时，使用 points 本地重算，保证图表仍可展示。
+ */
+export function parseQoderCreditsTrendBody(body: unknown): QoderCreditsTrend {
+  if (typeof body !== 'object' || body === null) throw new QoderParseError('invalid trend body');
+  const root = body as Record<string, unknown>;
+  const trendRaw = root.trend;
+  if (!Array.isArray(trendRaw)) throw new QoderParseError('missing trend');
+
+  const points: QoderCreditsTrendPoint[] = [];
+  for (const item of trendRaw) {
+    if (typeof item !== 'object' || item === null) continue;
+    const record = item as Record<string, unknown>;
+    const date = asDateString(record.date);
+    if (!date) continue;
+    points.push({
+      date,
+      credits: asNonNegativeNumber(record.credits),
+      referenceCost: asNonNegativeNumber(record.referenceCost ?? record.reference_cost),
+      messageCount: asNonNegativeNumber(record.messageCount ?? record.message_count),
+    });
+  }
+  points.sort((a, b) => a.date.localeCompare(b.date));
+
+  const localTotal = points.reduce((sum, p) => sum + p.credits, 0);
+  const localPeak = points.reduce((max, p) => Math.max(max, p.credits), 0);
+  const localPeakPoint = points.find(p => p.credits === localPeak);
+  return {
+    points,
+    total: asNonNegativeNumber(root.total, localTotal),
+    peak: asNonNegativeNumber(root.peak, localPeak),
+    peakDate: asDateString(root.peakDate ?? root.peak_date) ?? localPeakPoint?.date ?? '',
+    avgCreditsPerSession: asNonNegativeNumber(root.avgCreditsPerSession ?? root.avg_credits_per_session),
+    avgCreditsPerConversation: asNonNegativeNumber(root.avgCreditsPerConversation ?? root.avg_credits_per_conversation),
+  };
+}
+
+/** 解析年度 Credits 热力图响应；levels 为服务端强度阈值，当前 UI 按数据最大值重新分级 */
+export function parseQoderCreditsHeatmapBody(body: unknown): QoderCreditsHeatmap {
+  if (typeof body !== 'object' || body === null) throw new QoderParseError('invalid heatmap body');
+  const root = body as Record<string, unknown>;
+  const itemsRaw = root.items;
+  if (!Array.isArray(itemsRaw)) throw new QoderParseError('missing heatmap items');
+
+  const items: QoderCreditsHeatmap['items'] = [];
+  for (const item of itemsRaw) {
+    if (typeof item !== 'object' || item === null) continue;
+    const record = item as Record<string, unknown>;
+    const date = asDateString(record.date);
+    if (!date) continue;
+    items.push({ date, value: asNonNegativeNumber(record.value) });
+  }
+  items.sort((a, b) => a.date.localeCompare(b.date));
+
+  const localTotal = items.reduce((sum, item) => sum + item.value, 0);
+  const levelsRaw = Array.isArray(root.levels) ? root.levels : [];
+  return {
+    year: asNonNegativeNumber(root.year, new Date().getFullYear()),
+    unit: typeof root.unit === 'string' && root.unit.trim() !== '' ? root.unit : 'credits',
+    levels: levelsRaw.map(v => asNonNegativeNumber(v)).filter(v => v > 0),
+    items,
+    total: asNonNegativeNumber(root.total, localTotal),
   };
 }

@@ -25,6 +25,58 @@ function calcMockEstimatedCost(totalTokens: number): number {
   return Math.round(totalTokens / 1_000_000 * avgRate * 100) / 100;
 }
 
+function mockDateKey(offsetDays: number): string {
+  return new Date(Date.now() - offsetDays * DAY).toISOString().slice(0, 10);
+}
+
+/** Qoder 近 30 天 Credits 趋势 mock：覆盖峰值、费用与消息数，供前端切换时间范围 */
+function generateMockQoderTrend() {
+  const recent = [12.5, 0, 28.75, 6.25, 42.5, 18.75, 21.5];
+  const credits = Array.from({ length: 30 }, (_, i) => {
+    const daysAgo = 29 - i;
+    if (daysAgo < recent.length) return recent[recent.length - 1 - daysAgo];
+    if (daysAgo % 5 === 0) return 15 + (daysAgo % 7) * 2.5;
+    if (daysAgo % 3 === 0) return 3 + (daysAgo % 4) * 1.25;
+    return 0;
+  });
+  const points = credits.map((value, i) => ({
+    date: mockDateKey(29 - i),
+    credits: value,
+    referenceCost: Math.round(value * 0.04 * 100) / 100,
+    messageCount: Math.round(value * 1.6),
+  }));
+  const total = Math.round(points.reduce((sum, p) => sum + p.credits, 0) * 100) / 100;
+  const peak = Math.max(...credits);
+  return {
+    points,
+    total,
+    peak,
+    peakDate: points.find(p => p.credits === peak)?.date ?? '',
+    avgCreditsPerSession: Math.round((total / 18) * 100) / 100,
+    avgCreditsPerConversation: Math.round((total / 9) * 100) / 100,
+  };
+}
+
+/** Qoder 近一年 Credits 热力图 mock：稀疏使用日 + 少量连续使用段 */
+function generateMockQoderHeatmap() {
+  const items: Array<{ date: string; value: number }> = [];
+  for (let i = 370; i >= 0; i--) {
+    let value = 0;
+    if (i % 47 === 0) value = 18 + (i % 7) * 3.5;
+    if (i < 21 && i % 3 === 0) value = 6 + (i % 5) * 2.25;
+    if (i < 7) value = [12.5, 0, 28.75, 6.25, 42.5, 18.75, 21.5][6 - i];
+    items.push({ date: mockDateKey(i), value });
+  }
+  const total = Math.round(items.reduce((sum, item) => sum + item.value, 0) * 100) / 100;
+  return {
+    year: new Date().getFullYear(),
+    unit: 'credits',
+    levels: [3.5, 12, 28, 45],
+    items,
+    total,
+  };
+}
+
 const HOUR = 3600000;
 const DAY = 86400000;
 
@@ -449,6 +501,8 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
       details: {
         qoderRemaining: 469.5,
         qoderUnit: 'credits',
+        qoderCreditsTrend: generateMockQoderTrend(),
+        qoderCreditsHeatmap: generateMockQoderHeatmap(),
         quotas: [
           { label: 'quota.qoderCredits', used: 130.5, total: 600, usageRate: 21.75, resetAt: new Date(now + 20 * DAY).toISOString(), limitType: 'qoder' },
         ],

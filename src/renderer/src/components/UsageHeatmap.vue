@@ -4,11 +4,12 @@
   避免为每天生成 DOM 节点（365 天 ≈ 365 个节点 → 1 个 canvas，仅在数据/主题/交互变化时重绘）
   数据格式 { date: 'YYYY-MM-DD', value: number }，周日为每周第一天
   复用方通过 formatValue 自定义悬浮提示文案，通过 select 事件获取点击日期
+  compact 模式隐藏星期标签与强度图例，用于托盘弹窗等高度受限场景
 -->
 <template>
-  <div class="usage-heatmap">
-    <div class="hm-body">
-      <div class="wd-col">
+  <div class="usage-heatmap" :class="{ compact }">
+    <div class="hm-body" :class="{ compact }">
+      <div v-if="!compact" class="wd-col">
         <span v-for="(w, i) in weekdayLabels" :key="i" class="wd">{{ w }}</span>
       </div>
       <div ref="scrollEl" class="hm-scroll" @wheel.prevent="onWheel">
@@ -22,7 +23,7 @@
         ></canvas>
       </div>
     </div>
-    <div class="hm-legend">
+    <div v-if="!compact" class="hm-legend">
       <span>{{ $t('heatmap.less') }}</span>
       <span v-for="(c, i) in legendColors" :key="i" class="lg" :style="{ background: c }"></span>
       <span>{{ $t('heatmap.more') }}</span>
@@ -49,8 +50,11 @@ const props = withDefaults(defineProps<{
   formatValue?: (n: number) => string
   /** 当前选中日期（高亮边框由使用方控制） */
   selected?: string
+  /** 紧凑模式：隐藏星期标签与图例，用于托盘弹窗等高度受限场景 */
+  compact?: boolean
 }>(), {
   selected: undefined,
+  compact: false,
 })
 
 const emit = defineEmits<{ select: [date: string] }>()
@@ -58,12 +62,12 @@ const emit = defineEmits<{ select: [date: string] }>()
 const { locale } = useI18n()
 const { isDark } = useTheme()
 
-// 布局常量（CSS 像素）
-const CELL = 12
-const GAP = 2
-const COL_W = CELL + GAP
-const ROW_H = CELL + GAP
-const MONTH_ROW_H = 16   // 月份标签行高（12px 文字 + 4px 间距）
+// 布局常量（CSS 像素）；紧凑模式压缩格子并隐藏辅助标签
+const CELL = computed(() => props.compact ? 7 : 12)
+const GAP = computed(() => props.compact ? 1 : 2)
+const COL_W = computed(() => CELL.value + GAP.value)
+const ROW_H = computed(() => CELL.value + GAP.value)
+const MONTH_ROW_H = computed(() => props.compact ? 12 : 16)
 const FONT = `system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif`
 
 // 强度阶梯色（level 0 无用量，取主题边框色，绘制时动态读取）
@@ -180,7 +184,7 @@ const monthLabels = computed(() => {
       prevMonth = d.getMonth()
       labels.push({
         key: firstCell.date,
-        left: i * COL_W,
+        left: i * COL_W.value,
         text: d.toLocaleDateString(locale.value, { month: 'short' }),
       })
     }
@@ -188,8 +192,8 @@ const monthLabels = computed(() => {
   return labels
 })
 
-const cssWidth = computed(() => weeks.value.length * COL_W)
-const cssHeight = MONTH_ROW_H + 7 * CELL + 6 * GAP
+const cssWidth = computed(() => weeks.value.length * COL_W.value)
+const cssHeight = computed(() => MONTH_ROW_H.value + 7 * CELL.value + 6 * GAP.value)
 
 /** 周日/周三/周五显示窄标签（同 GitHub 的稀疏排布） */
 const weekdayLabels = computed(() => {
@@ -216,8 +220,8 @@ interface HoverCell {
 const hoverCell = ref<HoverCell | null>(null)
 
 function cellAt(x: number, y: number): { col: number; row: number; cell: Cell } | null {
-  const col = Math.floor(x / COL_W)
-  const row = Math.floor((y - MONTH_ROW_H) / ROW_H)
+  const col = Math.floor(x / COL_W.value)
+  const row = Math.floor((y - MONTH_ROW_H.value) / ROW_H.value)
   if (col < 0 || row < 0 || row > 6) return null
   const cell = weeks.value[col]?.[row]
   if (!cell?.date) return null
@@ -297,7 +301,7 @@ watchEffect(() => {
   const dark = isDark.value
 
   const w = cssWidth.value
-  const h = cssHeight
+  const h = cssHeight.value
   if (w <= 0) return
 
   const dpr = window.devicePixelRatio || 1
@@ -319,7 +323,7 @@ watchEffect(() => {
   const bgApp = cssVar('--bg-app')
 
   // 月份标签
-  ctx.font = `9px ${FONT}`
+  ctx.font = `${props.compact ? 8 : 9}px ${FONT}`
   ctx.fillStyle = tertiary
   ctx.textBaseline = 'top'
   for (const m of labels) {
@@ -331,26 +335,26 @@ watchEffect(() => {
     for (let j = 0; j < 7; j++) {
       const cell = cols[i][j]
       if (!cell.date) continue
-      const x = i * COL_W
-      const y = MONTH_ROW_H + j * ROW_H
+      const x = i * COL_W.value
+      const y = MONTH_ROW_H.value + j * ROW_H.value
       ctx.beginPath()
-      ctx.roundRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1, 2.5)
+      ctx.roundRect(x + 0.5, y + 0.5, CELL.value - 1, CELL.value - 1, props.compact ? 1.5 : 2.5)
       ctx.fillStyle = levels[cell.level]
       ctx.fill()
 
       if (cell.date === selected) {
         ctx.strokeStyle = '#16a34a'
         ctx.lineWidth = 1.5
-        ctx.strokeRect(x + 0.75, y + 0.75, CELL - 1.5, CELL - 1.5)
+        ctx.strokeRect(x + 0.75, y + 0.75, CELL.value - 1.5, CELL.value - 1.5)
       } else if (cell.today) {
         ctx.strokeStyle = secondary
         ctx.lineWidth = 1
-        ctx.strokeRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1)
+        ctx.strokeRect(x + 0.5, y + 0.5, CELL.value - 1, CELL.value - 1)
       }
       if (hover && hover.col === i && hover.row === j) {
         ctx.strokeStyle = secondary
         ctx.lineWidth = 1
-        ctx.strokeRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1)
+        ctx.strokeRect(x + 0.5, y + 0.5, CELL.value - 1, CELL.value - 1)
       }
     }
   }
@@ -359,14 +363,14 @@ watchEffect(() => {
   if (hover) {
     const valueText = props.formatValue ? props.formatValue(hover.value) : hover.value.toLocaleString()
     const label = `${hover.date} · ${valueText}`
-    ctx.font = `10px ${FONT}`
+    ctx.font = `${props.compact ? 9 : 10}px ${FONT}`
     const tw = ctx.measureText(label).width
     const bw = tw + 12
     const bh = 18
-    let bx = hover.col * COL_W + CELL / 2 - bw / 2
+    let bx = hover.col * COL_W.value + CELL.value / 2 - bw / 2
     bx = Math.max(2, Math.min(bx, w - bw - 2))
-    let by = MONTH_ROW_H + hover.row * ROW_H - bh - 4
-    if (by < 0) by = MONTH_ROW_H + hover.row * ROW_H + CELL + 4
+    let by = MONTH_ROW_H.value + hover.row * ROW_H.value - bh - 4
+    if (by < 0) by = MONTH_ROW_H.value + hover.row * ROW_H.value + CELL.value + 4
 
     ctx.beginPath()
     ctx.roundRect(bx, by, bw, bh, 4)
@@ -395,6 +399,10 @@ watchEffect(() => {
   gap: 0 3px;
 }
 
+.hm-body.compact {
+  grid-template-columns: 1fr;
+}
+
 /* 左侧星期标签列，与画布格子行高对齐 */
 .wd-col {
   display: grid;
@@ -419,6 +427,17 @@ watchEffect(() => {
 .hm-scroll::-webkit-scrollbar-track { background: transparent; }
 .hm-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
 .hm-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+/* 紧凑模式默认隐藏横向滚动条，避免长期呈现为底部进度条；悬浮时恢复可发现性 */
+.usage-heatmap.compact .hm-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+.usage-heatmap.compact .hm-scroll:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+.usage-heatmap.compact .hm-scroll:hover::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
 
 .hm-canvas {
   display: block;

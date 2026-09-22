@@ -1,6 +1,6 @@
 import { getColorByPercent } from './tray';
 import { t as i18nT } from './i18n';
-import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, ResetPackages, CodexUsageStats } from '../shared/types';
+import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, ResetPackages, CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend } from '../shared/types';
 import type { Scheduler } from './scheduler';
 import type { ConfigManager } from './config';
 import buildConfig from '../../app.build';
@@ -62,6 +62,8 @@ export interface AccountDisplayData {
   codexStats?: CodexUsageStats;
   qoderRemaining?: number;
   qoderUnit?: string;
+  qoderCreditsTrend?: QoderCreditsTrend;
+  qoderCreditsHeatmap?: QoderCreditsHeatmap;
   stepfunTopupBuckets?: Array<{ total: number; residual: number; expireAt: string }>;
   stepfunCreditAmounts?: { total: number; residual: number };
 }
@@ -223,6 +225,8 @@ function convertAccountData(
     codexStats: (result.details?.codexStats as CodexUsageStats | undefined) ?? undefined,
     qoderRemaining: (result.details?.qoderRemaining as number) ?? undefined,
     qoderUnit: (result.details?.qoderUnit as string) ?? undefined,
+    qoderCreditsTrend: (result.details?.qoderCreditsTrend as QoderCreditsTrend | undefined) ?? undefined,
+    qoderCreditsHeatmap: (result.details?.qoderCreditsHeatmap as QoderCreditsHeatmap | undefined) ?? undefined,
     stepfunTopupBuckets: (result.details?.stepfunTopupBuckets as AccountDisplayData['stepfunTopupBuckets']) ?? undefined,
     stepfunCreditAmounts: (result.details?.stepfunCreditAmounts as AccountDisplayData['stepfunCreditAmounts']) ?? undefined,
   };
