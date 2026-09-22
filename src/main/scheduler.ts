@@ -1,6 +1,7 @@
 import type { AppConfig, TrayDisplayRule, UsageResult } from '../shared/types';
 import type { LoadedProvider } from './loader';
 import { UsageAggregator } from './aggregator';
+import type { AggregatedUsage, AggregateOptions } from './aggregator';
 import type { TrayManager, ColorThresholds } from './tray';
 import { EventEmitter } from 'events';
 
@@ -25,7 +26,10 @@ export class Scheduler extends EventEmitter {
   private timerId: NodeJS.Timeout | null = null;
   private running = false;
   private refreshPromise: Promise<void> | null = null;
-  private pendingProviderSwap = false;
+  /** 增量刷新待取队列（复合键 type:accountId），配置变更时入队 */
+  private pendingKeys = new Set<string>();
+  /** 增量排水链路进行标记，保证同一时刻只有一条排水链 */
+  private drainPromise: Promise<void> | null = null;
   private scheduleGeneration = 0;
   private refreshInterval: number;
   private thresholds: ColorThresholds;
@@ -50,19 +54,8 @@ export class Scheduler extends EventEmitter {
    */
   setProviders(providers: LoadedProvider[]): void {
     this.providers = providers;
-    // 配置变更发生在刷新进行中时，在途刷新仍基于旧列表；
-    // 标记待补刷新，待其完成后立即用新列表再刷一次，避免新配置被推迟到下个周期
-    if (this.refreshPromise && !this.pendingProviderSwap) {
-      this.pendingProviderSwap = true;
-      this.refreshPromise.finally(() => {
-        if (!this.pendingProviderSwap) return;
-        this.pendingProviderSwap = false;
-        if (!this.running) return;
-        this.refresh().catch(() => {});
-      }).catch(() => {
-        // 在途刷新失败不影响补刷新；错误已由原调用方处理
-      });
-    }
+    // 立即裁剪已禁用/移除账户的残留数据；随后的增量排水负责推送最新快照
+    this.aggregator.pruneTo(providers);
   }
 
   /**
@@ -163,6 +156,7 @@ export class Scheduler extends EventEmitter {
 
   /**
    * 手动触发刷新（外部可调用）
+   * 全量语义：请求所有已加载账户，但避让 pending 队列中的成员
    */
   refresh(): Promise<void> {
     // in-flight 互斥：刷新进行中时，手动刷新与定时刷新复用同一个 Promise，
@@ -189,27 +183,89 @@ export class Scheduler extends EventEmitter {
     const startTime = Date.now();
 
     try {
-      // 汇总所有 Provider 的数据
-      const aggregated = await this.aggregator.aggregate(this.providers);
-
-      // 根据显示规则计算百分比
-      const displayPercent = this.calculateDisplayPercent(aggregated.results);
-
-      // 更新托盘显示
-      if (this.trayManager) {
-        this.trayManager.updateDisplay(displayPercent, this.thresholds);
+      // 汇总所有 Provider 的数据；pending 成员由增量排水负责，此处避让
+      let opts: AggregateOptions | undefined;
+      if (this.pendingKeys.size > 0) {
+        const onlyKeys = new Set(
+          this.providers
+            .map(p => `${p.type}:${p.accountId}`)
+            .filter(key => !this.pendingKeys.has(key)),
+        );
+        if (onlyKeys.size === 0) {
+          console.log('[Scheduler] Refresh skipped: all accounts are in incremental queue');
+          return;
+        }
+        opts = { onlyKeys };
       }
 
-      const elapsed = Date.now() - startTime;
-      console.log(`[Scheduler] Refresh completed in ${elapsed}ms. Display: ${displayPercent}%`);
-
-      // 发送刷新完成事件
-      this.emit('refreshed', aggregated);
+      // providers 始终传完整列表：聚合的合并过滤与裁剪以最新加载集合为准
+      const aggregated = await this.aggregator.aggregate(this.providers, opts);
+      this.completeRefresh(aggregated, startTime, 'Refresh');
     } catch (error) {
       console.error('[Scheduler] Refresh failed:', error);
       this.emit('error', error);
       throw error;
     }
+  }
+
+  /**
+   * 入队增量刷新：只请求新增/配置变化的账户，成功或失败均退出队列
+   * keys 为空时不发请求，仅按最新加载集合裁剪快照并推送一次
+   */
+  queueIncremental(keys: string[]): void {
+    for (const key of keys) {
+      this.pendingKeys.add(key);
+    }
+    this.drainPending();
+  }
+
+  /**
+   * 启动增量排水（单链互斥）：排水期间新入队的键由循环的下一轮处理
+   */
+  private drainPending(): void {
+    if (this.drainPromise) return;
+    this.drainPromise = this.drainQueue().finally(() => {
+      this.drainPromise = null;
+    });
+  }
+
+  private async drainQueue(): Promise<void> {
+    do {
+      const keys = new Set(this.pendingKeys);
+      const startTime = Date.now();
+      let aggregated: AggregatedUsage | null = null;
+      try {
+        aggregated = await this.aggregator.aggregate(this.providers, { onlyKeys: keys });
+      } catch (error) {
+        // 聚合器内部已把单个账户错误转为错误卡结果；这里只处理聚合流程本身的异常
+        console.error('[Scheduler] Incremental refresh failed:', error);
+        this.emit('error', error);
+      } finally {
+        // 获得任意结果（含错误卡）即退出队列，等下个全量周期重试
+        for (const key of keys) {
+          this.pendingKeys.delete(key);
+        }
+      }
+      if (aggregated) {
+        this.completeRefresh(
+          aggregated,
+          startTime,
+          keys.size > 0 ? `Incremental refresh (${keys.size} account(s))` : 'Snapshot sync',
+        );
+      }
+    } while (this.pendingKeys.size > 0);
+  }
+
+  /**
+   * 刷新完成后的统一处理：更新托盘显示并通知渲染层
+   */
+  private completeRefresh(aggregated: AggregatedUsage, startTime: number, label: string): void {
+    const displayPercent = this.calculateDisplayPercent(aggregated.results);
+    if (this.trayManager) {
+      this.trayManager.updateDisplay(displayPercent, this.thresholds);
+    }
+    console.log(`[Scheduler] ${label} completed in ${Date.now() - startTime}ms. Display: ${displayPercent}%`);
+    this.emit('refreshed', aggregated);
   }
 
   /**
@@ -283,6 +339,7 @@ export class Scheduler extends EventEmitter {
    */
   destroy(): void {
     this.stop();
+    this.pendingKeys.clear();
     this.removeAllListeners();
   }
 }

@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as path from 'path';
 import { TrayManager } from './tray';
 import { isStoreBuild, applyStoreDataIsolation } from './channel';
-import { ProviderLoader } from './loader';
+import { ProviderLoader, type LoadedProvider } from './loader';
 import { Scheduler, createScheduler } from './scheduler';
 import { ConfigManager } from './config';
 import { setLocale } from './i18n';
@@ -94,6 +94,8 @@ if (app.isPackaged) {
 let trayManager: TrayManager | null = null;
 let configManager: ConfigManager | null = null;
 let scheduler: Scheduler | null = null;
+// 最近一次加载的 Provider 列表快照，用于配置重载时 diff 出需增量刷新的账户
+let loadedProviders: LoadedProvider[] = [];
 
 /**
  * 初始化应用
@@ -175,6 +177,7 @@ async function initialize(): Promise<void> {
   // 7. 加载 Provider
   const providers = ProviderLoader.loadProviders(config.providers);
   scheduler.setProviders(providers);
+  loadedProviders = providers;
   console.log(`[App] Loaded ${providers.length} provider(s)`);
 
   // 8. 启动定时刷新
@@ -324,6 +327,10 @@ async function initialize(): Promise<void> {
  */
 function setupConfigListeners(): void {
   if (!configManager || !scheduler) return;
+  // 配置变更触发的重载+刷新防抖：连续开关多个 Provider 会产生密集 changed 事件，
+  // 逐次立即刷新会对会话型站点形成请求风暴（曾触发 StepFun 服务端风控返回
+  // auth 形状错误，被误判为会话过期），合并为静默 2s 后的一次重载+增量刷新
+  let configRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   configManager.on('changed', async (newConfig, oldConfig) => {
     console.log('[App] Configuration changed, updating...');
@@ -346,18 +353,23 @@ function setupConfigListeners(): void {
     }
 
     if (needsRefresh) {
-      const intervalChanged = scheduler!.setRefreshInterval(newConfig.refreshInterval * 1000);
-      scheduler!.setColorThresholds(newConfig.display.colorThresholds);
+      if (configRefreshTimer) clearTimeout(configRefreshTimer);
+      configRefreshTimer = setTimeout(() => {
+        configRefreshTimer = null;
+        const providers = ProviderLoader.loadProviders(newConfig.providers);
+        // 仅新增/配置变化的账户发起独立请求，正常运行的 Provider 不再全量重刷
+        const incrementalKeys = diffChangedProviderKeys(loadedProviders, providers);
+        scheduler!.setProviders(providers);
+        loadedProviders = providers;
+        scheduler!.setColorThresholds(newConfig.display.colorThresholds);
+        console.log(`[App] Reloaded ${providers.length} provider(s)`);
 
-      const providers = ProviderLoader.loadProviders(newConfig.providers);
-      scheduler!.setProviders(providers);
-      console.log(`[App] Reloaded ${providers.length} provider(s)`);
+        // 增量排水：请求新增/变化账户（空列表时仅裁剪快照并推送，不发起请求）。
+        // 必须先于 setRefreshInterval：间隔变化重启定时器触发的全量刷新会避让 pending 成员
+        scheduler!.queueIncremental(incrementalKeys);
 
-      if (!intervalChanged) {
-        scheduler!.refresh().catch((error) => {
-          console.error('[App] Refresh after config change failed:', error);
-        });
-      }
+        scheduler!.setRefreshInterval(newConfig.refreshInterval * 1000);
+      }, 2000);
     }
 
     // 更新开机自启
@@ -382,6 +394,25 @@ function setupConfigListeners(): void {
       }
     }
   });
+}
+
+/**
+ * 对比重载前后的 Provider 列表，返回新增或配置发生变化的账户复合键（type:accountId）
+ * 配置变化包括 API Key、认证模式、站点等任何影响请求的字段
+ */
+function diffChangedProviderKeys(previous: LoadedProvider[], next: LoadedProvider[]): string[] {
+  const compoundKey = (p: LoadedProvider): string => `${p.type}:${p.accountId}`;
+  const previousConfigs = new Map<string, string>(
+    previous.map(p => [compoundKey(p), JSON.stringify(p.config)]),
+  );
+  const changed: string[] = [];
+  for (const p of next) {
+    const key = compoundKey(p);
+    if (previousConfigs.get(key) !== JSON.stringify(p.config)) {
+      changed.push(key);
+    }
+  }
+  return changed;
 }
 
 /**

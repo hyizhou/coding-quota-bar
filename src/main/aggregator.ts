@@ -22,6 +22,14 @@ export interface AggregatedUsage {
   lastUpdate: Date;
 }
 
+export interface AggregateOptions {
+  /**
+   * 仅请求这些复合键（type:accountId）对应的账户，结果合入现有数据；
+   * 未包含的账户保留现有结果，不发起请求（用于配置变更后的增量刷新）
+   */
+  onlyKeys?: Set<string>;
+}
+
 /**
  * 是否为 Mock 模式（仅 CQB_DEV=1 且 CQB_MOCK=1 时生效）
  */
@@ -35,11 +43,15 @@ export class UsageAggregator {
   private results = new Map<string, UsageResult>();
   private lastUpdate: Date | null = null;
   private generation = 0;
+  /** 当前已加载账户的复合键集合：所有完成路径按它过滤与裁剪 */
+  private currentKeys = new Set<string>();
+  /** 复合键 → 最新占用它的聚合代数：防止在途旧结果覆盖新配置的结果 */
+  private claimedKeys = new Map<string, number>();
 
   /**
    * 汇总所有 Provider 的用量数据
    */
-  async aggregate(providers: LoadedProvider[]): Promise<AggregatedUsage> {
+  async aggregate(providers: LoadedProvider[], opts: AggregateOptions = {}): Promise<AggregatedUsage> {
     // 开发模式：直接使用模拟数据，不发送真实请求
     if (isMockMode()) {
       console.log('[Aggregator] MOCK MODE - using simulated data');
@@ -70,15 +82,29 @@ export class UsageAggregator {
       return { lowestPercent, results: this.results, lastUpdate: this.lastUpdate };
     }
 
-    // 用代计数器防止并发 aggregate 竞争写入 results
+    // 用代计数器区分并发 aggregate（全量与增量可同时在途）的先后
     const gen = ++this.generation;
+
+    // 增量模式只请求指定账户；providers 仍传完整列表，
+    // 保证合并过滤与裁剪始终以最新加载集合为准
+    const onlyKeys = opts.onlyKeys;
+    const targets = onlyKeys
+      ? providers.filter(p => onlyKeys.has(`${p.type}:${p.accountId}`))
+      : providers;
+
+    this.currentKeys = new Set(providers.map(p => `${p.type}:${p.accountId}`));
+    // 声明本次要请求的键；后启动的聚合会覆盖声明，
+    // 在途旧结果完成时若键已被新聚合接管则丢弃（如配置中途被修改）
+    for (const { type, accountId } of targets) {
+      this.claimedKeys.set(`${type}:${accountId}`, gen);
+    }
 
     // 保存旧数据用于失败时回退
     const previousResults = new Map(this.results);
 
     // 按服务商分组：不同服务商并行，同服务商内串行避免请求风暴
     const groups = new Map<string, typeof providers>();
-    for (const p of providers) {
+    for (const p of targets) {
       if (!groups.has(p.type)) groups.set(p.type, []);
       groups.get(p.type)!.push(p);
     }
@@ -116,33 +142,53 @@ export class UsageAggregator {
       })
     );
 
-    // 如果期间有新的 aggregate 调用启动，丢弃本次结果
-    if (gen !== this.generation) {
-      console.log('[Aggregator] Discarding stale results (newer aggregate in progress)');
-      const lowestPercent = this.calculateLowestPercent();
-      return { lowestPercent, results: this.results, lastUpdate: this.lastUpdate! };
-    }
-
-    // 更新结果（先清空，确保不含已禁用 Provider 的残留数据）
-    this.results.clear();
+    const stale = gen !== this.generation;
     for (const groupResults of outcomes) {
       for (const { compoundKey, result } of groupResults) {
+        // 键已被更新的聚合接管：旧配置的在途结果不覆盖新结果
+        if (this.claimedKeys.get(compoundKey) !== gen) continue;
+        // 账户已被禁用/移除：结果不写入
+        if (!this.currentKeys.has(compoundKey)) continue;
         this.results.set(compoundKey, result);
       }
     }
 
-    this.lastUpdate = new Date();
+    if (!stale) {
+      // 裁剪到当前已加载账户集合（禁用/移除/换号的旧键自然丢弃，竞态自愈）
+      for (const key of Array.from(this.results.keys())) {
+        if (!this.currentKeys.has(key)) this.results.delete(key);
+      }
+    }
+
+    if (outcomes.length > 0 || !this.lastUpdate) {
+      this.lastUpdate = new Date();
+    }
 
     // 计算最低百分比
     const lowestPercent = this.calculateLowestPercent();
 
-    console.log(`[Aggregator] Updated. Lowest: ${lowestPercent}%, Providers: ${this.results.size}`);
+    const label = onlyKeys ? `Incremental update (${targets.length} account(s))` : 'Updated';
+    console.log(`[Aggregator] ${label}. Lowest: ${lowestPercent}%, Providers: ${this.results.size}`);
 
     return {
       lowestPercent,
       results: this.results,
       lastUpdate: this.lastUpdate
     };
+  }
+
+  /**
+   * 按最新已加载账户集合裁剪结果
+   * 配置重载时调用，立即清除已禁用/移除账户的残留数据
+   */
+  pruneTo(providers: LoadedProvider[]): void {
+    this.currentKeys = new Set(providers.map(p => `${p.type}:${p.accountId}`));
+    for (const key of Array.from(this.results.keys())) {
+      if (!this.currentKeys.has(key)) this.results.delete(key);
+    }
+    for (const key of Array.from(this.claimedKeys.keys())) {
+      if (!this.currentKeys.has(key)) this.claimedKeys.delete(key);
+    }
   }
 
   /**
@@ -191,6 +237,8 @@ export class UsageAggregator {
    */
   clear(): void {
     this.results.clear();
+    this.currentKeys = new Set();
+    this.claimedKeys.clear();
     this.lastUpdate = null;
   }
 }
