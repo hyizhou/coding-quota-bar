@@ -1,12 +1,12 @@
 /**
  * Renderer 进程共享类型定义
  */
-import type { CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, ResetPackages, ResetPackageSummary, TrayDisplayRule, WindowPinMode, ZhipuDailyUsageItem, ZhipuUsageActivitySummary, ZhipuUsageStats } from '../../shared/types'
+import type { CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, ResetPackages, ResetPackageSummary, TrayDisplayRule, WindowPinMode, ZaiDailyUsageItem, ZaiUsageActivitySummary, ZaiUsageStats } from '../../shared/types'
 
 export type { WindowPinMode }
-export type { ZhipuDailyUsageItem }
-export type { ZhipuUsageActivitySummary }
-export type { ZhipuUsageStats }
+export type { ZaiDailyUsageItem }
+export type { ZaiUsageActivitySummary }
+export type { ZaiUsageStats }
 export type { ResetPackages, ResetPackageSummary }
 export type { CodexUsageStats }
 export type { QoderCreditsHeatmap, QoderCreditsTrend }
@@ -315,7 +315,7 @@ export interface ElectronAPI {
   stepfunWebLogout: (accountId: string) => Promise<void>
   onStepfunWebLoginSuccess: (callback: (accountId: string) => void) => () => void
   stepfunFetchUsageHistory: (accountId: string, days: 7 | 30) => Promise<ModelTokenRecord[]>
-  zhipuFetchUsageStats: (accountId: string) => Promise<ZhipuUsageStats>
+  zaiFetchUsageStats: (accountId: string) => Promise<ZaiUsageStats>
 }
 
 declare global {

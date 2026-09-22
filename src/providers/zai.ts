@@ -1,12 +1,12 @@
 import type { Provider, ProviderConfig, ResetPackageSummary, ResetPackages, SubscriptionInfo, UsageResult } from '../shared/types';
-import type { ZhipuDailyUsageItem, ZhipuUsageActivitySummary, ZhipuUsageStats } from '../shared/types';
+import type { ZaiDailyUsageItem, ZaiUsageActivitySummary, ZaiUsageStats } from '../shared/types';
 import { HttpClientWithRetry } from '../main/http';
 import pricingConfig from './zai-pricing.json';
 
 /**
  * 智谱 quota/limit API 响应类型
  */
-interface ZhipuLimitItem {
+interface ZaiLimitItem {
   type: string;
   unit: number;            // 重置周期单位（1=天, 3=小时, 5=月, 6=周）
   number: number;          // 重置周期数值
@@ -18,10 +18,10 @@ interface ZhipuLimitItem {
   usageDetails?: Array<{ modelCode: string; usage: number }>;
 }
 
-interface ZhipuQuotaResponse {
+interface ZaiQuotaResponse {
   code: number;
   data?: {
-    limits: ZhipuLimitItem[];
+    limits: ZaiLimitItem[];
     level?: string;
   };
   msg?: string;
@@ -31,7 +31,7 @@ interface ZhipuQuotaResponse {
 /**
  * 智谱 tool-usage API 响应类型
  */
-interface ZhipuToolUsageResponse {
+interface ZaiToolUsageResponse {
   code: number;
   data?: {
     x_time: string[];
@@ -51,7 +51,7 @@ interface ZhipuToolUsageResponse {
 /**
  * 智谱 model-usage API 响应类型
  */
-interface ZhipuModelUsageResponse {
+interface ZaiModelUsageResponse {
   code: number;
   data?: {
     x_time: string[];
@@ -75,7 +75,7 @@ interface ZhipuModelUsageResponse {
 /**
  * 智谱 credit-usage/activity API 响应类型（近一年每日用量历史）
  */
-interface ZhipuActivityResponse {
+interface ZaiActivityResponse {
   code: number;
   data?: {
     summary?: {
@@ -100,7 +100,7 @@ interface ZhipuActivityResponse {
 /**
  * 智谱 model-performance-day API 响应类型
  */
-interface ZhipuPerformanceResponse {
+interface ZaiPerformanceResponse {
   code: number;
   data?: {
     x_time: string[];
@@ -116,7 +116,7 @@ interface ZhipuPerformanceResponse {
 /**
  * 智谱 subscription/list API 响应类型
  */
-interface ZhipuSubscriptionItem {
+interface ZaiSubscriptionItem {
   productName: string;
   status: string;
   valid: string;
@@ -128,9 +128,9 @@ interface ZhipuSubscriptionItem {
   billingCycle: string;
 }
 
-interface ZhipuSubscriptionResponse {
+interface ZaiSubscriptionResponse {
   code: number;
-  data?: ZhipuSubscriptionItem[];
+  data?: ZaiSubscriptionItem[];
   msg?: string;
   success?: boolean;
 }
@@ -140,22 +140,22 @@ interface ZhipuSubscriptionResponse {
  * - v1/v2 套餐：{code, data: {limits, level}} 包裹结构
  * - v3 积分套餐：直接返回 limits 顶层数组（无 code/data 包裹、无 level）
  */
-type ZhipuQuotaBody = ZhipuQuotaResponse | ZhipuLimitItem[];
+type ZaiQuotaBody = ZaiQuotaResponse | ZaiLimitItem[];
 
 /**
  * 智谱 customer-package-reset API 响应类型（重置包/充值卡）
  */
-interface ZhipuResetPackageItem {
+interface ZaiResetPackageItem {
   recordId: number;
   expireTime: string;    // 'YYYY-MM-DD HH:mm:ss'
   available: boolean;
 }
 
-interface ZhipuResetPackageResponse {
+interface ZaiResetPackageResponse {
   code: number;
   data?: {
-    fiveHourResets?: ZhipuResetPackageItem[];
-    weekResets?: ZhipuResetPackageItem[];
+    fiveHourResets?: ZaiResetPackageItem[];
+    weekResets?: ZaiResetPackageItem[];
   };
   msg?: string;
   success?: boolean;
@@ -189,7 +189,7 @@ function toISODate(ts: number | undefined | null): string {
 /**
  * 根据 limit 类型生成标签 key（由渲染进程翻译）
  */
-function getLimitLabel(item: ZhipuLimitItem): { label: string; labelParams?: Record<string, string | number> } {
+function getLimitLabel(item: ZaiLimitItem): { label: string; labelParams?: Record<string, string | number> } {
   if (item.type === 'TOKENS_LIMIT') {
     if (item.unit === 3) {
       return { label: 'quota.tokensLimit', labelParams: { n: item.number } };
@@ -212,12 +212,12 @@ function getLimitLabel(item: ZhipuLimitItem): { label: string; labelParams?: Rec
  * 判断是否为周窗口。v1/v2 周额度编码为 unit=1（天）× number=7；
  * v3 积分周窗口编码为 unit=6（周）× number=1，两种编码并存需同时兼容
  */
-function isWeeklyWindow(item: ZhipuLimitItem): boolean {
+function isWeeklyWindow(item: ZaiLimitItem): boolean {
   return (item.unit === 1 && item.number === 7) || (item.unit === 6 && item.number === 1);
 }
 
 /**
- * 定价数据从 zhipu-pricing.json 加载，价格变更时只需更新该文件
+ * 定价数据从 zai-pricing.json 加载，价格变更时只需更新该文件
  */
 interface ModelPricing {
   cache: number;
@@ -240,7 +240,7 @@ const MODEL_PRICING_LOWER = new Map(
 /**
  * 根据 modelDataList 估算 API 调用费用
  */
-function calcEstimatedCost(resp: ZhipuModelUsageResponse | null): number {
+function calcEstimatedCost(resp: ZaiModelUsageResponse | null): number {
   if (!resp?.data?.modelDataList) return 0;
   let total = 0;
   for (const model of resp.data.modelDataList) {
@@ -281,7 +281,7 @@ const RESET_PACKAGE_BASE_URL = 'https://bigmodel.cn';
 /**
  * 智谱 Coding Plan Provider
  */
-export class ZhipuProvider implements Provider {
+export class ZaiProvider implements Provider {
   name = '智谱';
 
   private httpClient = new HttpClientWithRetry(3, 1000);
@@ -295,7 +295,7 @@ export class ZhipuProvider implements Provider {
   async fetchUsage(config: ProviderConfig): Promise<UsageResult> {
     const apiKey = config.apiKey?.trim();
     if (!apiKey) {
-      throw new Error('[Zhipu] API Key is required');
+      throw new Error('[Zai] API Key is required');
     }
 
     const baseUrl = this.getBaseUrl(config);
@@ -308,7 +308,7 @@ export class ZhipuProvider implements Provider {
     };
 
     // 1. 获取配额数据（关键请求，单独用更高重试次数的 client）
-    const quotaBody = await this.criticalClient.getJson<ZhipuQuotaBody>(
+    const quotaBody = await this.criticalClient.getJson<ZaiQuotaBody>(
       `${baseUrl}/api/monitor/usage/quota/limit`,
       headers
     );
@@ -316,10 +316,10 @@ export class ZhipuProvider implements Provider {
     // 两种顶层形态归一化：包裹结构校验业务 code，顶层数组校验非空
     if (Array.isArray(quotaBody)) {
       if (!quotaBody.length) {
-        throw new Error('[Zhipu] Quota API error: Empty limits');
+        throw new Error('[Zai] Quota API error: Empty limits');
       }
     } else if (quotaBody.code !== 200 || !quotaBody.data?.limits?.length) {
-      throw new Error(`[Zhipu] Quota API error: ${quotaBody.msg || 'Unknown error'}`);
+      throw new Error(`[Zai] Quota API error: ${quotaBody.msg || 'Unknown error'}`);
     }
     const limits = Array.isArray(quotaBody) ? quotaBody : quotaBody.data!.limits!;
     const quotaLevel = Array.isArray(quotaBody) ? undefined : quotaBody.data?.level;
@@ -337,47 +337,47 @@ export class ZhipuProvider implements Provider {
     //    导致 ERR_CONNECTION_CLOSED（实测 2 路并发比 10 路全并发更稳更快）。
     //  - allSettled 让单条失败不连累其余请求（每条内部已有重试）。
     const auxRequests: Array<() => Promise<unknown>> = [
-      () => this.httpClient.getJson<ZhipuModelUsageResponse>(
+      () => this.httpClient.getJson<ZaiModelUsageResponse>(
         `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
         headers
       ),
-      () => this.httpClient.getJson<ZhipuModelUsageResponse>(
+      () => this.httpClient.getJson<ZaiModelUsageResponse>(
         `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
         headers
       ),
-      () => this.httpClient.getJson<ZhipuModelUsageResponse>(
+      () => this.httpClient.getJson<ZaiModelUsageResponse>(
         `${baseUrl}/api/monitor/usage/model-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
         headers
       ),
-      () => this.httpClient.getJson<ZhipuToolUsageResponse>(
+      () => this.httpClient.getJson<ZaiToolUsageResponse>(
         `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start1d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
         headers
       ),
-      () => this.httpClient.getJson<ZhipuToolUsageResponse>(
+      () => this.httpClient.getJson<ZaiToolUsageResponse>(
         `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
         headers
       ),
-      () => this.httpClient.getJson<ZhipuToolUsageResponse>(
+      () => this.httpClient.getJson<ZaiToolUsageResponse>(
         `${baseUrl}/api/monitor/usage/tool-usage?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
         headers
       ),
-      () => this.httpClient.getJson<ZhipuPerformanceResponse>(
+      () => this.httpClient.getJson<ZaiPerformanceResponse>(
         `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start7d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
         headers
       ),
-      () => this.httpClient.getJson<ZhipuPerformanceResponse>(
+      () => this.httpClient.getJson<ZaiPerformanceResponse>(
         `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start15d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
         headers
       ),
-      () => this.httpClient.getJson<ZhipuPerformanceResponse>(
+      () => this.httpClient.getJson<ZaiPerformanceResponse>(
         `${baseUrl}/api/monitor/usage/model-performance-day?startTime=${encodeURIComponent(formatDateTime(start30d))}&endTime=${encodeURIComponent(formatDateTime(now))}`,
         headers
       ),
-      () => this.httpClient.getJson<ZhipuSubscriptionResponse>(
+      () => this.httpClient.getJson<ZaiSubscriptionResponse>(
         `${baseUrl}/api/biz/subscription/list?pageSize=9999&pageNum=1`,
         headers
       ),
-      () => this.httpClient.getJson<ZhipuResetPackageResponse>(
+      () => this.httpClient.getJson<ZaiResetPackageResponse>(
         `${RESET_PACKAGE_BASE_URL}/api/biz/customer-package-reset/list?targetType=PERSONAL`,
         resetHeaders
       )
@@ -392,21 +392,21 @@ export class ZhipuProvider implements Provider {
       const s = settled[i] as PromiseSettledResult<T>;
       if (s.status === 'fulfilled') return s.value;
       const reason = s.reason instanceof Error ? s.reason.message : String(s.reason);
-      console.warn(`[Zhipu] request #${i} failed:`, reason);
+      console.warn(`[Zai] request #${i} failed:`, reason);
       return null;
     };
 
-    const resp1d = pick<ZhipuModelUsageResponse>(0);
-    const resp7d = pick<ZhipuModelUsageResponse>(1);
-    const resp30d = pick<ZhipuModelUsageResponse>(2);
-    const toolResp1d = pick<ZhipuToolUsageResponse>(3);
-    const toolResp7d = pick<ZhipuToolUsageResponse>(4);
-    const toolResp30d = pick<ZhipuToolUsageResponse>(5);
-    const perfResp7d = pick<ZhipuPerformanceResponse>(6);
-    const perfResp15d = pick<ZhipuPerformanceResponse>(7);
-    const perfResp30d = pick<ZhipuPerformanceResponse>(8);
-    const subResp = pick<ZhipuSubscriptionResponse>(9);
-    const resetResp = pick<ZhipuResetPackageResponse>(10);
+    const resp1d = pick<ZaiModelUsageResponse>(0);
+    const resp7d = pick<ZaiModelUsageResponse>(1);
+    const resp30d = pick<ZaiModelUsageResponse>(2);
+    const toolResp1d = pick<ZaiToolUsageResponse>(3);
+    const toolResp7d = pick<ZaiToolUsageResponse>(4);
+    const toolResp30d = pick<ZaiToolUsageResponse>(5);
+    const perfResp7d = pick<ZaiPerformanceResponse>(6);
+    const perfResp15d = pick<ZaiPerformanceResponse>(7);
+    const perfResp30d = pick<ZaiPerformanceResponse>(8);
+    const subResp = pick<ZaiSubscriptionResponse>(9);
+    const resetResp = pick<ZaiResetPackageResponse>(10);
 
     // 3. 构建额度列表
     const quotas = limits.map(item => {
@@ -498,9 +498,9 @@ export class ZhipuProvider implements Provider {
    * 仅统计 available === true 的卡；两类列表相互独立，任意组合（含空数组）都兼容。
    * 该接口为辅助数据，失败/业务错误时返回 undefined，不影响主用量。
    */
-  private parseResetPackages(resp: ZhipuResetPackageResponse | null): ResetPackages | undefined {
+  private parseResetPackages(resp: ZaiResetPackageResponse | null): ResetPackages | undefined {
     if (!resp || resp.code !== 200 || !resp.data) return undefined;
-    const summarize = (items?: ZhipuResetPackageItem[]): ResetPackageSummary => {
+    const summarize = (items?: ZaiResetPackageItem[]): ResetPackageSummary => {
       const available = (items ?? []).filter(i => i.available);
       // expireTime 为北京时间的 'YYYY-MM-DD HH:mm:ss'，显式标记 +08:00 避免跨时区解析偏移
       const earliest = available
@@ -522,10 +522,10 @@ export class ZhipuProvider implements Provider {
    * 获取每日用量历史（用量统计页按需加载，默认近一年）
    * 接口路径为 /api/monitor/credit-usage/activity（无 usage/ 段，多一段会 404）
    */
-  async fetchUsageActivity(config: ProviderConfig, days = 365): Promise<ZhipuUsageStats> {
+  async fetchUsageActivity(config: ProviderConfig, days = 365): Promise<ZaiUsageStats> {
     const apiKey = config.apiKey?.trim();
     if (!apiKey) {
-      throw new Error('[Zhipu] API Key is required');
+      throw new Error('[Zai] API Key is required');
     }
 
     const baseUrl = this.getBaseUrl(config);
@@ -538,16 +538,16 @@ export class ZhipuProvider implements Provider {
     // type=1 个人套餐；团队套餐需额外组织头，暂不支持
     const url = `${baseUrl}/api/monitor/credit-usage/activity?startTime=${startTime}&endTime=${endTime}&type=1`;
 
-    const resp = await this.httpClient.getJson<ZhipuActivityResponse>(url, {
+    const resp = await this.httpClient.getJson<ZaiActivityResponse>(url, {
       'Authorization': `Bearer ${apiKey}`
     });
 
     // HTTP 200 ≠ 成功：业务错误时 HTTP 仍为 200，必须检查 body 的 code
     if (resp.code !== 0 && resp.code !== 200) {
-      throw new Error(`[Zhipu] Activity API error: ${resp.msg || 'Unknown error'}`);
+      throw new Error(`[Zai] Activity API error: ${resp.msg || 'Unknown error'}`);
     }
 
-    const series: ZhipuDailyUsageItem[] = (resp.data?.series ?? []).map(item => ({
+    const series: ZaiDailyUsageItem[] = (resp.data?.series ?? []).map(item => ({
       date: item.date,
       totalTokens: item.totalTokens ?? 0,
       totalCredits: Number(item.totalCredits ?? 0),
@@ -555,7 +555,7 @@ export class ZhipuProvider implements Provider {
     }));
 
     const s = resp.data?.summary;
-    const summary: ZhipuUsageActivitySummary | null = s ? {
+    const summary: ZaiUsageActivitySummary | null = s ? {
       totalTokens: s.totalTokens ?? 0,
       peakDailyTokens: s.peakDailyTokens ?? 0,
       peakDailyTokensDate: s.peakDailyTokensDate ?? '',
@@ -598,7 +598,7 @@ export class ZhipuProvider implements Provider {
    * 小时级响应: 'YYYY-MM-DD HH:mm' → 'YYYY-MM-DDTHH'
    * 天级响应:   'YYYY-MM-DD'       → 'YYYY-MM-DD'（保持不变）
    */
-  private buildUsageHistory(resp: ZhipuModelUsageResponse | null): Array<{ date: string; used: number }> {
+  private buildUsageHistory(resp: ZaiModelUsageResponse | null): Array<{ date: string; used: number }> {
     if (!resp?.data?.x_time || !resp?.data?.tokensUsage) return [];
 
     return resp.data.x_time
@@ -614,7 +614,7 @@ export class ZhipuProvider implements Provider {
   /**
    * 从 tool-usage 响应构建 MCP 工具历史记录
    */
-  private buildToolHistory(resp: ZhipuToolUsageResponse | null): Array<{ date: string; search: number; webRead: number; zread: number }> {
+  private buildToolHistory(resp: ZaiToolUsageResponse | null): Array<{ date: string; search: number; webRead: number; zread: number }> {
     if (!resp?.data?.x_time) return [];
 
     return resp.data.x_time
@@ -634,7 +634,7 @@ export class ZhipuProvider implements Provider {
   /**
    * 从 model-usage 响应构建分模型历史记录
    */
-  private buildModelHistory(resp: ZhipuModelUsageResponse | null): Array<{ date: string; model: string; used: number }> {
+  private buildModelHistory(resp: ZaiModelUsageResponse | null): Array<{ date: string; model: string; used: number }> {
     if (!resp?.data?.x_time || !resp?.data?.modelDataList) return [];
 
     const records: Array<{ date: string; model: string; used: number }> = [];
@@ -654,7 +654,7 @@ export class ZhipuProvider implements Provider {
   /**
    * 从 model-performance-day 响应构建性能历史记录
    */
-  private buildPerformanceHistory(resp: ZhipuPerformanceResponse | null): Array<{
+  private buildPerformanceHistory(resp: ZaiPerformanceResponse | null): Array<{
     date: string;
     liteDecodeSpeed: number;
     proMaxDecodeSpeed: number;
@@ -681,7 +681,7 @@ export class ZhipuProvider implements Provider {
    * 判断是否已过期，到期即标记为 EXPIRED，让 UI 显示"已过期"徽章。
    * planLabel 为代际 + 等级的展示名（如 "V3 PRO"），由调用方基于配额接口代际识别组装。
    */
-  private parseSubscription(resp: ZhipuSubscriptionResponse | null, planLabel: string): SubscriptionInfo | undefined {
+  private parseSubscription(resp: ZaiSubscriptionResponse | null, planLabel: string): SubscriptionInfo | undefined {
     if (!resp?.data?.length) return undefined;
 
     // 优先 status='VALID'；找不到时取 nextRenewTime 最晚且有效的一条

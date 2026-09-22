@@ -118,7 +118,7 @@ function selectPrimaryMetric(providerKey: string, account: AccountUsageData): Ov
   if (providerKey === 'zhipu') {
     const hourly = account.quotas.find(q => q.limitType === 'tokens' && q.label === 'quota.tokensLimit')
     const token = hourly || account.quotas.find(q => q.limitType === 'tokens')
-    return quotaMetric(token, t('overview.zhipuPrimary'))
+    return quotaMetric(token, t('overview.zaiPrimary'))
   }
 
   if (providerKey === 'minimax') {

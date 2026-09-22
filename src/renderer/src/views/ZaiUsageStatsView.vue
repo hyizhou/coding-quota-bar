@@ -5,14 +5,14 @@
   入口：主页智谱额度卡片（5小时额度 / MCP 用量 / 周额度）点击进入
 -->
 <template>
-  <div class="view-zhipu-stats">
+  <div class="view-zai-stats">
     <header class="header">
       <button class="icon-btn back-btn" :title="$t('settings.backBtn')" @click="$emit('go-back')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
       </button>
-      <h1>{{ $t('zhipuStats.title') }}</h1>
+      <h1>{{ $t('zaiStats.title') }}</h1>
       <span v-if="accountLabel" class="account-label">{{ accountLabel }}</span>
     </header>
 
@@ -27,42 +27,42 @@
 
       <!-- 加载失败 -->
       <div v-else-if="error" class="error-block">
-        <p class="error-title">{{ $t('zhipuStats.loadFailed') }}</p>
+        <p class="error-title">{{ $t('zaiStats.loadFailed') }}</p>
         <p class="error-detail">{{ error }}</p>
-        <button class="retry-btn" @click="load">{{ $t('zhipuStats.retry') }}</button>
+        <button class="retry-btn" @click="load">{{ $t('zaiStats.retry') }}</button>
       </div>
 
       <!-- 无数据 -->
-      <div v-else-if="empty" class="empty-block">{{ $t('zhipuStats.noData') }}</div>
+      <div v-else-if="empty" class="empty-block">{{ $t('zaiStats.noData') }}</div>
 
       <template v-else>
         <!-- 汇总卡片 2x2，悬浮显示精确值 -->
         <div class="summary-grid">
           <FloatingTooltip :rows="totalRows" position="bottom" align="left">
             <div class="summary-card">
-              <span class="summary-label">{{ $t('zhipuStats.totalUsage') }}</span>
+              <span class="summary-label">{{ $t('zaiStats.totalUsage') }}</span>
               <span class="summary-value">{{ formatCount(summary?.totalTokens ?? 0) }}</span>
               <span class="summary-sub">tokens</span>
             </div>
           </FloatingTooltip>
           <FloatingTooltip :rows="peakRows" position="bottom" align="right">
             <div class="summary-card">
-              <span class="summary-label">{{ $t('zhipuStats.peakDaily') }}</span>
+              <span class="summary-label">{{ $t('zaiStats.peakDaily') }}</span>
               <span class="summary-value">{{ formatCount(summary?.peakDailyTokens ?? 0) }}</span>
               <span class="summary-sub">{{ peakDateText }}</span>
             </div>
           </FloatingTooltip>
           <FloatingTooltip :rows="durationRows" position="bottom" align="left">
             <div class="summary-card">
-              <span class="summary-label">{{ $t('zhipuStats.usageDuration') }}</span>
-              <span class="summary-value">{{ durationHours }}<small class="unit">{{ $t('zhipuStats.hoursUnit') }}</small></span>
+              <span class="summary-label">{{ $t('zaiStats.usageDuration') }}</span>
+              <span class="summary-value">{{ durationHours }}<small class="unit">{{ $t('zaiStats.hoursUnit') }}</small></span>
             </div>
           </FloatingTooltip>
           <FloatingTooltip :rows="streakRows" position="bottom" align="right">
             <div class="summary-card">
-              <span class="summary-label">{{ $t('zhipuStats.streak') }}</span>
-              <span class="summary-value">{{ summary?.currentStreakDays ?? 0 }}<small class="unit">{{ $t('zhipuStats.daysUnit') }}</small></span>
-              <span class="summary-sub">{{ $t('zhipuStats.longestStreak', { n: summary?.longestStreakDays ?? 0 }) }}</span>
+              <span class="summary-label">{{ $t('zaiStats.streak') }}</span>
+              <span class="summary-value">{{ summary?.currentStreakDays ?? 0 }}<small class="unit">{{ $t('zaiStats.daysUnit') }}</small></span>
+              <span class="summary-sub">{{ $t('zaiStats.longestStreak', { n: summary?.longestStreakDays ?? 0 }) }}</span>
             </div>
           </FloatingTooltip>
         </div>
@@ -70,38 +70,38 @@
         <!-- 本月 / 本周用量：一行一个周期，左 Token 右 MCP -->
         <div class="period-grid">
           <FloatingTooltip :rows="[
-            { label: $t('zhipuStats.monthTokens'), value: exact(monthTokens) + ' tokens' },
-            { label: $t('zhipuStats.prevMonthTokens'), value: exact(prevMonthTokens) + ' tokens' }
+            { label: $t('zaiStats.monthTokens'), value: exact(monthTokens) + ' tokens' },
+            { label: $t('zaiStats.prevMonthTokens'), value: exact(prevMonthTokens) + ' tokens' }
           ]" position="top" align="left">
             <div class="period-cell">
-              <span class="period-label">{{ $t('zhipuStats.monthTokens') }}</span>
+              <span class="period-label">{{ $t('zaiStats.monthTokens') }}</span>
               <span class="period-value">{{ formatCount(monthTokens) }}<TrendArrow :trend="monthTokensTrend" /></span>
             </div>
           </FloatingTooltip>
           <FloatingTooltip :rows="[
-            { label: $t('zhipuStats.monthMcp'), value: exact(monthMcpCalls) },
-            { label: $t('zhipuStats.prevMonthMcp'), value: exact(prevMonthMcpCalls) }
+            { label: $t('zaiStats.monthMcp'), value: exact(monthMcpCalls) },
+            { label: $t('zaiStats.prevMonthMcp'), value: exact(prevMonthMcpCalls) }
           ]" position="top" align="right">
             <div class="period-cell">
-              <span class="period-label">{{ $t('zhipuStats.monthMcp') }}</span>
+              <span class="period-label">{{ $t('zaiStats.monthMcp') }}</span>
               <span class="period-value">{{ monthMcpCalls }}<TrendArrow :trend="monthMcpTrend" /></span>
             </div>
           </FloatingTooltip>
           <FloatingTooltip :rows="[
-            { label: $t('zhipuStats.weekTokens'), value: exact(weekTokens) + ' tokens' },
-            { label: $t('zhipuStats.prevWeekTokens'), value: exact(prevWeekTokens) + ' tokens' }
+            { label: $t('zaiStats.weekTokens'), value: exact(weekTokens) + ' tokens' },
+            { label: $t('zaiStats.prevWeekTokens'), value: exact(prevWeekTokens) + ' tokens' }
           ]" position="bottom" align="left">
             <div class="period-cell">
-              <span class="period-label">{{ $t('zhipuStats.weekTokens') }}</span>
+              <span class="period-label">{{ $t('zaiStats.weekTokens') }}</span>
               <span class="period-value">{{ formatCount(weekTokens) }}<TrendArrow :trend="weekTokensTrend" /></span>
             </div>
           </FloatingTooltip>
           <FloatingTooltip :rows="[
-            { label: $t('zhipuStats.weekMcp'), value: exact(weekMcpCalls) },
-            { label: $t('zhipuStats.prevWeekMcp'), value: exact(prevWeekMcpCalls) }
+            { label: $t('zaiStats.weekMcp'), value: exact(weekMcpCalls) },
+            { label: $t('zaiStats.prevWeekMcp'), value: exact(prevWeekMcpCalls) }
           ]" position="bottom" align="right">
             <div class="period-cell">
-              <span class="period-label">{{ $t('zhipuStats.weekMcp') }}</span>
+              <span class="period-label">{{ $t('zaiStats.weekMcp') }}</span>
               <span class="period-value">{{ weekMcpCalls }}<TrendArrow :trend="weekMcpTrend" /></span>
             </div>
           </FloatingTooltip>
@@ -110,7 +110,7 @@
         <!-- GitHub 风格热力图 -->
         <div class="calendar-card">
           <div class="calendar-head">
-            <span class="calendar-title">{{ $t('zhipuStats.calendarTitle') }}</span>
+            <span class="calendar-title">{{ $t('zaiStats.calendarTitle') }}</span>
             <div class="mode-toggle">
               <button
                 v-for="m in modes"
@@ -130,9 +130,9 @@
           <div v-if="selectedDay" class="day-detail">
             <span class="detail-date">{{ selectedDayLabel }}</span>
             <span class="detail-items">
-              <span>{{ $t('zhipuStats.detailTokens') }}: <strong>{{ exact(selectedDay.totalTokens) }}</strong></span>
-              <span>{{ $t('zhipuStats.detailMcp') }}: <strong>{{ selectedDay.mcpCalls }}</strong></span>
-              <span v-if="selectedDay.totalCredits > 0">{{ $t('zhipuStats.detailCredits') }}: <strong>{{ selectedDay.totalCredits }}</strong></span>
+              <span>{{ $t('zaiStats.detailTokens') }}: <strong>{{ exact(selectedDay.totalTokens) }}</strong></span>
+              <span>{{ $t('zaiStats.detailMcp') }}: <strong>{{ selectedDay.mcpCalls }}</strong></span>
+              <span v-if="selectedDay.totalCredits > 0">{{ $t('zaiStats.detailCredits') }}: <strong>{{ selectedDay.totalCredits }}</strong></span>
             </span>
           </div>
         </div>
@@ -148,7 +148,7 @@ import TrendArrow from '../components/TrendArrow.vue'
 import FloatingTooltip from '../components/FloatingTooltip.vue'
 import UsageHeatmap from '../components/UsageHeatmap.vue'
 import type { HeatmapRecord } from '../components/UsageHeatmap.vue'
-import type { ZhipuDailyUsageItem, ZhipuUsageActivitySummary } from '../types'
+import type { ZaiDailyUsageItem, ZaiUsageActivitySummary } from '../types'
 
 const props = defineProps<{
   accountId: string
@@ -161,13 +161,13 @@ const { t, locale } = useI18n()
 
 const loading = ref(false)
 const error = ref('')
-const summary = ref<ZhipuUsageActivitySummary | null>(null)
-const series = ref<ZhipuDailyUsageItem[]>([])
+const summary = ref<ZaiUsageActivitySummary | null>(null)
+const series = ref<ZaiDailyUsageItem[]>([])
 
 const empty = computed(() => !summary.value && series.value.length === 0)
 
 // Token / MCP 视图切换，持久化用户选择
-const STORAGE_KEY_MODE = 'zhipu-stats-mode'
+const STORAGE_KEY_MODE = 'zai-stats-mode'
 type StatsMode = 'token' | 'mcp'
 const mode = ref<StatsMode>(restoreMode())
 
@@ -182,8 +182,8 @@ function restoreMode(): StatsMode {
 watch(mode, v => { try { localStorage.setItem(STORAGE_KEY_MODE, v) } catch {} })
 
 const modes = [
-  { label: t('zhipuStats.tokenView'), value: 'token' as StatsMode },
-  { label: t('zhipuStats.mcpView'), value: 'mcp' as StatsMode }
+  { label: t('zaiStats.tokenView'), value: 'token' as StatsMode },
+  { label: t('zaiStats.mcpView'), value: 'mcp' as StatsMode }
 ]
 
 async function load() {
@@ -191,7 +191,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const result = await window.electronAPI.zhipuFetchUsageStats(props.accountId)
+    const result = await window.electronAPI.zaiFetchUsageStats(props.accountId)
     if (result?.error) {
       error.value = result.error.replace(/^\[[\w-]+\]\s*/, '')
     } else {
@@ -233,7 +233,7 @@ function localDateStr(d: Date): string {
 // ---------- 汇总卡片 ----------
 
 const totalRows = computed(() => [
-  { label: t('zhipuStats.totalUsage'), value: `${exact(summary.value?.totalTokens ?? 0)} tokens` },
+  { label: t('zaiStats.totalUsage'), value: `${exact(summary.value?.totalTokens ?? 0)} tokens` },
 ])
 
 const peakRows = computed(() => {
@@ -244,8 +244,8 @@ const peakRows = computed(() => {
     dateText = isNaN(d.getTime()) ? raw : d.toLocaleDateString(locale.value, { year: 'numeric', month: 'long', day: 'numeric' })
   }
   return [
-    { label: t('zhipuStats.peakDaily'), value: exact(summary.value?.peakDailyTokens ?? 0) },
-    { label: t('zhipuStats.peakDate'), value: dateText },
+    { label: t('zaiStats.peakDaily'), value: exact(summary.value?.peakDailyTokens ?? 0) },
+    { label: t('zaiStats.peakDate'), value: dateText },
   ]
 })
 
@@ -266,13 +266,13 @@ const durationRows = computed(() => {
   const h = Math.floor(ms / 3_600_000)
   const m = Math.floor((ms % 3_600_000) / 60_000)
   return [
-    { label: t('zhipuStats.usageDuration'), value: `${h} ${t('zhipuStats.hoursUnit')} ${m} ${t('zhipuStats.minutesUnit')}` },
+    { label: t('zaiStats.usageDuration'), value: `${h} ${t('zaiStats.hoursUnit')} ${m} ${t('zaiStats.minutesUnit')}` },
   ]
 })
 
 const streakRows = computed(() => [
-  { label: t('zhipuStats.streak'), value: `${summary.value?.currentStreakDays ?? 0} ${t('zhipuStats.daysUnit')}` },
-  { label: t('zhipuStats.longest'), value: `${summary.value?.longestStreakDays ?? 0} ${t('zhipuStats.daysUnit')}` },
+  { label: t('zaiStats.streak'), value: `${summary.value?.currentStreakDays ?? 0} ${t('zaiStats.daysUnit')}` },
+  { label: t('zaiStats.longest'), value: `${summary.value?.longestStreakDays ?? 0} ${t('zaiStats.daysUnit')}` },
 ])
 
 // ---------- 本周 / 本月 ----------
@@ -342,7 +342,7 @@ const heatmapRecords = computed<HeatmapRecord[]>(() =>
 )
 
 function formatHeatmapValue(n: number): string {
-  return mode.value === 'token' ? `${formatCount(n)} tokens` : `${n} ${t('zhipuStats.callsUnit')}`
+  return mode.value === 'token' ? `${formatCount(n)} tokens` : `${n} ${t('zaiStats.callsUnit')}`
 }
 
 const selectedDate = ref<string | null>(null)
@@ -364,7 +364,7 @@ const selectedDayLabel = computed(() => {
 </script>
 
 <style scoped>
-.view-zhipu-stats {
+.view-zai-stats {
   height: 100%;
   display: flex;
   flex-direction: column;

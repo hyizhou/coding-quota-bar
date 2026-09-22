@@ -85,7 +85,7 @@ const DAY = 86400000;
 /**
  * 生成小时级用量历史（智谱 1d / 7d）
  */
-function generateZhipuHourlyHistory(hours: number): { date: string; used: number }[] {
+function generateZaiHourlyHistory(hours: number): { date: string; used: number }[] {
   const records: { date: string; used: number }[] = [];
   const now = new Date();
   const start = new Date(now.getTime() - hours * HOUR);
@@ -99,7 +99,7 @@ function generateZhipuHourlyHistory(hours: number): { date: string; used: number
 /**
  * 生成天级用量历史（智谱 30d）
  */
-function generateZhipuDailyHistory(days: number): { date: string; used: number }[] {
+function generateZaiDailyHistory(days: number): { date: string; used: number }[] {
   const records: { date: string; used: number }[] = [];
   const now = new Date();
   for (let i = days; i >= 0; i--) {
@@ -112,7 +112,7 @@ function generateZhipuDailyHistory(days: number): { date: string; used: number }
 /**
  * 生成小时级 MCP 工具历史（智谱 1d / 7d）
  */
-function generateZhipuHourlyMcpHistory(hours: number): { date: string; search: number; webRead: number; zread: number }[] {
+function generateZaiHourlyMcpHistory(hours: number): { date: string; search: number; webRead: number; zread: number }[] {
   const records: { date: string; search: number; webRead: number; zread: number }[] = [];
   const now = new Date();
   const start = new Date(now.getTime() - hours * HOUR);
@@ -131,7 +131,7 @@ function generateZhipuHourlyMcpHistory(hours: number): { date: string; search: n
 /**
  * 生成天级 MCP 工具历史（智谱 30d）
  */
-function generateZhipuDailyMcpHistory(days: number): { date: string; search: number; webRead: number; zread: number }[] {
+function generateZaiDailyMcpHistory(days: number): { date: string; search: number; webRead: number; zread: number }[] {
   const records: { date: string; search: number; webRead: number; zread: number }[] = [];
   const now = new Date();
   for (let i = days; i >= 0; i--) {
@@ -149,7 +149,7 @@ function generateZhipuDailyMcpHistory(days: number): { date: string; search: num
 /**
  * 生成分模型用量历史（小时级，智谱 1d / 7d）
  */
-function generateZhipuHourlyModelHistory(hours: number): { date: string; model: string; used: number }[] {
+function generateZaiHourlyModelHistory(hours: number): { date: string; model: string; used: number }[] {
   const models = ['GLM-5.1', 'GLM-5-Turbo', 'GLM-4.7'];
   const records: { date: string; model: string; used: number }[] = [];
   const now = new Date();
@@ -169,7 +169,7 @@ function generateZhipuHourlyModelHistory(hours: number): { date: string; model: 
 /**
  * 生成分模型用量历史（天级，智谱 30d）
  */
-function generateZhipuDailyModelHistory(days: number): { date: string; model: string; used: number }[] {
+function generateZaiDailyModelHistory(days: number): { date: string; model: string; used: number }[] {
   const models = ['GLM-5.1', 'GLM-5-Turbo', 'GLM-4.7'];
   const records: { date: string; model: string; used: number }[] = [];
   const now = new Date();
@@ -336,9 +336,9 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
           { label: 'quota.creditsLimit', labelParams: { n: 5 }, used: 2585, total: 28000, usageRate: 9, resetAt: new Date(now + 5 * HOUR).toISOString(), limitType: 'credits' },
           { label: 'quota.creditsLimitWeekly', used: 58386, total: 140000, usageRate: 42, resetAt: new Date(now + 3 * DAY).toISOString(), limitType: 'credits' }
         ],
-        history1d: generateZhipuHourlyHistory(24),
-        history7d: generateZhipuHourlyHistory(168),
-        history30d: generateZhipuDailyHistory(30),
+        history1d: generateZaiHourlyHistory(24),
+        history7d: generateZaiHourlyHistory(168),
+        history30d: generateZaiDailyHistory(30),
         totalTokens1d,
         totalTokens7d,
         totalTokens30d,
@@ -346,12 +346,12 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
         estimatedCost7d: calcMockEstimatedCost(totalTokens7d),
         estimatedCost30d: calcMockEstimatedCost(totalTokens30d),
         modelRates: calcMockModelRates(),
-        mcpHistory1d: generateZhipuHourlyMcpHistory(24),
-        mcpHistory7d: generateZhipuHourlyMcpHistory(168),
-        mcpHistory30d: generateZhipuDailyMcpHistory(30),
-        modelHistory1d: generateZhipuHourlyModelHistory(24),
-        modelHistory7d: generateZhipuHourlyModelHistory(168),
-        modelHistory30d: generateZhipuDailyModelHistory(30),
+        mcpHistory1d: generateZaiHourlyMcpHistory(24),
+        mcpHistory7d: generateZaiHourlyMcpHistory(168),
+        mcpHistory30d: generateZaiDailyMcpHistory(30),
+        modelHistory1d: generateZaiHourlyModelHistory(24),
+        modelHistory7d: generateZaiHourlyModelHistory(168),
+        modelHistory30d: generateZaiDailyModelHistory(30),
         performanceHistory7d: generatePerformanceHistory(7),
         performanceHistory15d: generatePerformanceHistory(15),
         performanceHistory30d: generatePerformanceHistory(30)

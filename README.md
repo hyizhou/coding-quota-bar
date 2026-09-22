@@ -33,7 +33,7 @@ Hover over or click the icon to pop up the detail panel and view the usage detai
 
 | Platform | Auth | Usage Tracked |
 |----------|------|---------------|
-| **Zhipu AI** | API Key | 5-hour / weekly credit quotas (v3 credit-based) or request-count quotas (v1/v2), MCP usage, subscription tier (V1/V2/V3), usage trend charts, model performance, estimated cost |
+| **Z.ai** | API Key | 5-hour / weekly credit quotas (v3 credit-based) or request-count quotas (v1/v2), MCP usage, subscription tier (V1/V2/V3), usage trend charts, model performance, estimated cost |
 | **DeepSeek** | API Key / Web login | Account balance (total / granted / topped-up), monthly usage, custom budget progress bar, 90-day uptime history of the API and web services |
 | **MiniMax** | API Key | 5-hour / weekly quotas (percentage-based) |
 | **MiMo** | Web login | Total plan usage, monthly usage, token usage estimate, account balance |
@@ -52,7 +52,7 @@ Configure multiple API keys for the same platform — for example, monitor your 
 - **Token usage bar chart** — 7 days at hourly granularity
 - **MCP tool call stats** — usage frequency of search, web reading, ZRead, etc.
 - **Model performance line chart** — decoding speed and success rate trends
-- **Zhipu usage stats page** — one-year daily usage heatmap, this month/week vs. the previous period, usage streaks
+- **Z.ai usage stats page** — one-year daily usage heatmap, this month/week vs. the previous period, usage streaks
 - **Estimated cost** — API-equivalent amount estimated from token usage
 
 ### Service Status Monitoring
@@ -62,7 +62,7 @@ DeepSeek users can check the live status of the API service and the web chat ser
 ### Other Features
 
 - **Scheduled auto refresh** — configurable refresh interval from 1 to 30 minutes
-- **Concurrency testing** — fire configurable concurrent requests at the Zhipu Coding Plan OpenAI / Anthropic endpoints, tracking first-token latency, output speed, and history
+- **Concurrency testing** — fire configurable concurrent requests at the Z.ai Coding Plan OpenAI / Anthropic endpoints, tracking first-token latency, output speed, and history
 - **API key encryption** — system-level encryption via Windows safeStorage
 - **Launch at startup**
 - **Dark/light theme** — follow the system or switch manually

@@ -93,14 +93,14 @@ export interface McpUsageRecord {
 /**
  * 智谱每日用量历史（credit-usage/activity 接口）
  */
-export interface ZhipuDailyUsageItem {
+export interface ZaiDailyUsageItem {
   date: string;          // 'YYYY-MM-DD'
   totalTokens: number;   // 当日 Token 消耗
   totalCredits: number;  // 当日 Credits 消耗（Coding Plan 实测恒为 0）
   mcpCalls: number;      // 当日 MCP 调用次数
 }
 
-export interface ZhipuUsageActivitySummary {
+export interface ZaiUsageActivitySummary {
   totalTokens: number;             // 区间总 Token
   peakDailyTokens: number;         // 单日峰值 Token
   peakDailyTokensDate: string;     // 峰值日期 'YYYY-MM-DD'
@@ -109,9 +109,9 @@ export interface ZhipuUsageActivitySummary {
   longestStreakDays: number;       // 最长连续使用天数
 }
 
-export interface ZhipuUsageStats {
-  summary: ZhipuUsageActivitySummary | null;
-  series: ZhipuDailyUsageItem[];
+export interface ZaiUsageStats {
+  summary: ZaiUsageActivitySummary | null;
+  series: ZaiDailyUsageItem[];
   error?: string;
 }
 
@@ -348,7 +348,7 @@ export interface ConcurrencyTestResult {
 /**
  * 智谱 Coding Plan 可用模型
  */
-export const ZHIPU_CODING_MODELS = [
+export const ZAI_CODING_MODELS = [
   'GLM-5.1',
   'GLM-5-Turbo',
   'GLM-5v-Turbo',

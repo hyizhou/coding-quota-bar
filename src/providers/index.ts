@@ -1,7 +1,7 @@
 /**
  * Provider 注册中心
  */
-export { ZhipuProvider } from './zhipu';
+export { ZaiProvider } from './zai';
 export { MiniMaxProvider } from './minimax';
 export { KimiProvider } from './kimi';
 export { CodexProvider } from './codex';

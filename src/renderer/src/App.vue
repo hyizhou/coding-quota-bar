@@ -1,9 +1,9 @@
 <template>
   <div class="app">
     <Transition :name="transitionName">
-      <MainView v-if="currentView === 'main'" key="main" @open-settings="goSettings" @open-concurrency-test="goConcurrencyTest" @open-zhipu-usage-stats="goZhipuUsageStats" />
-      <ConcurrencyTestView v-else-if="currentView === 'concurrency-test'" key="concurrency-test" @go-back="goMain" />
-      <ZhipuUsageStatsView v-else-if="currentView === 'zhipu-usage-stats'" key="zhipu-usage-stats" :account-id="zhipuStatsAccount?.id ?? ''" :account-label="zhipuStatsAccount?.label" @go-back="goMain" />
+      <MainView v-if="currentView === 'main'" key="main" @open-settings="goSettings" @open-concurrency-test="goConcurrencyTest" @open-zai-usage-stats="goZaiUsageStats" />
+      <ZaiConcurrencyTestView v-else-if="currentView === 'concurrency-test'" key="concurrency-test" @go-back="goMain" />
+      <ZaiUsageStatsView v-else-if="currentView === 'zai-usage-stats'" key="zai-usage-stats" :account-id="zaiStatsAccount?.id ?? ''" :account-label="zaiStatsAccount?.label" @go-back="goMain" />
       <SettingsView v-else :key="'settings-' + settingsKey" :auto-check-update="pendingCheckUpdate" @go-back="goMain" />
     </Transition>
   </div>
@@ -14,16 +14,16 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MainView from './views/MainView.vue'
 import SettingsView from './views/SettingsView.vue'
-import ConcurrencyTestView from './views/ConcurrencyTestView.vue'
-import ZhipuUsageStatsView from './views/ZhipuUsageStatsView.vue'
+import ZaiConcurrencyTestView from './views/ZaiConcurrencyTestView.vue'
+import ZaiUsageStatsView from './views/ZaiUsageStatsView.vue'
 
 const { locale } = useI18n()
 
-const currentView = ref<'main' | 'settings' | 'concurrency-test' | 'zhipu-usage-stats'>('main')
+const currentView = ref<'main' | 'settings' | 'concurrency-test' | 'zai-usage-stats'>('main')
 const transitionName = ref('slide-left')
 const pendingCheckUpdate = ref(false)
 const settingsKey = ref(0)
-const zhipuStatsAccount = ref<{ id: string; label?: string } | null>(null)
+const zaiStatsAccount = ref<{ id: string; label?: string } | null>(null)
 let offShowSettings: (() => void) | null = null
 
 function goSettings(options?: { checkUpdate?: boolean }) {
@@ -42,10 +42,10 @@ function goConcurrencyTest() {
 }
 
 /** 进入智谱用量统计页（与并发测试相同的 slide-left 进入动画） */
-function goZhipuUsageStats(accountId: string, accountLabel?: string) {
+function goZaiUsageStats(accountId: string, accountLabel?: string) {
   transitionName.value = 'slide-left'
-  zhipuStatsAccount.value = { id: accountId, label: accountLabel }
-  currentView.value = 'zhipu-usage-stats'
+  zaiStatsAccount.value = { id: accountId, label: accountLabel }
+  currentView.value = 'zai-usage-stats'
 }
 
 function goMain() {

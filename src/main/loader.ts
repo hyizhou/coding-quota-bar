@@ -1,5 +1,5 @@
 import type { Provider, ProviderConfig, ProviderTypeConfig } from '../shared/types';
-import { ZhipuProvider } from '../providers/zhipu';
+import { ZaiProvider } from '../providers/zai';
 import { MiniMaxProvider } from '../providers/minimax';
 import { KimiProvider } from '../providers/kimi';
 import { DeepSeekProvider } from '../providers/deepseek';
@@ -16,7 +16,7 @@ import buildConfig from '../../app.build';
  * 同时供 ipc-handlers（测试连接）临时实例化使用，避免重复维护一份映射
  */
 export const PROVIDER_CLASSES = {
-  zhipu: ZhipuProvider,
+  zhipu: ZaiProvider,
   minimax: MiniMaxProvider,
   kimi: KimiProvider,
   deepseek: DeepSeekProvider,

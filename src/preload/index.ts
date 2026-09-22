@@ -228,6 +228,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /**
    * 智谱每日用量历史（用量统计页按需加载）
    */
-  zhipuFetchUsageStats: (accountId: string) =>
-    ipcRenderer.invoke('zhipu-fetch-usage-stats', accountId),
+  zaiFetchUsageStats: (accountId: string) =>
+    ipcRenderer.invoke('zai-fetch-usage-stats', accountId),
 });

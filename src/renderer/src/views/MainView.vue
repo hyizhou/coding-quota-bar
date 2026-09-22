@@ -146,7 +146,7 @@
               </span>
             </div>
             <template v-else>
-              <ZhipuSection v-if="activeProvider.key === 'zhipu'" :account="getActiveAccount(activeProvider)!" @open-usage-stats="onOpenZhipuUsageStats" />
+              <ZaiSection v-if="activeProvider.key === 'zhipu'" :account="getActiveAccount(activeProvider)!" @open-usage-stats="onOpenZaiUsageStats" />
               <MiniMaxSection v-else-if="activeProvider.key === 'minimax'" :account="getActiveAccount(activeProvider)!" />
               <DeepSeekSection v-else-if="activeProvider.key === 'deepseek'" :account="getActiveAccount(activeProvider)!" />
               <MiMoSection v-else-if="activeProvider.key === 'mimo'" :account="getActiveAccount(activeProvider)!" />
@@ -183,7 +183,7 @@ import { useI18n } from 'vue-i18n'
 import FloatingTooltip from '../components/FloatingTooltip.vue'
 import UpdateBanner from '../components/UpdateBanner.vue'
 import ProviderOverview from '../components/ProviderOverview.vue'
-import ZhipuSection from '../components/ZhipuSection.vue'
+import ZaiSection from '../components/ZaiSection.vue'
 import MiniMaxSection from '../components/MiniMaxSection.vue'
 import ResetPackageBadge from '../components/ResetPackageBadge.vue'
 import DeepSeekServiceStatus from '../components/DeepSeekServiceStatus.vue'
@@ -203,12 +203,12 @@ const StepFunSection = defineAsyncComponent(() => import('../components/StepFunS
 const emit = defineEmits<{
   'open-settings': [options?: { checkUpdate?: boolean }]
   'open-concurrency-test': []
-  'open-zhipu-usage-stats': [accountId: string, accountLabel?: string]
+  'open-zai-usage-stats': [accountId: string, accountLabel?: string]
 }>()
 
 /** 智谱额度卡片点击 → 通知 App 切换到用量统计页 */
-function onOpenZhipuUsageStats(accountId: string, accountLabel?: string): void {
-  emit('open-zhipu-usage-stats', accountId, accountLabel)
+function onOpenZaiUsageStats(accountId: string, accountLabel?: string): void {
+  emit('open-zai-usage-stats', accountId, accountLabel)
 }
 
 const { t, locale } = useI18n()
@@ -355,7 +355,7 @@ async function handleRefresh() {
 }
 
 function formatError(msg: string): string {
-  // 去掉 [Zhipu] 等前缀，保留核心信息
+  // 去掉 [Zai] 等前缀，保留核心信息
   return msg.replace(/^\[[\w]+\]\s*/, '')
 }
 

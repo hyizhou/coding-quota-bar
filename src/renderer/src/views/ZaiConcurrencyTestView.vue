@@ -1,3 +1,10 @@
+<!--
+  智谱 Coding Plan 专属并发压测页：
+  - 模型清单来自 zai-pricing.json（与智谱 Provider 共用定价表）
+  - 请求端点固定为 bigmodel.cn 的 Coding Plan OpenAI / Anthropic 接口
+  - 请求头模拟 Claude Code 会话（固定 Session ID），贴近真实编码工具的请求特征
+  - 并发测试引擎本身按 providerKey 参数化，但当前入口仅智谱可用
+-->
 <template>
   <div class="view-concurrency">
     <header class="header">
@@ -137,21 +144,21 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import zhipuPricing from '../../../providers/zai-pricing.json'
+import zaiPricing from '../../../providers/zai-pricing.json'
 import type { ApiFormat, ConcurrencyTestResult } from '../types'
 
 defineEmits<{ 'go-back': [] }>()
 
 /** 模型清单统一维护在 zai-pricing.json（与智谱 Provider 共用），新增/下线模型只需更新该文件 */
-const ZHIPU_CODING_MODELS = Object.keys(zhipuPricing.models)
+const ZAI_CODING_MODELS = Object.keys(zaiPricing.models)
 
 const { t } = useI18n()
 
-const models = ZHIPU_CODING_MODELS
+const models = ZAI_CODING_MODELS
 const concurrencyOptions = [1, 3, 5, 10, 15, 20, 30, 50]
 
 /** 清单按"最新在前"约定排序，默认选中第一个即最新模型 */
-const selectedModel = ref<string>(ZHIPU_CODING_MODELS[0] ?? '')
+const selectedModel = ref<string>(ZAI_CODING_MODELS[0] ?? '')
 const concurrency = ref(10)
 const apiFormat = ref<ApiFormat>('openai')
 const testing = ref(false)
