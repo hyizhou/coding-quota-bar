@@ -56,6 +56,8 @@
     "opencodegoTokenExpired": "Not logged in to OpenCode Go",
     "codexTokenExpired": "Codex CLI auth not found. Please install and login to Codex CLI first",
     "reloginBtn": "Re-login",
+    "copyErrorBtn": "Copy error",
+    "errorCopied": "Copied",
     "ttCacheHit": "Cache",
     "ttCacheMiss": "Input",
     "ttOutput": "Output",

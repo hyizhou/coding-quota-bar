@@ -90,6 +90,11 @@ export class UsageAggregator {
           const compoundKey = `${type}:${accountId}`;
           try {
             const result = await instance.fetchUsage(config);
+            // Provider 以 UsageResult.error 返回的错误（TOKEN_EXPIRED/NETWORK_ERROR 等）
+            // 不经过 catch 分支，这里统一输出到主进程日志便于排查（打包版 console.warn 为 no-op）
+            if (result.error) {
+              console.warn(`[Aggregator] ${compoundKey} returned error: ${result.error}`);
+            }
             results.push({ compoundKey, result });
           } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);

@@ -147,6 +147,9 @@
                   </template>
                 </template>
                 <template v-else>{{ formatError(getActiveAccount(activeProvider)!.error!) }}</template>
+                <button class="copy-error-btn" @click="copyErrorText(activeProvider.key, getActiveAccount(activeProvider)!)">
+                  {{ copiedError ? $t('main.errorCopied') : $t('main.copyErrorBtn') }}
+                </button>
               </span>
             </div>
             <template v-else>
@@ -361,6 +364,35 @@ async function handleRefresh() {
 function formatError(msg: string): string {
   // 去掉 [Zai] 等前缀，保留核心信息
   return msg.replace(/^\[[\w]+\]\s*/, '')
+}
+
+/** 错误复制反馈（短暂显示"已复制"后还原） */
+const copiedError = ref(false)
+let copyErrorTimer: ReturnType<typeof setTimeout> | undefined
+
+/** 复制错误原文（含 provider:account 标识与未翻译的错误码，便于反馈排查） */
+async function copyErrorText(providerKey: string, account: AccountUsageData): Promise<void> {
+  const text = `[${providerKey}:${account.id}] ${account.error ?? ''}`.trim()
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+    } else {
+      throw new Error('clipboard api unavailable')
+    }
+  } catch {
+    // file:// 等非安全上下文回退：临时 textarea + execCommand
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    textarea.remove()
+  }
+  copiedError.value = true
+  if (copyErrorTimer) clearTimeout(copyErrorTimer)
+  copyErrorTimer = setTimeout(() => { copiedError.value = false }, 1500)
 }
 
 function openProviderWebsite(url?: string) {
@@ -820,6 +852,23 @@ onUnmounted(() => {
 .relogin-btn:hover {
   background: #3B82F6;
   color: #fff;
+}
+
+.copy-error-btn {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 2px 8px;
+  margin-left: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.copy-error-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .skeleton-group {

@@ -56,6 +56,8 @@
     "opencodegoTokenExpired": "未登录 OpenCode Go",
     "codexTokenExpired": "未找到 Codex CLI 登录信息，请先安装并登录 Codex CLI",
     "reloginBtn": "重新登录",
+    "copyErrorBtn": "复制错误",
+    "errorCopied": "已复制",
     "ttCacheHit": "缓存",
     "ttCacheMiss": "输入",
     "ttOutput": "输出",
