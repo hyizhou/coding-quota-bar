@@ -96,7 +96,8 @@ const cards = computed(() => {
 function buildCard(provider: ProviderUsageData, account: AccountUsageData): OverviewCard {
   const primary = selectPrimaryMetric(provider.key, account)
   const secondary = selectSecondaryMetrics(provider.key, account)
-  const sortValue = account.error ? -1 : metricRemaining(primary)
+  // 加载中账户排在正常卡片之后，错误卡仍置前提示
+  const sortValue = account.loading ? Number.POSITIVE_INFINITY : account.error ? -1 : metricRemaining(primary)
   return {
     provider,
     account,
@@ -108,6 +109,17 @@ function buildCard(provider: ProviderUsageData, account: AccountUsageData): Over
 }
 
 function selectPrimaryMetric(providerKey: string, account: AccountUsageData): OverviewMetric {
+  if (account.loading) {
+    return {
+      label: t('main.loading'),
+      value: '—',
+      detail: '',
+      usageRate: 0,
+      color: 'neutral',
+      hideBar: true,
+    }
+  }
+
   if (account.error) {
     return {
       label: t('overview.unavailable'),
@@ -160,7 +172,7 @@ function selectPrimaryMetric(providerKey: string, account: AccountUsageData): Ov
 }
 
 function selectSecondaryMetrics(providerKey: string, account: AccountUsageData): SecondaryMetric[] {
-  if (account.error) return []
+  if (account.error || account.loading) return []
 
   if (providerKey === 'zhipu') {
     return [

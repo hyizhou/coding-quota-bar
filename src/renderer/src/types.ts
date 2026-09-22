@@ -85,6 +85,8 @@ export interface AccountUsageData {
   subscription?: SubscriptionInfo
   resetPackages?: ResetPackages
   error?: string
+  /** 数据未到（新开账户/首次刷新未完成）：显示加载中占位 */
+  loading?: boolean
   quotas: QuotaItem[]
   history1d: UsageRecord[]
   history7d: UsageRecord[]

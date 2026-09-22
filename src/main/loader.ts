@@ -1,4 +1,4 @@
-import type { Provider, ProviderConfig, ProviderTypeConfig } from '../shared/types';
+import type { AccountConfig, Provider, ProviderConfig, ProviderTypeConfig } from '../shared/types';
 import { ZaiProvider } from '../providers/zai';
 import { MiniMaxProvider } from '../providers/minimax';
 import { KimiProvider } from '../providers/kimi';
@@ -32,6 +32,26 @@ export const PROVIDER_CLASSES = {
  * Provider 类型
  */
 export type ProviderType = keyof typeof PROVIDER_CLASSES;
+
+/**
+ * 判断账户是否会被加载：已启用且具备当前认证模式所需凭证
+ * 供 loader 与 UI 快照（data-transform）共用，保证两处的「可加载账户」判定永远一致
+ */
+export function isAccountLoadable(type: string, account: AccountConfig): boolean {
+  if (!account.enabled) {
+    return false;
+  }
+  // 按认证模式检查必要凭证（OpenCode Go 走官方 API，无论旧账户是什么模式都需要 API Key）
+  const authMode = account.authMode || 'apikey';
+  if ((authMode === 'apikey' || type === 'opencode-go') && !account.apiKey?.trim()) {
+    return false;
+  }
+  // MiMo/Qoder/StepFun 使用 Cookie 认证（session 模式无 webToken），Codex 读取本地 auth 文件
+  if (authMode === 'weblogin' && type !== 'mimo' && type !== 'codex' && type !== 'qoder' && type !== 'stepfun' && !account.webToken?.trim()) {
+    return false;
+  }
+  return true;
+}
 
 /**
  * 已加载的 Provider 实例（每个账户一个）
@@ -83,20 +103,11 @@ export class ProviderLoader {
 
       // 遍历该 provider 下的所有账户
       for (const account of providerConfig.accounts) {
-        // 用户未启用
-        if (!account.enabled) {
+        if (!isAccountLoadable(type, account)) {
           continue;
         }
-
-        // 按认证模式检查必要凭证（OpenCode Go 走官方 API，无论旧账户是什么模式都需要 API Key）
+        // 构造 Provider 配置所需的认证模式
         const authMode = account.authMode || 'apikey';
-        if ((authMode === 'apikey' || type === 'opencode-go') && !account.apiKey?.trim()) {
-          continue;
-        }
-        // MiMo/Qoder/StepFun 使用 Cookie 认证（session 模式无 webToken），Codex 读取本地 auth 文件
-        if (authMode === 'weblogin' && type !== 'mimo' && type !== 'codex' && type !== 'qoder' && type !== 'stepfun' && !account.webToken?.trim()) {
-          continue;
-        }
 
         try {
           const instance = new ProviderClass();

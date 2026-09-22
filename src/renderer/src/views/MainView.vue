@@ -135,8 +135,13 @@
           </div>
 
           <template v-if="getActiveAccount(activeProvider)">
+            <!-- 数据未到（新开账户/首次刷新未完成）：显示加载中占位，数据到达后由下方 Section 替换 -->
+            <div v-if="getActiveAccount(activeProvider)!.loading" class="loading-card">
+              <span class="loading-spinner"></span>
+              <span class="loading-text">{{ $t('main.loading') }}</span>
+            </div>
             <!-- OpenRouter 的错误在 Key 卡内部展示，账户卡与其他 Key 不受单个 Key 失败影响 -->
-            <div v-if="getActiveAccount(activeProvider)!.error && activeProvider.key !== 'openrouter'" class="error-card">
+            <div v-else-if="getActiveAccount(activeProvider)!.error && activeProvider.key !== 'openrouter'" class="error-card">
               <span class="error-icon">!</span>
               <span class="error-text">
                 <template v-if="getActiveAccount(activeProvider)!.error === 'TOKEN_EXPIRED'">
@@ -811,6 +816,37 @@ onUnmounted(() => {
   font-size: 12px;
   color: var(--text-error);
   line-height: 1.4;
+}
+
+.loading-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.loading-spinner {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border-default);
+  border-top-color: var(--text-secondary);
+  animation: loading-spin 0.8s linear infinite;
+}
+
+.loading-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
 }
 
 .relogin-btn {

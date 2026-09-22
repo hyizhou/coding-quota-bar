@@ -1,8 +1,9 @@
 import { getColorByPercent } from './tray';
 import { t as i18nT } from './i18n';
-import type { UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, ResetPackages, CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, StepFunCreditAmounts, StepFunTopupBucket } from '../shared/types';
+import type { AccountConfig, UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, ResetPackages, CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, StepFunCreditAmounts, StepFunTopupBucket } from '../shared/types';
 import type { Scheduler } from './scheduler';
 import type { ConfigManager } from './config';
+import { isAccountLoadable } from './loader';
 import buildConfig from '../../app.build';
 
 /**
@@ -29,6 +30,8 @@ export interface QuotaDisplayItem {
 export interface AccountDisplayData {
   id: string;
   label?: string;
+  /** 数据未到（新开账户/首次刷新未完成）：渲染层显示加载中占位 */
+  loading?: boolean;
   level?: string;
   subscription?: import('../shared/types').SubscriptionInfo;
   resetPackages?: ResetPackages;
@@ -105,26 +108,17 @@ function hasEnabledProviders(): boolean {
   const config = _getConfigManager()?.getConfig();
   if (!config) return false;
   return Object.entries(config.providers).some(([type, p]) => {
-    const accounts = (p as ProviderTypeConfig).accounts;
-    return Array.isArray(accounts) && accounts.some(a => {
-      if (!a.enabled) return false;
-      if (a.authMode === 'weblogin') {
-        // MiMo/Qoder/StepFun 使用 Cookie 认证（session 模式无 webToken），Codex 读取本地 auth 文件
-        if (type === 'mimo' || type === 'codex' || type === 'qoder' || type === 'stepfun') return true;
-        return !!a.webToken?.trim();
-      }
-      return !!a.apiKey?.trim();
-    });
+    const providerType = type === 'opencodego' ? 'opencode-go' : type;
+    if (!isProviderAvailable(providerType)) return false;
+    return (p as ProviderTypeConfig).accounts.some(a => isAccountLoadable(providerType, a));
   });
 }
 
 /**
- * 拆分复合键 "providerType:accountId"
+ * 编译时是否为可用 Provider（与 loader 的 available 过滤一致）
  */
-function splitCompoundKey(key: string): [string, string] {
-  const idx = key.indexOf(':');
-  if (idx === -1) return [key, ''];
-  return [key.slice(0, idx), key.slice(idx + 1)];
+function isProviderAvailable(type: string): boolean {
+  return buildConfig.providers.some(p => p.key === type && p.available);
 }
 
 /**
@@ -233,11 +227,36 @@ function convertAccountData(
 }
 
 /**
+ * 数据未到账户的占位显示（加载中卡），待增量/全量刷新推送后被真实数据替换
+ */
+function loadingAccountData(account: AccountConfig): AccountDisplayData {
+  return {
+    id: account.id,
+    label: account.label || undefined,
+    loading: true,
+    quotas: [],
+    history1d: [], history7d: [], history30d: [],
+    totalTokens1d: 0, totalTokens7d: 0, totalTokens30d: 0,
+    estimatedCost1d: 0, estimatedCost7d: 0, estimatedCost30d: 0,
+    mcpHistory1d: [], mcpHistory7d: [], mcpHistory30d: [],
+    modelHistory1d: [], modelHistory7d: [], modelHistory30d: [],
+    modelCostHistory30d: [],
+    performanceHistory7d: [], performanceHistory15d: [], performanceHistory30d: [],
+  };
+}
+
+/**
  * 构建返回给 renderer 的用量数据
+ * 列表以配置为准（UI 即时响应）：新开账户数据未到时输出 loading 占位，
+ * 已关闭/移除账户立即消失；数据由调度器的增量/全量刷新异步补齐
  */
 export function buildUsageData(): UsageDataForRenderer | null {
   const scheduler = _getScheduler();
-  if (!scheduler) return null;
+  const configManager = _getConfigManager();
+  if (!scheduler || !configManager) return null;
+
+  const config = configManager.getConfig();
+  if (!config) return null;
 
   if (!hasEnabledProviders()) {
     return {
@@ -250,33 +269,35 @@ export function buildUsageData(): UsageDataForRenderer | null {
   const aggregated = scheduler.getAggregatedData();
   const thresholds = scheduler.getThresholds();
 
-  if (!aggregated) {
-    return null;
-  }
-
-  // 按 provider type 分组
-  const grouped = new Map<string, Array<{ accountId: string; result: UsageResult }>>();
-  for (const [compoundKey, result] of aggregated.results.entries()) {
-    const [type, accountId] = splitCompoundKey(compoundKey);
-    if (!grouped.has(type)) grouped.set(type, []);
-    grouped.get(type)!.push({ accountId, result });
-  }
-
   const providers: ProviderDisplayData[] = [];
-  for (const [type, accounts] of grouped.entries()) {
+  for (const [rawType, providerConfig] of Object.entries(config.providers)) {
+    // 旧版配置使用 opencodego 作为配置键，这里统一映射到 opencode-go（与 loader 一致）
+    const type = rawType === 'opencodego' ? 'opencode-go' : rawType;
+    if (!isProviderAvailable(type)) continue;
+
+    const accounts: AccountDisplayData[] = [];
+    for (const account of providerConfig.accounts) {
+      if (!isAccountLoadable(type, account)) continue;
+      const result = aggregated?.results.get(`${type}:${account.id}`);
+      accounts.push(
+        result
+          ? convertAccountData(type, account.id, result, thresholds)
+          : loadingAccountData(account),
+      );
+    }
+    if (accounts.length === 0) continue;
+
     providers.push({
       key: type,
       name: getProviderDisplayName(type),
       websiteUrl: buildConfig.providers.find(p => p.key === type)?.websiteUrl || undefined,
-      accounts: accounts.map(({ accountId, result }) =>
-        convertAccountData(type, accountId, result, thresholds)
-      ),
+      accounts,
     });
   }
 
   return {
     providers,
-    lastUpdate: aggregated.lastUpdate.toISOString(),
-    overallPercent: scheduler.getDisplayPercent(aggregated.results)
+    lastUpdate: aggregated ? aggregated.lastUpdate.toISOString() : '',
+    overallPercent: aggregated ? scheduler.getDisplayPercent(aggregated.results) : -1
   };
 }

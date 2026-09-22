@@ -296,11 +296,7 @@ async function initialize(): Promise<void> {
     }
 
     // 推送数据到渲染进程
-    const data = buildUsageData();
-    const popup = getPopupWindow();
-    if (popup && !popup.isDestroyed()) {
-      popup.webContents.send('usage-data-updated', data);
-    }
+    pushUsageSnapshot();
   });
   scheduler.start();
 
@@ -341,9 +337,17 @@ function setupConfigListeners(): void {
       trayManager?.rebuildMenu();
     }
 
+    // providers 变化时 UI 立即按新配置渲染（零网络）：新开账户显示加载中、
+    // 关闭账户立即消失；数据仍由下方防抖后的增量链路异步补齐
+    const providersChanged =
+      JSON.stringify(newConfig.providers) !== JSON.stringify(oldConfig?.providers);
+    if (providersChanged) {
+      pushUsageSnapshot();
+    }
+
     // 仅在影响数据获取的配置变化时才刷新
     const needsRefresh =
-      JSON.stringify(newConfig.providers) !== JSON.stringify(oldConfig?.providers) ||
+      providersChanged ||
       newConfig.refreshInterval !== oldConfig?.refreshInterval ||
       JSON.stringify(newConfig.display.colorThresholds) !== JSON.stringify(oldConfig?.display?.colorThresholds);
 
@@ -394,6 +398,18 @@ function setupConfigListeners(): void {
       }
     }
   });
+}
+
+/**
+ * 构建并推送 UI 快照到弹窗（纯本地，不触发任何网络请求）
+ */
+function pushUsageSnapshot(): void {
+  const popup = getPopupWindow();
+  if (!popup || popup.isDestroyed()) return;
+  const data = buildUsageData();
+  if (data) {
+    popup.webContents.send('usage-data-updated', data);
+  }
 }
 
 /**

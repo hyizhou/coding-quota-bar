@@ -7,6 +7,7 @@
     "emptyHint": "Add an API Key and enable a platform in settings",
     "chartSection": "Usage Trend",
     "lastUpdateFallback": "Last update: --:--",
+    "loading": "Loading",
     "justNow": "Just updated",
     "minutesAgo": "Updated {n} min ago",
     "hoursAgo": "Updated {n} hr ago",
