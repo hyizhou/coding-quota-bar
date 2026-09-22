@@ -6,20 +6,12 @@
 <template>
   <div>
     <!-- 账户余额 -->
-    <div class="balance-card card" v-if="account.balance">
-      <div class="balance-header">
-        <span class="balance-label">{{ t('quota.stepfunBalance') }}</span>
-        <span class="balance-value">{{ currencySymbol }}{{ account.balance.total }}</span>
-      </div>
-      <div class="balance-detail" v-if="hasBalanceDetail">
-        <span v-if="parseFloat(account.balance.gift) > 0" class="balance-item">
-          {{ t('quota.stepfunGiftBalance') }} {{ currencySymbol }}{{ account.balance.gift }}
-        </span>
-        <span v-if="parseFloat(account.balance.cash) > 0" class="balance-item">
-          {{ t('quota.stepfunCashBalance') }} {{ currencySymbol }}{{ account.balance.cash }}
-        </span>
-      </div>
-    </div>
+    <BalanceCard
+      v-if="account.balance"
+      :label="t('quota.stepfunBalance')"
+      :value="currencySymbol + account.balance.total"
+      :items="balanceItems"
+    />
 
     <!-- 额度卡片：速率窗口型=5h+周两张，积分型=一张 -->
     <div v-for="(quota, idx) in account.quotas" :key="idx" class="quota-row">
@@ -86,7 +78,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
+import BalanceCard from '../BalanceCard.vue'
 import QuotaCard from '../QuotaCard.vue'
+import type { BalanceCardItem } from '../BalanceCard.vue'
 import type { AccountUsageData, ModelTokenRecord } from '../../types'
 
 // chart.js 体积大，按需加载：用户打开图表时才下载
@@ -115,10 +109,14 @@ const currencySymbol = computed(() => {
   return c === 'CNY' ? '¥' : '$'
 })
 
-const hasBalanceDetail = computed(() => {
+/** 余额明细行：赠款/现金仅在有余额时展示 */
+const balanceItems = computed<BalanceCardItem[]>(() => {
   const b = props.account.balance
-  if (!b) return false
-  return parseFloat(b.gift) > 0 || parseFloat(b.cash) > 0
+  if (!b) return []
+  const items: BalanceCardItem[] = []
+  if (parseFloat(b.gift) > 0) items.push({ label: t('quota.stepfunGiftBalance'), value: `${currencySymbol.value}${b.gift}` })
+  if (parseFloat(b.cash) > 0) items.push({ label: t('quota.stepfunCashBalance'), value: `${currencySymbol.value}${b.cash}` })
+  return items
 })
 
 /** 时间完整文案：月日 + 时:分（额度重置/加油包到期共用，对齐官方粒度） */
@@ -222,41 +220,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.balance-card {
-  margin-bottom: 6px;
-}
-
-.balance-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.balance-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-heading);
-}
-
-.balance-value {
-  font-size: 20px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
-
-.balance-detail {
-  display: flex;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.balance-item {
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
 .quota-row {
   margin-bottom: 6px;
 }

@@ -4,23 +4,12 @@
 -->
 <template>
   <!-- 账户余额 -->
-  <div class="balance-card card" v-if="account.balance">
-    <div class="balance-header">
-      <span class="balance-label">{{ t('quota.mimoBalance') }}</span>
-      <span class="balance-value">{{ currencySymbol }}{{ account.balance.total }}</span>
-    </div>
-    <div class="balance-detail" v-if="hasBalanceDetail">
-      <span v-if="parseFloat(account.balance.gift) > 0" class="balance-item">
-        {{ t('quota.mimoGiftBalance') }} {{ currencySymbol }}{{ account.balance.gift }}
-      </span>
-      <span v-if="parseFloat(account.balance.cash) > 0" class="balance-item">
-        {{ t('quota.mimoCashBalance') }} {{ currencySymbol }}{{ account.balance.cash }}
-      </span>
-      <span v-if="parseFloat(account.balance.frozen) > 0" class="balance-item frozen">
-        {{ t('quota.mimoFrozenBalance') }} {{ currencySymbol }}{{ account.balance.frozen }}
-      </span>
-    </div>
-  </div>
+  <BalanceCard
+    v-if="account.balance"
+    :label="t('quota.mimoBalance')"
+    :value="currencySymbol + account.balance.total"
+    :items="balanceItems"
+  />
 
   <!-- 本月用量（主指标） -->
   <MiMoQuotaCard v-if="monthlyQuota" v-bind="monthlyQuota" />
@@ -76,7 +65,8 @@ import {
   BarElement,
   Tooltip,
 } from 'chart.js'
-import QuotaCard from '../QuotaCard.vue'
+import BalanceCard from '../BalanceCard.vue'
+import type { BalanceCardItem } from '../BalanceCard.vue'
 import MiMoQuotaCard from './MiMoQuotaCard.vue'
 import type { AccountUsageData, ModelTokenRecord } from '../../types'
 import { useTheme } from '../../composables/useTheme'
@@ -101,10 +91,15 @@ const currencySymbol = computed(() => {
   return c === 'CNY' ? '¥' : '$'
 })
 
-const hasBalanceDetail = computed(() => {
+/** 余额明细行：赠款/现金仅在有余额时展示，冻结金额（不可用）弱化显示 */
+const balanceItems = computed<BalanceCardItem[]>(() => {
   const b = props.account.balance
-  if (!b) return false
-  return parseFloat(b.gift) > 0 || parseFloat(b.cash) > 0 || parseFloat(b.frozen) > 0
+  if (!b) return []
+  const items: BalanceCardItem[] = []
+  if (parseFloat(b.gift) > 0) items.push({ label: t('quota.mimoGiftBalance'), value: `${currencySymbol.value}${b.gift}` })
+  if (parseFloat(b.cash) > 0) items.push({ label: t('quota.mimoCashBalance'), value: `${currencySymbol.value}${b.cash}` })
+  if (parseFloat(b.frozen) > 0) items.push({ label: t('quota.mimoFrozenBalance'), value: `${currencySymbol.value}${b.frozen}`, muted: true })
+  return items
 })
 
 function formatCredits(n: number): string {
@@ -403,45 +398,6 @@ const requestsChartOpts = computed(() => ({
 </script>
 
 <style scoped>
-.balance-card {
-  margin-bottom: 6px;
-}
-
-.balance-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.balance-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-heading);
-}
-
-.balance-value {
-  font-size: 20px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
-
-.balance-detail {
-  display: flex;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.balance-item {
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.balance-item.frozen {
-  color: var(--text-tertiary);
-}
-
 .usage-stats {
   margin-top: 8px;
 }
