@@ -23,7 +23,10 @@
       <span class="key-title">{{ key.title }}</span>
     </div>
 
-    <div v-if="key.error" class="key-error">{{ formatError(key.error) }}</div>
+    <div v-if="key.error" class="key-error">
+      <span>{{ formatError(key.error) }}</span>
+      <CopyButton :text="keyErrorCopyText(key)" />
+    </div>
     <template v-else>
       <div v-if="key.limit" class="limit-row">
         <QuotaCard v-bind="key.limit" />
@@ -50,6 +53,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import QuotaCard from '../QuotaCard.vue'
+import CopyButton from '../CopyButton.vue'
 import type { AccountUsageData, QuotaItem } from '../../types'
 
 const { t, locale } = useI18n()
@@ -125,6 +129,11 @@ function formatDateTime(iso: string): string {
 function formatError(error: string): string {
   return error.replace(/^\[[\w]+\]\s*/, '')
 }
+
+/** Key 卡错误复制原文（含 provider 与账户标识的未翻译错误码） */
+function keyErrorCopyText(key: KeyCard): string {
+  return `[openrouter:${key.id}] ${key.error ?? ''}`.trim()
+}
 </script>
 
 <style scoped>
@@ -188,6 +197,8 @@ function formatError(error: string): string {
 }
 
 .key-error {
+  display: flex;
+  align-items: center;
   font-size: 12px;
   color: var(--text-error);
   line-height: 1.4;
