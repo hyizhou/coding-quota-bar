@@ -1,27 +1,24 @@
 import type { UsageResult } from '../shared/types';
-import pricingConfig from '../providers/zai-pricing.json';
-
-const { models: MODEL_PRICING, tokenRatio: TOKEN_RATIO } = pricingConfig as {
-  models: Record<string, { cache: number; input: number; output: number }>;
-  tokenRatio: { cache: number; input: number; output: number };
-};
+import { getZaiPricing } from './pricing-store';
 
 function calcMockModelRates(): Record<string, number> {
+  const { models, tokenRatio } = getZaiPricing();
   const rates: Record<string, number> = {};
-  for (const [name, p] of Object.entries(MODEL_PRICING)) {
+  for (const [name, p] of Object.entries(models)) {
     rates[name] = Math.round((
-      TOKEN_RATIO.cache * p.cache +
-      TOKEN_RATIO.input * p.input +
-      TOKEN_RATIO.output * p.output
+      tokenRatio.cache * p.cache +
+      tokenRatio.input * p.input +
+      tokenRatio.output * p.output
     ) * 100) / 100;
   }
   return rates;
 }
 
 function calcMockEstimatedCost(totalTokens: number): number {
-  const avgRate = Object.values(MODEL_PRICING)
-    .reduce((sum, p) => sum + TOKEN_RATIO.cache * p.cache + TOKEN_RATIO.input * p.input + TOKEN_RATIO.output * p.output, 0)
-    / Object.keys(MODEL_PRICING).length;
+  const { models, tokenRatio } = getZaiPricing();
+  const avgRate = Object.values(models)
+    .reduce((sum, p) => sum + tokenRatio.cache * p.cache + tokenRatio.input * p.input + tokenRatio.output * p.output, 0)
+    / Object.keys(models).length;
   return Math.round(totalTokens / 1_000_000 * avgRate * 100) / 100;
 }
 

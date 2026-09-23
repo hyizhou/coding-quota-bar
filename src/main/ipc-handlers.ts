@@ -27,6 +27,7 @@ import { mimoWebLogin, mimoWebLogout } from './mimo-auth';
 import { qoderWebLogin, qoderWebLogout, qoderParseManual } from './qoder-auth';
 import { stepfunWebLogin, stepfunWebLogout } from './stepfun-auth';
 import { checkForUpdate, downloadUpdate, getUpdateStatus } from './update-manager';
+import { getZaiPricing } from './pricing-store';
 import { maskApiKey } from '../shared/mask';
 import { isStoreBuild } from './channel';
 
@@ -111,6 +112,11 @@ export function setupIpcHandlers(): void {
   // 获取可用的 provider 列表（编译时配置）
   ipcMain.handle('get-available-providers', () => {
     return getAvailableProviderKeys();
+  });
+
+  // 获取当前生效的智谱定价表（远程 GitHub raw 优先，内置兜底）
+  ipcMain.handle('get-zai-pricing', () => {
+    return getZaiPricing();
   });
 
   // 更新配置（仅回传成功状态，配置数据一律走脱敏后的 get-config，明文凭证不下发 renderer）

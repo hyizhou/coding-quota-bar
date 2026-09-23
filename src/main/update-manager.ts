@@ -4,6 +4,7 @@ import type { ConfigManager } from './config';
 import type { UpdateStatus } from '../shared/types';
 import type { getPopupWindow as GetPopupWindowFn } from './popup-manager';
 import { isStoreBuild } from './channel';
+import { refreshZaiPricing } from './pricing-store';
 
 const AUTO_UPDATE_INITIAL_DELAY_MS = 30_000;
 const AUTO_UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000;
@@ -115,6 +116,9 @@ async function performAutoCheck(): Promise<void> {
 
   const config = _getConfigManager()?.getConfig();
   if (!config?.autoCheckUpdate) return;
+
+  // 顺带拉取智谱远程定价表（低频热更新通道，失败静默，不阻塞更新检查）
+  void refreshZaiPricing();
 
   isAutoChecking = true;
   console.log('[AutoUpdate] Checking for updates...');

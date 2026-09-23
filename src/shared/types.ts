@@ -388,6 +388,25 @@ export interface DeepSeekServiceComponent {
 }
 
 /**
+ * 智谱单模型定价（元/百万token，cache 为缓存命中价）
+ */
+export interface ModelPricing {
+  cache: number;
+  input: number;
+  output: number;
+  tier?: string;
+  note?: string;
+}
+
+/**
+ * 智谱定价表：models 键序即"最新在前"的模型清单顺序，tokenRatio 为费用估算的 96/3/1 加权比例
+ */
+export interface ZaiPricingTable {
+  models: Record<string, ModelPricing>;
+  tokenRatio: { cache: number; input: number; output: number };
+}
+
+/**
  * 生成账户 ID（8 位随机 hex）
  */
 export function generateAccountId(): string {

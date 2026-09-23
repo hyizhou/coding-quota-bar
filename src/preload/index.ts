@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { WindowPinMode } from '../shared/types';
+import type { WindowPinMode, ZaiPricingTable } from '../shared/types';
 
 type Unsubscribe = () => void;
 
@@ -230,4 +230,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   zaiFetchUsageStats: (accountId: string) =>
     ipcRenderer.invoke('zai-fetch-usage-stats', accountId),
+
+  /**
+   * 获取当前生效的智谱定价表（远程优先，内置兜底）
+   */
+  getZaiPricing: () => ipcRenderer.invoke('get-zai-pricing'),
+
+  /**
+   * 监听智谱定价表远程更新推送
+   */
+  onZaiPricingUpdated: (callback: (pricing: ZaiPricingTable) => void) =>
+    subscribe('zai-pricing-updated', callback),
 });

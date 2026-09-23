@@ -1,7 +1,8 @@
 import type { Provider, ProviderConfig, ResetPackageSummary, ResetPackages, SubscriptionInfo, UsageResult } from '../shared/types';
 import type { ZaiDailyUsageItem, ZaiUsageActivitySummary, ZaiUsageStats } from '../shared/types';
+import type { ModelPricing } from '../shared/types';
 import { HttpClientWithRetry } from '../main/http';
-import pricingConfig from './zai-pricing.json';
+import { getZaiPricing } from '../main/pricing-store';
 
 /**
  * 智谱 quota/limit API 响应类型
@@ -217,40 +218,27 @@ function isWeeklyWindow(item: ZaiLimitItem): boolean {
 }
 
 /**
- * 定价数据从 zai-pricing.json 加载，价格变更时只需更新该文件
+ * 定价数据来自 pricing-store（远程 GitHub raw 优先、内置 zai-pricing.json 兜底），
+ * 调价/新模型推送 main 后无需发版即可生效
  */
-interface ModelPricing {
-  cache: number;
-  input: number;
-  output: number;
-  tier?: string;
-  note?: string;
-}
-
-const { models: MODEL_PRICING, tokenRatio: TOKEN_RATIO } = pricingConfig as {
-  models: Record<string, ModelPricing>;
-  tokenRatio: { cache: number; input: number; output: number };
-};
-
-/** 模型名统一转小写后匹配，兼容 API 返回 "GLM-5.2-HighSpeed" / "glm-5.2-highspeed" 等写法 */
-const MODEL_PRICING_LOWER = new Map(
-  Object.entries(MODEL_PRICING).map(([name, pricing]) => [name.toLowerCase(), pricing])
-);
 
 /**
  * 根据 modelDataList 估算 API 调用费用
  */
 function calcEstimatedCost(resp: ZaiModelUsageResponse | null): number {
   if (!resp?.data?.modelDataList) return 0;
+  const { models, tokenRatio } = getZaiPricing();
+  /** 模型名统一转小写后匹配，兼容 API 返回 "GLM-5.2-HighSpeed" / "glm-5.2-highspeed" 等写法 */
+  const pricingLower = new Map(Object.entries(models).map(([name, pricing]) => [name.toLowerCase(), pricing]));
   let total = 0;
   for (const model of resp.data.modelDataList) {
-    const pricing = MODEL_PRICING_LOWER.get(model.modelName.toLowerCase());
+    const pricing = pricingLower.get(model.modelName.toLowerCase());
     if (!pricing) continue;
     const mTokens = model.totalTokens / 1_000_000;
     total += mTokens * (
-      TOKEN_RATIO.cache * pricing.cache +
-      TOKEN_RATIO.input * pricing.input +
-      TOKEN_RATIO.output * pricing.output
+      tokenRatio.cache * pricing.cache +
+      tokenRatio.input * pricing.input +
+      tokenRatio.output * pricing.output
     );
   }
   return Math.round(total * 100) / 100;
@@ -260,18 +248,17 @@ function calcEstimatedCost(resp: ZaiModelUsageResponse | null): number {
  * 计算每模型的等效单价（元/百万token），按 96/3/1 比例加权
  */
 function calcModelRates(): Record<string, number> {
+  const { models, tokenRatio } = getZaiPricing();
   const rates: Record<string, number> = {};
-  for (const [name, p] of Object.entries(MODEL_PRICING)) {
+  for (const [name, p] of Object.entries(models)) {
     rates[name] = Math.round((
-      TOKEN_RATIO.cache * p.cache +
-      TOKEN_RATIO.input * p.input +
-      TOKEN_RATIO.output * p.output
+      tokenRatio.cache * p.cache +
+      tokenRatio.input * p.input +
+      tokenRatio.output * p.output
     ) * 100) / 100;
   }
   return rates;
 }
-
-const MODEL_RATES = calcModelRates();
 
 /**
  * 重置包接口挂在 www 主站（bigmodel.cn），与 /api/monitor/* 的 open.bigmodel.cn 不同 host
@@ -479,7 +466,7 @@ export class ZaiProvider implements Provider {
         estimatedCost1d: calcEstimatedCost(resp1d),
         estimatedCost7d: calcEstimatedCost(resp7d),
         estimatedCost30d: calcEstimatedCost(resp30d),
-        modelRates: MODEL_RATES,
+        modelRates: calcModelRates(),
         mcpHistory1d: this.buildToolHistory(toolResp1d),
         mcpHistory7d: this.buildToolHistory(toolResp7d),
         mcpHistory30d: this.buildToolHistory(toolResp30d),

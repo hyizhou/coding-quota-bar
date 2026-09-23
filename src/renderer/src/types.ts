@@ -1,10 +1,11 @@
 /**
  * Renderer 进程共享类型定义
  */
-import type { CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, ResetPackages, ResetPackageSummary, StepFunCreditAmounts, StepFunTopupBucket, TrayDisplayRule, WindowPinMode, ZaiDailyUsageItem, ZaiUsageActivitySummary, ZaiUsageStats } from '../../shared/types'
+import type { CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, ResetPackages, ResetPackageSummary, StepFunCreditAmounts, StepFunTopupBucket, TrayDisplayRule, WindowPinMode, ZaiDailyUsageItem, ZaiPricingTable, ZaiUsageActivitySummary, ZaiUsageStats } from '../../shared/types'
 
 export type { WindowPinMode }
 export type { ZaiDailyUsageItem }
+export type { ZaiPricingTable }
 export type { ZaiUsageActivitySummary }
 export type { ZaiUsageStats }
 export type { ResetPackages, ResetPackageSummary }
@@ -319,6 +320,8 @@ export interface ElectronAPI {
   onStepfunWebLoginSuccess: (callback: (accountId: string) => void) => () => void
   stepfunFetchUsageHistory: (accountId: string, days: 7 | 30) => Promise<ModelTokenRecord[]>
   zaiFetchUsageStats: (accountId: string) => Promise<ZaiUsageStats>
+  getZaiPricing: () => Promise<ZaiPricingTable>
+  onZaiPricingUpdated: (callback: (pricing: ZaiPricingTable) => void) => () => void
 }
 
 declare global {

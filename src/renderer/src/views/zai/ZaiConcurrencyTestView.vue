@@ -144,21 +144,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import zaiPricing from '../../../../providers/zai-pricing.json'
+import type { ZaiPricingTable } from '../../../../shared/types'
 import type { ApiFormat, ConcurrencyTestResult } from '../../types'
 
 defineEmits<{ 'go-back': [] }>()
 
-/** 模型清单统一维护在 zai-pricing.json（与智谱 Provider 共用），新增/下线模型只需更新该文件 */
-const ZAI_CODING_MODELS = Object.keys(zaiPricing.models)
-
 const { t } = useI18n()
 
-const models = ZAI_CODING_MODELS
+/** 模型清单来自主进程当前生效的定价表（远程优先，内置兜底），随 zai-pricing-updated 推送更新 */
+const models = ref<string[]>([])
 const concurrencyOptions = [1, 3, 5, 10, 15, 20, 30, 50]
 
 /** 清单按"最新在前"约定排序，默认选中第一个即最新模型 */
-const selectedModel = ref<string>(ZAI_CODING_MODELS[0] ?? '')
+const selectedModel = ref<string>('')
 const concurrency = ref(10)
 const apiFormat = ref<ApiFormat>('openai')
 const testing = ref(false)
@@ -176,6 +174,14 @@ let timerHandle: ReturnType<typeof setInterval> | undefined
 let offProgress: (() => void) | null = null
 let offStreamText: (() => void) | null = null
 let offFirstContent: (() => void) | null = null
+let offPricingUpdated: (() => void) | null = null
+
+function applyPricing(pricing: ZaiPricingTable) {
+  models.value = Object.keys(pricing.models)
+  if (!models.value.includes(selectedModel.value)) {
+    selectedModel.value = models.value[0] ?? ''
+  }
+}
 
 const runningText = computed(() => {
   return t('concurrencyTest.running', {
@@ -306,6 +312,8 @@ function formatTimestamp(iso: string): string {
 onMounted(() => {
   loadHistory()
 
+  window.electronAPI.getZaiPricing().then(applyPricing)
+  offPricingUpdated = window.electronAPI.onZaiPricingUpdated(applyPricing)
   offProgress = window.electronAPI.onConcurrencyTestProgress(onProgress)
   offStreamText = window.electronAPI.onConcurrencyTestStream(onStreamText)
   offFirstContent = window.electronAPI.onConcurrencyTestFirstContent(onFirstContent)
@@ -320,6 +328,9 @@ onUnmounted(() => {
 
   offFirstContent?.()
   offFirstContent = null
+
+  offPricingUpdated?.()
+  offPricingUpdated = null
 
   if (timerHandle) clearInterval(timerHandle)
 })

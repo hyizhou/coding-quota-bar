@@ -49,6 +49,7 @@ import {
   setIpcHandlersDeps,
   setupIpcHandlers,
 } from './ipc-handlers';
+import { setPricingStoreDeps, refreshZaiPricing } from './pricing-store';
 
 // 商店版（MSIX）数据隔离：必须在任何模块读取 userData 之前完成重定向
 applyStoreDataIsolation();
@@ -125,9 +126,13 @@ async function initialize(): Promise<void> {
   setStepfunAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setDataTransformDeps({ getConfigManager, getScheduler });
   setIpcHandlersDeps({ getConfigManager, getScheduler });
+  setPricingStoreDeps({ getPopupWindow: getPopupWindow });
 
   // 3. 初始化 autoUpdater 事件监听
   initAutoUpdaterEvents();
+
+  // 智谱远程定价表：启动即拉取一次（失败静默使用内置表），之后随自动更新检查周期刷新
+  void refreshZaiPricing();
 
   // 4. 创建托盘管理器
   trayManager = new TrayManager();
