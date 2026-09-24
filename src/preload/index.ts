@@ -131,6 +131,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     qoderCookieSource?: 'session' | 'manual';
     qoderSite?: 'international' | 'china';
     stepfunCookieSource?: 'session' | 'manual';
+    region?: 'cn' | 'global';
   }) => ipcRenderer.invoke('test-provider-connection', params),
 
   /**
@@ -214,7 +215,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /**
    * StepFun 网页登录
    */
-  stepfunWebLogin: (accountId: string) => ipcRenderer.invoke('stepfun-web-login', accountId),
+  stepfunWebLogin: (accountId: string, region: string) => ipcRenderer.invoke('stepfun-web-login', accountId, region),
   stepfunWebLogout: (accountId: string) => ipcRenderer.invoke('stepfun-web-logout', accountId),
   onStepfunWebLoginSuccess: (callback: (accountId: string) => void) =>
     subscribe('stepfun-web-login-success', callback),

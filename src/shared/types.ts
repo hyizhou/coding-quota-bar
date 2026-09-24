@@ -16,6 +16,7 @@ export interface AccountConfig {
   qoderLoggedIn?: boolean;                  // Qoder 网页登录状态（Cookie 认证，无需 webToken）
   stepfunCookieSource?: 'session' | 'manual'; // StepFun 凭据来源：弹窗登录会话 / 手动粘贴 Oasis-Token（默认 session）
   stepfunLoggedIn?: boolean;                  // StepFun 网页登录状态（Cookie 认证，session 模式无需 webToken）
+  region?: 'cn' | 'global';                   // 站点区域（智谱/阶跃区分国内与海外站，账号互不相通，默认 cn）
 }
 
 /**
@@ -39,6 +40,7 @@ export interface ProviderConfig {
   qoderCookieSource?: 'session' | 'manual';
   qoderSite?: 'international' | 'china';
   stepfunCookieSource?: 'session' | 'manual';
+  region?: 'cn' | 'global';
   [key: string]: unknown;
 }
 

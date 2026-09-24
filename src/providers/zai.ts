@@ -261,7 +261,8 @@ function calcModelRates(): Record<string, number> {
 }
 
 /**
- * 重置包接口挂在 www 主站（bigmodel.cn），与 /api/monitor/* 的 open.bigmodel.cn 不同 host
+ * 重置包接口：国内挂在 www 主站（bigmodel.cn），与 /api/monitor/* 的 open.bigmodel.cn 不同 host；
+ * 海外站（api.z.ai）monitor 与重置包同域
  */
 const RESET_PACKAGE_BASE_URL = 'https://bigmodel.cn';
 
@@ -286,12 +287,13 @@ export class ZaiProvider implements Provider {
     }
 
     const baseUrl = this.getBaseUrl(config);
+    const resetBaseUrl = config.region === 'global' ? baseUrl : RESET_PACKAGE_BASE_URL;
     const headers = { 'Authorization': `Bearer ${apiKey}` };
     // customer-package-reset 鉴权方案与 /api/monitor/* 不同：API Key 裸值传递，不加 Bearer
     const resetHeaders = {
       'Accept': 'application/json, text/plain, */*',
       'Authorization': apiKey,
-      'Referer': `${RESET_PACKAGE_BASE_URL}/coding-plan/personal/usage`
+      'Referer': `${resetBaseUrl}/coding-plan/personal/usage`
     };
 
     // 1. 获取配额数据（关键请求，单独用更高重试次数的 client）
@@ -365,7 +367,7 @@ export class ZaiProvider implements Provider {
         headers
       ),
       () => this.httpClient.getJson<ZaiResetPackageResponse>(
-        `${RESET_PACKAGE_BASE_URL}/api/biz/customer-package-reset/list?targetType=PERSONAL`,
+        `${resetBaseUrl}/api/biz/customer-package-reset/list?targetType=PERSONAL`,
         resetHeaders
       )
     ];

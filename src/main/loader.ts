@@ -108,6 +108,10 @@ export class ProviderLoader {
         }
         // 构造 Provider 配置所需的认证模式
         const authMode = account.authMode || 'apikey';
+        // 海外站账户使用 overseasBaseUrl（智谱/阶跃国内与海外账号互不相通）
+        const baseUrl = account.region === 'global' && buildEntry?.overseasBaseUrl
+          ? buildEntry.overseasBaseUrl
+          : buildEntry?.baseUrl || '';
 
         try {
           const instance = new ProviderClass();
@@ -118,7 +122,7 @@ export class ProviderLoader {
             config: {
               enabled: true,
               apiKey: account.apiKey,
-              _baseUrl: buildEntry?.baseUrl || '',
+              _baseUrl: baseUrl,
               authMode,
               webToken: account.webToken,
               webUserAgent: account.webUserAgent,
@@ -126,6 +130,7 @@ export class ProviderLoader {
               ...(account.qoderCookieSource ? { qoderCookieSource: account.qoderCookieSource } : {}),
               ...(account.qoderSite ? { qoderSite: account.qoderSite } : {}),
               ...(account.stepfunCookieSource ? { stepfunCookieSource: account.stepfunCookieSource } : {}),
+              ...(account.region ? { region: account.region } : {}),
               ...(account.budget != null ? { budget: account.budget } : {}),
             },
           });

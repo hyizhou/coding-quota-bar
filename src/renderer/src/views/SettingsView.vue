@@ -164,14 +164,14 @@
 
                 <template v-if="account.qoderCookieSource !== 'manual'">
                   <div class="qoder-site-row">
-                    <span class="qoder-site-label">{{ $t('settings.qoderSiteLabel') }}</span>
+                    <span class="qoder-site-label">{{ $t('settings.siteLabel') }}</span>
                     <label class="mode-option" :class="{ active: account.qoderSite !== 'china' }">
                       <input type="radio" value="international" v-model="account.qoderSite" />
-                      <span>{{ $t('settings.qoderSiteInternational') }}</span>
+                      <span>{{ $t('settings.siteInternational') }}</span>
                     </label>
                     <label class="mode-option" :class="{ active: account.qoderSite === 'china' }">
                       <input type="radio" value="china" v-model="account.qoderSite" />
-                      <span>{{ $t('settings.qoderSiteChina') }}</span>
+                      <span>{{ $t('settings.siteChina') }}</span>
                     </label>
                   </div>
                   <div class="qoder-login-row">
@@ -217,6 +217,19 @@
 
               <!-- StepFun: 网页登录（Oasis Cookie 持久化）或手动粘贴 Oasis-Token -->
               <div v-else-if="info.key === 'stepfun'" class="web-login-section qoder-section">
+                <!-- 站点区域：国内/海外站账号互不相通，登录地址与数据接口按此切换 -->
+                <div class="qoder-site-row">
+                  <span class="qoder-site-label">{{ $t('settings.siteLabel') }}</span>
+                  <label class="mode-option" :class="{ active: account.region !== 'global' }">
+                    <input type="radio" value="cn" v-model="account.region" />
+                    <span>{{ $t('settings.siteChina') }}</span>
+                  </label>
+                  <label class="mode-option" :class="{ active: account.region === 'global' }">
+                    <input type="radio" value="global" v-model="account.region" />
+                    <span>{{ $t('settings.siteInternational') }}</span>
+                  </label>
+                </div>
+
                 <div class="qoder-source-row">
                   <label class="mode-option" :class="{ active: account.stepfunCookieSource !== 'manual' }">
                     <input type="radio" value="session" v-model="account.stepfunCookieSource" />
@@ -276,6 +289,19 @@
                   <label class="mode-option" :class="{ active: account.authMode === 'weblogin' }" :title="$t('settings.authModeWebloginHint')">
                     <input type="radio" :value="'weblogin'" v-model="account.authMode" />
                     <span>{{ $t('settings.authModeWeblogin') }}</span>
+                  </label>
+                </div>
+
+                <!-- 智谱：站点区域（国内 open.bigmodel.cn / 海外 api.z.ai，账号互不相通） -->
+                <div v-if="info.key === 'zhipu'" class="qoder-site-row">
+                  <span class="qoder-site-label">{{ $t('settings.siteLabel') }}</span>
+                  <label class="mode-option" :class="{ active: account.region !== 'global' }">
+                    <input type="radio" value="cn" v-model="account.region" />
+                    <span>{{ $t('settings.siteChina') }}</span>
+                  </label>
+                  <label class="mode-option" :class="{ active: account.region === 'global' }">
+                    <input type="radio" value="global" v-model="account.region" />
+                    <span>{{ $t('settings.siteInternational') }}</span>
                   </label>
                 </div>
 
@@ -510,6 +536,7 @@ interface AccountInfo {
   stepfunTokenDirty: boolean
   stepfunHasWebToken: boolean
   stepfunTokenValid?: boolean
+  region?: 'cn' | 'global'
 }
 
 interface ProviderInfo {
@@ -645,6 +672,7 @@ function addAccount(providerKey: string) {
     stepfunManualToken: '',
     stepfunTokenDirty: false,
     stepfunHasWebToken: false,
+    region: 'cn',
   }
   provider.accounts.push(account)
 }
@@ -748,6 +776,10 @@ async function testConnection(info: ProviderInfo, account: AccountInfo) {
     if (account.apiKeyDirty && account.apiKey) {
       params.apiKey = account.apiKey
     }
+    // 智谱/阶跃：按当前站点区域测试对应域名
+    if (info.key === 'zhipu' || info.key === 'stepfun') {
+      params.region = account.region ?? 'cn'
+    }
     // Qoder：按当前 UI 模式测试；手动模式粘贴内容变更时直接测新捕获
     if (info.key === 'qoder') {
       params.qoderCookieSource = account.qoderCookieSource ?? 'session'
@@ -845,7 +877,7 @@ async function handleQoderWebLogout(account: AccountInfo) {
 }
 
 async function handleStepfunWebLogin(account: AccountInfo) {
-  const result = await window.electronAPI.stepfunWebLogin(account.id)
+  const result = await window.electronAPI.stepfunWebLogin(account.id, account.region ?? 'cn')
   if (result.success) {
     // 登录在主进程写入了配置，同步本地状态避免自动保存回退字段
     account.stepfunCookieSource = 'session'
@@ -891,8 +923,8 @@ async function validateQoderCapture(account: AccountInfo) {
 }
 
 function qoderSiteName(site?: string): string {
-  if (site === 'china') return t('settings.qoderSiteChina')
-  if (site === 'international') return t('settings.qoderSiteInternational')
+  if (site === 'china') return t('settings.siteChina')
+  if (site === 'international') return t('settings.siteInternational')
   return site ?? ''
 }
 
@@ -994,6 +1026,7 @@ onMounted(async () => {
       stepfunTokenDirty: false,
       stepfunHasWebToken: !!account.hasWebToken,
       stepfunTokenValid: undefined,
+      region: account.region === 'global' ? 'global' : 'cn',
     }))
 
     // Codex: 确保始终有一个默认账户
@@ -1124,6 +1157,9 @@ async function saveConfig() {
           authMode: a.authMode,
         }
         if (a.budget != null) update.budget = a.budget
+        if (info.key === 'zhipu' || info.key === 'stepfun') {
+          update.region = a.region ?? 'cn'
+        }
         if (a.apiKeyDirty) {
           update.apiKey = a.apiKey
           pendingKeys.push({ account: a, key: a.apiKey })

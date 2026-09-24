@@ -270,8 +270,8 @@ export function setupIpcHandlers(): void {
   });
 
   // StepFun 网页登录
-  ipcMain.handle('stepfun-web-login', async (_, accountId: string) => {
-    return await stepfunWebLogin(accountId);
+  ipcMain.handle('stepfun-web-login', async (_, accountId: string, region: string) => {
+    return await stepfunWebLogin(accountId, region === 'global' ? 'global' : 'cn');
   });
 
   // StepFun 网页登出
@@ -327,6 +327,7 @@ export function setupIpcHandlers(): void {
     qoderCookieSource?: 'session' | 'manual';
     qoderSite?: 'international' | 'china';
     stepfunCookieSource?: 'session' | 'manual';
+    region?: 'cn' | 'global';
   }): Promise<{ ok: boolean; error?: string; latencyMs: number; sample?: { used: number; total: number; level: string } }> => {
     const start = Date.now();
     const ProviderClass = PROVIDER_CLASSES[params.providerKey as ProviderType];
@@ -343,6 +344,7 @@ export function setupIpcHandlers(): void {
     let qoderCookieSource = params.qoderCookieSource;
     let qoderSite = params.qoderSite;
     let stepfunCookieSource = params.stepfunCookieSource;
+    let region = params.region;
     if (params.accountId) {
       const cfg = _getConfigManager()?.getConfig();
       const providerCfg = cfg?.providers?.[params.providerKey] as ProviderTypeConfig | undefined;
@@ -355,13 +357,19 @@ export function setupIpcHandlers(): void {
         if (!qoderCookieSource) qoderCookieSource = (account as any).qoderCookieSource;
         if (!qoderSite) qoderSite = (account as any).qoderSite;
         if (!stepfunCookieSource) stepfunCookieSource = (account as any).stepfunCookieSource;
+        if (!region) region = account.region;
       }
     }
+
+    // 海外站账户使用 overseasBaseUrl（智谱/阶跃国内与海外站域名不同）
+    const baseUrl = region === 'global' && buildEntry?.overseasBaseUrl
+      ? buildEntry.overseasBaseUrl
+      : buildEntry?.baseUrl || '';
 
     const config: ProviderConfig = {
       enabled: true,
       apiKey,
-      _baseUrl: buildEntry?.baseUrl || '',
+      _baseUrl: baseUrl,
       authMode: params.authMode || 'apikey',
       webToken,
       webUserAgent,
@@ -369,6 +377,7 @@ export function setupIpcHandlers(): void {
       qoderCookieSource,
       qoderSite,
       stepfunCookieSource,
+      region,
     };
 
     try {

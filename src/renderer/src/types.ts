@@ -152,6 +152,7 @@ export interface AccountConfig {
   qoderLoggedIn?: boolean
   stepfunCookieSource?: 'session' | 'manual'
   stepfunLoggedIn?: boolean
+  region?: 'cn' | 'global'
 }
 
 export interface ProviderTypeConfig {
@@ -299,6 +300,7 @@ export interface ElectronAPI {
     qoderCookieSource?: 'session' | 'manual'
     qoderSite?: 'international' | 'china'
     stepfunCookieSource?: 'session' | 'manual'
+    region?: 'cn' | 'global'
   }) => Promise<ProviderConnectionTestResult>
   onConcurrencyTestProgress: (callback: (progress: ConcurrencyTestProgress) => void) => () => void
   onConcurrencyTestStream: (callback: (info: ConcurrencyTestStreamInfo) => void) => () => void
@@ -315,7 +317,7 @@ export interface ElectronAPI {
   qoderWebLogout: (accountId: string) => Promise<void>
   onQoderLoginSuccess: (callback: (accountId: string) => void) => () => void
   qoderParseManual: (text: string) => Promise<{ ok: boolean; site?: string; cookieCount?: number; error?: string }>
-  stepfunWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
+  stepfunWebLogin: (accountId: string, region: string) => Promise<{ success: boolean; error?: string }>
   stepfunWebLogout: (accountId: string) => Promise<void>
   onStepfunWebLoginSuccess: (callback: (accountId: string) => void) => () => void
   stepfunFetchUsageHistory: (accountId: string, days: 7 | 30) => Promise<ModelTokenRecord[]>

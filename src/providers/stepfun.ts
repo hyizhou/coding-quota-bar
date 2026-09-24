@@ -1,5 +1,6 @@
 /**
- * StepFun（阶跃星辰）Provider：读取 platform.stepfun.com 网页会话的 Step Plan 订阅额度。
+ * StepFun（阶跃星辰）Provider：读取开放平台网页会话的 Step Plan 订阅额度。
+ * 站点：国内 platform.stepfun.com / 海外 platform.stepfun.ai（账户 region 区分，账号互不相通）。
  * 双模式凭据：session（弹窗登录，persist:stepfun-{accountId} 持久化 Cookie，隐藏窗口页内 fetch）
  * 与 manual（设置页粘贴 Oasis-Token 裸 JWT，主进程 HttpClient 直连）。
  * 数据源与字段口径：docs/stepfun/阶跃星辰plan查询指南.md
@@ -11,8 +12,7 @@ import { createLoadedWindow, execInPage, waitForReload } from './page-fetch';
 
 const TOKEN_EXPIRED = 'TOKEN_EXPIRED';
 
-const BASE_URL = 'https://platform.stepfun.com';
-const ACCOUNT_PAGE = `${BASE_URL}/account-overview`;
+const BASE_URL_CN = 'https://platform.stepfun.com';
 const RATE_LIMIT_PATH = '/api/step.openapi.devcenter.Dashboard/QueryStepPlanRateLimit';
 const PLAN_STATUS_PATH = '/api/step.openapi.devcenter.Dashboard/GetStepPlanStatus';
 const BALANCE_PATH = '/api/step.openapi.devcenter.Dashboard/QueryAccountBalance';
@@ -146,9 +146,9 @@ async function callInPage(win: BrowserWindow, path: string, body: Record<string,
 
 /** ---------- manual 模式：主进程直连（Cookie 与 webid 头都写真实 device_id） ---------- */
 
-function createHttpCaller(token: string, webid: string): StepFunCaller {
+function createHttpCaller(baseUrl: string, token: string, webid: string): StepFunCaller {
   return async (path, body) => {
-    const resp = await HttpClient.request(`${BASE_URL}${path}`, {
+    const resp = await HttpClient.request(`${baseUrl}${path}`, {
       method: 'POST',
       timeout: REQUEST_TIMEOUT,
       headers: {
@@ -473,10 +473,11 @@ export class StepFunProvider implements Provider {
   private historyCache = new Map<string, ModelTokenRecord[]>();
 
   /** session 模式：创建临时隐藏窗口执行页内请求，结束后销毁窗口（供主额度与历史查询复用） */
-  private async withSessionWindow<T>(accountId: string, fn: (win: BrowserWindow, caller: StepFunCaller) => Promise<T>): Promise<T> {
+  private async withSessionWindow<T>(config: ProviderConfig, fn: (win: BrowserWindow, caller: StepFunCaller) => Promise<T>): Promise<T> {
     let win: BrowserWindow | null = null;
     try {
-      win = await createLoadedWindow({ partition: `persist:stepfun-${accountId}`, url: ACCOUNT_PAGE });
+      const baseUrl = (config._baseUrl as string) || BASE_URL_CN;
+      win = await createLoadedWindow({ partition: `persist:stepfun-${config.accountId}`, url: `${baseUrl}/account-overview` });
       const caller: StepFunCaller = (path, body) => callInPage(win!, path, body);
       return await fn(win, caller);
     } finally {
@@ -486,7 +487,7 @@ export class StepFunProvider implements Provider {
 
   async fetchUsage(config: ProviderConfig): Promise<UsageResult> {
     if (config.stepfunCookieSource === 'manual') return this.fetchViaHttp(config);
-    return this.fetchViaSession(config.accountId ?? '');
+    return this.fetchViaSession(config);
   }
 
   /** manual 模式：裸 Oasis-Token 直连（无 refresh 半段，过期需用户重新粘贴） */
@@ -496,7 +497,7 @@ export class StepFunProvider implements Provider {
     // Token 为空或无法推导 device_id 均视为无效 Token
     if (!token || !webid) return errorResult(TOKEN_EXPIRED);
 
-    const caller = createHttpCaller(token, webid);
+    const caller = createHttpCaller((config._baseUrl as string) || BASE_URL_CN, token, webid);
     try {
       const rateResp = await caller(RATE_LIMIT_PATH, {});
       if (isAuthFailure(rateResp.status, rateResp.body)) return errorResult(TOKEN_EXPIRED);
@@ -508,12 +509,12 @@ export class StepFunProvider implements Provider {
   }
 
   /** session 模式：临时隐藏窗口页内 fetch，鉴权失败时 reload 重试一次 */
-  private async fetchViaSession(accountId: string): Promise<UsageResult> {
+  private async fetchViaSession(config: ProviderConfig): Promise<UsageResult> {
     try {
-      return await this.withSessionWindow(accountId, async (win, caller) => {
+      return await this.withSessionWindow(config, async (win, caller) => {
         let rateResp = await caller(RATE_LIMIT_PATH, {});
         if (isAuthFailure(rateResp.status, rateResp.body)) {
-          console.log(`[StepFun] Session expired for ${accountId}, reloading...`);
+          console.log(`[StepFun] Session expired for ${config.accountId}, reloading...`);
           await waitForReload(win);
           rateResp = await caller(RATE_LIMIT_PATH, {});
         }
@@ -556,10 +557,10 @@ export class StepFunProvider implements Provider {
         const token = (config.webToken ?? '').trim();
         const webid = parseStepFunWebid(token);
         if (!token || !webid) return [];
-        return usageItemsToRecords(await fetchUsageItems(createHttpCaller(token, webid), days));
+        return usageItemsToRecords(await fetchUsageItems(createHttpCaller((config._baseUrl as string) || BASE_URL_CN, token, webid), days));
       }
 
-      return await this.withSessionWindow(config.accountId ?? '', async (_win, caller) =>
+      return await this.withSessionWindow(config, async (_win, caller) =>
         usageItemsToRecords(await fetchUsageItems(caller, days)));
     } catch {
       return [];
