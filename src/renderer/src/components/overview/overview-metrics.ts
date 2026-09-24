@@ -1,65 +1,12 @@
-<!--
-  服务商总览卡片：每个服务商账户一张卡，按 provider 规则选取主指标与次级指标，
-  点击卡片切换到对应服务商与账户。
--->
-<template>
-  <div class="overview">
-    <button
-      v-for="card in cards"
-      :key="`${card.provider.key}:${card.account.id}`"
-      type="button"
-      class="overview-card"
-      :class="{ 'has-error': !!card.account.error }"
-      @click="$emit('select-provider', card.provider.key, card.account.id)"
-    >
-      <div class="card-head">
-        <div class="provider-title">
-          <span class="provider-name">{{ card.provider.name }}</span>
-          <span v-if="card.accountLabel" class="account-label">{{ card.accountLabel }}</span>
-        </div>
-        <span class="metric-value" :class="card.primary.color">{{ card.primary.value }}</span>
-      </div>
+// 总览卡片指标逻辑：按服务商规则选取主/次指标并格式化展示文本（纯函数，供 overview 组件族共用）
+import i18n from '../../locales'
+import type { AccountUsageData, ProviderUsageData, QuotaItem } from '../../types'
 
-      <template v-if="card.account.error">
-        <div class="error-line">{{ formatError(card.account.error) }}</div>
-      </template>
-      <template v-else>
-        <div class="metric-line">
-          <span class="metric-label">{{ card.primary.label }}</span>
-          <span class="metric-detail">{{ card.primary.detail }}</span>
-        </div>
-        <div v-if="!card.primary.hideBar" class="overview-bar">
-          <div class="overview-fill" :class="card.primary.color" :style="{ width: `${card.primary.usageRate}%` }"></div>
-        </div>
-        <div v-if="card.secondary.length > 0" class="secondary-list">
-          <span v-for="item in card.secondary" :key="item.label" class="secondary-chip">
-            <span class="chip-label">{{ item.label }}</span>
-            <span class="chip-value" :class="item.color">{{ item.value }}</span>
-          </span>
-        </div>
-      </template>
-    </button>
-  </div>
-</template>
+const t = i18n.global.t
 
-<script setup lang="ts">
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import type { AccountUsageData, ProviderUsageData, QuotaItem } from '../types'
+export type MetricColor = 'green' | 'yellow' | 'red' | 'neutral'
 
-const props = defineProps<{
-  providers: ProviderUsageData[]
-}>()
-
-defineEmits<{
-  'select-provider': [key: string, accountId?: string]
-}>()
-
-const { t, locale } = useI18n()
-
-type MetricColor = 'green' | 'yellow' | 'red' | 'neutral'
-
-interface OverviewMetric {
+export interface OverviewMetric {
   label: string
   value: string
   detail: string
@@ -68,44 +15,32 @@ interface OverviewMetric {
   hideBar?: boolean
 }
 
-interface SecondaryMetric {
+export interface SecondaryMetric {
   label: string
   value: string
   color: MetricColor
 }
 
-interface OverviewCard {
+export interface OverviewCard {
   provider: ProviderUsageData
   account: AccountUsageData
   accountLabel: string
   primary: OverviewMetric
   secondary: SecondaryMetric[]
-  sortValue: number
 }
 
-const cards = computed(() => {
-  return props.providers
-    .flatMap(provider => provider.accounts.map(account => buildCard(provider, account)))
-    .sort((a, b) => {
-      if (a.account.error && !b.account.error) return -1
-      if (!a.account.error && b.account.error) return 1
-      return a.sortValue - b.sortValue
-    })
-})
-
-function buildCard(provider: ProviderUsageData, account: AccountUsageData): OverviewCard {
-  const primary = selectPrimaryMetric(provider.key, account)
-  const secondary = selectSecondaryMetrics(provider.key, account)
-  // 加载中账户排在正常卡片之后，错误卡仍置前提示
-  const sortValue = account.loading ? Number.POSITIVE_INFINITY : account.error ? -1 : metricRemaining(primary)
+export function buildOverviewCard(provider: ProviderUsageData, account: AccountUsageData): OverviewCard {
   return {
     provider,
     account,
     accountLabel: provider.accounts.length > 1 ? account.label || account.id : '',
-    primary,
-    secondary,
-    sortValue,
+    primary: selectPrimaryMetric(provider.key, account),
+    secondary: selectSecondaryMetrics(provider.key, account),
   }
+}
+
+export function formatError(error: string): string {
+  return error.replace(/^\[[\w]+\]\s*/, '')
 }
 
 function selectPrimaryMetric(providerKey: string, account: AccountUsageData): OverviewMetric {
@@ -280,12 +215,6 @@ function findTightestQuota(quotas: QuotaItem[]): QuotaItem | undefined {
     .sort((a, b) => remainingPercent(a) - remainingPercent(b))[0] || quotas[0]
 }
 
-function metricRemaining(metric: OverviewMetric): number {
-  if (metric.hideBar && metric.value === '∞') return 100
-  if (metric.color === 'neutral') return 100
-  return 100 - metric.usageRate
-}
-
 function remainingPercent(q: QuotaItem): number {
   if (q.total === 0) return 100
   return 100 - clampPercent(q.usageRate)
@@ -332,10 +261,6 @@ function formatResetCountdown(iso: string): string {
     : t('overview.resetInDays', { n: days })
 }
 
-function formatError(error: string): string {
-  return error.replace(/^\[[\w]+\]\s*/, '')
-}
-
 function formatMoney(value: string, currency?: string): string {
   const n = Number(value)
   return Number.isFinite(n) ? formatCurrency(n, currency) : `${currencySymbol(currency)}${value}`
@@ -357,177 +282,3 @@ function currencySymbol(currency?: string): string {
 function clampPercent(n: number): number {
   return Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0))
 }
-</script>
-
-<style scoped>
-.overview {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding-bottom: 4px;
-}
-
-.overview-card {
-  width: 100%;
-  display: block;
-  padding: 9px 10px;
-  border: none;
-  border-radius: 8px;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-card);
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s, transform 0.15s;
-}
-
-.overview-card:hover {
-  background: var(--bg-card-hover);
-  box-shadow: var(--shadow-card-hover);
-}
-
-.overview-card:active {
-  transform: translateY(1px);
-}
-
-.card-head,
-.metric-line {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.provider-title {
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.provider-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-heading);
-  white-space: nowrap;
-}
-
-.account-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 10px;
-  color: var(--text-tertiary);
-}
-
-.metric-value {
-  flex-shrink: 0;
-  max-width: 45%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 18px;
-  line-height: 1;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
-
-.metric-value.yellow,
-.chip-value.yellow {
-  color: #a16207;
-}
-
-.metric-value.red,
-.chip-value.red {
-  color: #dc2626;
-}
-
-.metric-value.green,
-.chip-value.green {
-  color: var(--text-primary);
-}
-
-.metric-line {
-  margin-top: 5px;
-}
-
-.metric-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.metric-detail {
-  flex-shrink: 0;
-  max-width: 58%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 10px;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-.overview-bar {
-  height: 5px;
-  margin-top: 6px;
-  background: var(--border-subtle);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.overview-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* 与智谱 QuotaCard 同款配色 */
-.overview-fill.green { background: linear-gradient(90deg, #4ade80, #22c55e); }
-.overview-fill.yellow { background: linear-gradient(90deg, #facc15, #eab308); }
-.overview-fill.red { background: linear-gradient(90deg, #f87171, #ef4444); }
-
-.secondary-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 7px;
-}
-
-.secondary-chip {
-  min-width: 0;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  padding: 3px 6px;
-  border-radius: 5px;
-  background: var(--bg-tab-bar);
-  font-size: 10px;
-  color: var(--text-tertiary);
-}
-
-.chip-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chip-value {
-  flex-shrink: 0;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
-}
-
-.error-line {
-  margin-top: 6px;
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--text-error);
-}
-</style>

@@ -192,7 +192,7 @@ import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue
 import { useI18n } from 'vue-i18n'
 import FloatingTooltip from '../components/FloatingTooltip.vue'
 import UpdateBanner from '../components/UpdateBanner.vue'
-import ProviderOverview from '../components/ProviderOverview.vue'
+import ProviderOverview from '../components/overview/ProviderOverview.vue'
 import ZaiSection from '../components/zai/ZaiSection.vue'
 import MiniMaxSection from '../components/minimax/MiniMaxSection.vue'
 import ResetPackageBadge from '../components/ResetPackageBadge.vue'
