@@ -1,4 +1,17 @@
 # Changelog
+## [1.9.0] - 2026-10-15
+### Added
+- macOS 平台支持：新增 dmg/zip（arm64/x64）打包目标与 `package:mac` 脚本
+- macOS 托盘数字改用系统字体矢量渲染（离屏窗口 + SF Pro），替换 5×7 点阵字模；字高铺满图标、随显示器缩放因子自适应，Windows 维持原渲染
+- GitHub Actions 新增 macOS 构建任务，随 tag 一并发布
+
+### Changed
+- `dev` 脚本改为跨平台写法，Windows 控制台 UTF-8 设置移至 `dev:win`
+- macOS 托盘常驻应用隐藏 Dock 图标（LSUIElement），经由菜单栏托盘交互
+
+### Fixed
+- macOS 未签名构建跳过应用内自动更新检查（Squirrel.Mac 需 Developer ID 签名）
+
 ## [1.8.1] - 2026-09-22
 ### Added
 - Qoder 新增 Credits 消耗趋势图与用量热力图

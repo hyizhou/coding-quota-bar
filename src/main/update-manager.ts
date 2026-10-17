@@ -96,6 +96,14 @@ export function startAutoUpdateChecker(): void {
   // 微软商店版：更新完全由商店托管（政策 10.2.5），应用内不做任何更新检查
   if (isStoreBuild()) return;
 
+  // macOS：Squirrel.Mac 要求应用经 Developer ID 签名才能自动更新，
+  // 未签名构建会在 checkForUpdates 时抛错，此处先行跳过；
+  // 待未来接入签名/公证流程后移除此守卫
+  if (process.platform === 'darwin' && !mockUpdate) {
+    console.log('[AutoUpdate] Skipped on macOS (requires code-signed build)');
+    return;
+  }
+
   const config = _getConfigManager()?.getConfig();
   if (!config?.autoCheckUpdate || (isDev && !mockUpdate)) return;
 

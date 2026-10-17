@@ -1,18 +1,20 @@
 {
   "name": "coding-quota-bar",
-  "version": "1.8.1",
+  "version": "1.9.0",
   "description": "Coding Plan usage monitor - system tray resident display",
   "main": "./out/main/index.js",
   "author": "hyizhou",
   "license": "MIT",
   "scripts": {
-    "dev": "chcp 65001 >nul && electron-vite dev",
+    "dev": "electron-vite dev",
+    "dev:win": "chcp 65001 >nul && electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "vue-tsc -p tsconfig.node.json --noEmit && vue-tsc -p tsconfig.web.json --noEmit",
     "preview": "electron-vite preview",
     "package": "npm run build && electron-builder",
     "package:dir": "npm run build && electron-builder --dir",
     "package:win": "npm run build && electron-builder --win",
+    "package:mac": "npm run build && electron-builder --mac",
     "package:store": "npm run build && electron-builder --win appx --publish never"
   },
   "devDependencies": {

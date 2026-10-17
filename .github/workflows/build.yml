@@ -42,3 +42,30 @@ jobs:
           name: cqb-appx
           path: release/*.appx
           retention-days: 3
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx electron-vite build
+
+      - name: Pre-create draft release
+        shell: bash
+        run: gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "${GITHUB_REF_NAME#v}" || echo "release already exists, reusing"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package & Publish (dmg + zip, arm64/x64)
+        run: npx electron-builder --mac --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 未接入 Developer ID 签名/公证前，跳过签名发现，产出 ad-hoc 签名的未公证包
+          CSC_IDENTITY_AUTO_DISCOVERY: false
