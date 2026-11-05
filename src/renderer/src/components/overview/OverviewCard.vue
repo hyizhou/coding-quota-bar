@@ -18,7 +18,9 @@
         <span class="provider-name">{{ card.provider.name }}</span>
         <span v-if="card.accountLabel" class="account-label">{{ card.accountLabel }}</span>
       </div>
-      <span class="metric-value" :class="card.primary.color">{{ card.primary.value }}</span>
+      <span class="metric-value" :class="card.primary.color">
+        <span v-if="card.primary.valuePrefix" class="value-caption before">{{ card.primary.valuePrefix }}</span>{{ card.primary.value }}<span v-if="card.primary.valueSuffix" class="value-caption after">{{ card.primary.valueSuffix }}</span>
+      </span>
     </div>
 
     <template v-if="card.account.error">
@@ -143,6 +145,21 @@ defineProps<{
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
+}
+
+/* 「剩余 / left」小号说明：标明大号数值是剩余量而非已用量 */
+.value-caption {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.value-caption.before {
+  margin-right: 3px;
+}
+
+.value-caption.after {
+  margin-left: 3px;
 }
 
 .metric-value.yellow,

@@ -85,6 +85,7 @@
     "resetInHoursMinutes": "resets in {h} hr {m} min",
     "resetInDays": "resets in {n} d",
     "resetInDaysHours": "resets in {d} d {h} hr",
+    "remaining": "{v} left",
     "countUsed": "{n} used",
     "balanceOnly": "Balance only"
   },

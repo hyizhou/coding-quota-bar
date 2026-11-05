@@ -85,6 +85,7 @@
     "resetInHoursMinutes": "{h}小时{m}分后重置",
     "resetInDays": "{n}天后重置",
     "resetInDaysHours": "{d}天{h}小时后重置",
+    "remaining": "剩余 {v}",
     "countUsed": "已用 {n} 次",
     "balanceOnly": "仅显示余额"
   },

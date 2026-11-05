@@ -13,6 +13,9 @@ export interface OverviewMetric {
   usageRate: number
   color: MetricColor
   hideBar?: boolean
+  // value 为剩余量时的小号说明文字（如「剩余」/「left」），避免与详情页的「已用」百分比混淆
+  valuePrefix?: string
+  valueSuffix?: string
 }
 
 export interface SecondaryMetric {
@@ -176,9 +179,12 @@ function quotaMetric(q: QuotaItem | undefined, fallbackLabel: string): OverviewM
 
   const usageRate = clampPercent(q.usageRate)
   const reset = formatResetCountdown(q.resetAt)
+  const [valuePrefix, valueSuffix] = remainingAffixes()
   return {
     label,
     value: formatRemaining(q),
+    valuePrefix,
+    valueSuffix,
     detail: [formatUsed(q), reset].filter(Boolean).join(' · '),
     usageRate,
     color: q.color,
@@ -204,9 +210,19 @@ function balanceMetric(account: AccountUsageData): OverviewMetric {
 function secondaryFromQuota(q: QuotaItem): SecondaryMetric {
   return {
     label: t(q.label, q.labelParams ?? {}),
-    value: q.total === 0 ? '∞' : formatRemaining(q),
+    value: q.total === 0 ? '∞' : t('overview.remaining', { v: formatRemaining(q) }),
     color: q.total === 0 ? 'neutral' : q.color,
   }
+}
+
+/**
+ * 拆出「剩余」文案在数值前/后的部分（中文「剩余 {v}」为前缀，英文「{v} left」为后缀），
+ * 供主指标以小号字体包住大号数值
+ */
+function remainingAffixes(): [string, string] {
+  const marker = '\u0000'
+  const [prefix = '', suffix = ''] = t('overview.remaining', { v: marker }).split(marker)
+  return [prefix.trim(), suffix.trim()]
 }
 
 function findTightestQuota(quotas: QuotaItem[]): QuotaItem | undefined {
