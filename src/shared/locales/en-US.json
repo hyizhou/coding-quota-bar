@@ -54,6 +54,7 @@
     "qoderReferenceCost": "Reference cost",
     "qoderMessages": "Messages",
     "stepfunTokenExpired": "StepFun session expired, please re-login or update the token",
+    "qwenTokenExpired": "Qwen (Bailian) console login expired, please re-login",
     "opencodegoTokenExpired": "Not logged in to OpenCode Go",
     "codexTokenExpired": "Codex CLI auth not found. Please install and login to Codex CLI first",
     "reloginBtn": "Re-login",
@@ -164,6 +165,8 @@
     "stepfunManualPlaceholder": "Paste the Oasis-Token from browser cookies (three-part JWT)",
     "stepfunManualInvalid": "Invalid token format, expected a three-part JWT",
     "stepfunManualSaved": "Token saved",
+    "qwenLoginBtn": "Login to Bailian Console",
+    "qwenLoginHint": "Token Plan usage is read from the Bailian console; the sk-sp- API key cannot query usage",
     "webLoginActive": "Logged In",
     "webLogoutBtn": "Log Out",
     "webTokenExpired": "Login expired, click to re-login",
@@ -275,7 +278,17 @@
     "stepfunTopupPack": "Top-up pack",
     "stepfunTopupAmounts": "Used {used} · Left {left}",
     "stepfunCreditAmounts": "Used {used} · Left {left}",
-    "stepfunCreditsUsage": "Credits usage"
+    "stepfunCreditsUsage": "Credits usage",
+    "qwen5h": "5-Hour Quota",
+    "qwenWeekly": "Weekly Quota",
+    "qwenMonthly": "Monthly Quota",
+    "qwenWindow": "{n}-{unit} Quota",
+    "qwenCreditsAmount": "{used} / {total} Credits",
+    "qwenNoUsage": "No Token Plan usage yet this cycle",
+    "qwenExpiresAt": "Plan expires {date}",
+    "qwenRemainingDays": "{n} days left",
+    "qwenAutoRenewOn": "Auto-renew on",
+    "qwenAutoRenewOff": "Auto-renew off"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI Usage Monitor",
@@ -299,7 +312,8 @@
     "codex": "Codex",
     "openrouter": "OpenRouter",
     "qoder": "Qoder",
-    "stepfun": "StepFun"
+    "stepfun": "StepFun",
+    "qwen": "Qwen"
   },
   "concurrencyTest": {
     "title": "Concurrency Test",

@@ -546,6 +546,27 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
       },
     },
 
+    qwen: {
+      // 百炼 Token Plan（Standard：5h 3000 / 月 80000 Credits），网关返回已用比例 + 重置时间
+      used: 13.46,
+      total: 100,
+      expiresAt: new Date(now + 29 * DAY).toISOString(),
+      level: 'Standard',
+      details: {
+        quotas: [
+          { label: 'quota.qwenMonthly', labelParams: { usedCredits: 10765, totalCredits: 80000 }, used: 13.46, total: 100, usageRate: 13.46, resetAt: new Date(now + 29 * DAY).toISOString(), limitType: 'monthly', displayUnit: 'percent' },
+        ],
+        qwenSubscription: {
+          specCode: 'standard',
+          status: 'VALID',
+          startAt: new Date(now - DAY).toISOString(),
+          endAt: new Date(now + 29 * DAY).toISOString(),
+          remainingDays: 29,
+          autoRenew: false,
+        },
+      },
+    },
+
     // OpenRouter：Key 卡平铺结构，mock 覆盖全部场景（账户卡余额取自第一个场景）
     openrouter: [
       // 场景 1：正常在用——限额 25% + 每日重置 + 未来有效期

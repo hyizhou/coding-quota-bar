@@ -42,6 +42,7 @@ Hover over or click the icon to pop up the detail panel and view the usage detai
 | **OpenRouter** | API Key (multiple keys) | Per-key limits and expiry, total balance, today/week/month spend, lifetime top-ups and spend |
 | **Qoder** | Web login / pasted cookie | big model credits quota (primary + shared quotas merged), reset countdown; supports the global and China sites |
 | **StepFun** | Web login / pasted token | Step Plan quotas (rate windows or credits + top-up packs), account balance, credit usage charts |
+| **Qwen (Bailian)** | Web login (Bailian console) | Token Plan monthly / 5-hour credit quotas with used / total Credits, reset time, plan tier and expiry; supports the China and international sites |
 
 ### Multi-Account Management
 

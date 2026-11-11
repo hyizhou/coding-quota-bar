@@ -26,6 +26,7 @@ import { deepseekWebLogin, deepseekWebLogout } from './deepseek-auth';
 import { mimoWebLogin, mimoWebLogout } from './mimo-auth';
 import { qoderWebLogin, qoderWebLogout, qoderParseManual } from './qoder-auth';
 import { stepfunWebLogin, stepfunWebLogout } from './stepfun-auth';
+import { qwenWebLogin, qwenWebLogout } from './qwen-auth';
 import { checkForUpdate, downloadUpdate, getUpdateStatus } from './update-manager';
 import { getZaiPricing } from './pricing-store';
 import { maskApiKey } from '../shared/mask';
@@ -277,6 +278,16 @@ export function setupIpcHandlers(): void {
   // StepFun 网页登出
   ipcMain.handle('stepfun-web-logout', async (_, accountId: string) => {
     await stepfunWebLogout(accountId);
+  });
+
+  // 千问 / 百炼 Token Plan 网页登录（控制台 console-login 回传 access token）
+  ipcMain.handle('qwen-web-login', async (_, accountId: string, region: string) => {
+    return await qwenWebLogin(accountId, region === 'global' ? 'global' : 'cn');
+  });
+
+  // 千问网页登出
+  ipcMain.handle('qwen-web-logout', async (_, accountId: string) => {
+    await qwenWebLogout(accountId);
   });
 
   // StepFun 按需获取 7/30 天模型用量历史（带日级缓存）

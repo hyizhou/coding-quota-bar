@@ -16,7 +16,7 @@ export interface AccountConfig {
   qoderLoggedIn?: boolean;                  // Qoder 网页登录状态（Cookie 认证，无需 webToken）
   stepfunCookieSource?: 'session' | 'manual'; // StepFun 凭据来源：弹窗登录会话 / 手动粘贴 Oasis-Token（默认 session）
   stepfunLoggedIn?: boolean;                  // StepFun 网页登录状态（Cookie 认证，session 模式无需 webToken）
-  region?: 'cn' | 'global';                   // 站点区域（智谱/阶跃区分国内与海外站，账号互不相通，默认 cn）
+  region?: 'cn' | 'global';                   // 站点区域（智谱/阶跃/千问区分国内与海外站，账号互不相通，默认 cn）
 }
 
 /**
@@ -167,6 +167,18 @@ export interface StepFunTopupBucket {
 export interface StepFunCreditAmounts {
   total: number;       // 订阅桶总量
   residual: number;    // 订阅桶剩余量
+}
+
+/**
+ * 千问 / 百炼 Token Plan 订阅信息（控制台网关 tokenplan/personal/api/v2/subscription）
+ */
+export interface QwenSubscription {
+  specCode: string;        // 套餐规格，如 lite / essential / standard / pro
+  status: string;          // 订阅状态，如 "VALID"
+  startAt: string;         // 订阅开始时间 ISO 8601
+  endAt: string;           // 订阅到期时间 ISO 8601
+  remainingDays?: number;  // 剩余天数
+  autoRenew: boolean;      // 是否自动续费
 }
 
 /**

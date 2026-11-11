@@ -147,7 +147,7 @@
                 <template v-if="getActiveAccount(activeProvider)!.error === 'TOKEN_EXPIRED'">
                   <template v-if="activeProvider.key === 'codex'">{{ $t('main.codexTokenExpired') }}</template>
                   <template v-else>
-                    {{ activeProvider.key === 'mimo' ? $t('main.mimoTokenExpired') : activeProvider.key === 'opencode-go' ? $t('main.opencodegoTokenExpired') : activeProvider.key === 'qoder' ? $t('main.qoderTokenExpired') : activeProvider.key === 'stepfun' ? $t('main.stepfunTokenExpired') : $t('main.deepseekTokenExpired') }}
+                    {{ activeProvider.key === 'mimo' ? $t('main.mimoTokenExpired') : activeProvider.key === 'opencode-go' ? $t('main.opencodegoTokenExpired') : activeProvider.key === 'qoder' ? $t('main.qoderTokenExpired') : activeProvider.key === 'stepfun' ? $t('main.stepfunTokenExpired') : activeProvider.key === 'qwen' ? $t('main.qwenTokenExpired') : $t('main.deepseekTokenExpired') }}
                     <button class="relogin-btn" @click="$emit('open-settings')">{{ $t('main.reloginBtn') }}</button>
                   </template>
                 </template>
@@ -164,6 +164,7 @@
               <CodexSection v-else-if="activeProvider.key === 'codex'" :account="getActiveAccount(activeProvider)!" />
               <QoderSection v-else-if="activeProvider.key === 'qoder'" :account="getActiveAccount(activeProvider)!" />
               <StepFunSection v-else-if="activeProvider.key === 'stepfun'" :account="getActiveAccount(activeProvider)!" />
+              <QwenSection v-else-if="activeProvider.key === 'qwen'" :account="getActiveAccount(activeProvider)!" />
               <OpenRouterSection v-else-if="activeProvider.key === 'openrouter'" :accounts="activeProvider.accounts" />
               <DeepSeekServiceStatus v-if="activeProvider.key === 'deepseek' && !getActiveAccount(activeProvider)!.error" :account="getActiveAccount(activeProvider)!" />
             </template>
@@ -201,6 +202,7 @@ import OpenCodeGoSection from '../components/opencode-go/OpenCodeGoSection.vue'
 import CodexSection from '../components/codex/CodexSection.vue'
 import OpenRouterSection from '../components/openrouter/OpenRouterSection.vue'
 import QoderSection from '../components/qoder/QoderSection.vue'
+import QwenSection from '../components/qwen/QwenSection.vue'
 import CopyButton from '../components/CopyButton.vue'
 import type { ProviderUsageData, AccountUsageData, UsageState, WindowPinMode } from '../types'
 import { useTheme } from '../composables/useTheme'

@@ -221,6 +221,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     subscribe('stepfun-web-login-success', callback),
 
   /**
+   * 千问 / 百炼 Token Plan 网页登录（控制台 console-login 回传 access token）
+   */
+  qwenWebLogin: (accountId: string, region: string) => ipcRenderer.invoke('qwen-web-login', accountId, region),
+  qwenWebLogout: (accountId: string) => ipcRenderer.invoke('qwen-web-logout', accountId),
+  onQwenWebLoginSuccess: (callback: (accountId: string) => void) =>
+    subscribe('qwen-web-login-success', callback),
+
+  /**
    * StepFun 按需获取模型用量历史（7/30 天）
    */
   stepfunFetchUsageHistory: (accountId: string, days: 7 | 30) =>
