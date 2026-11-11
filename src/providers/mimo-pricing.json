@@ -1,12 +1,14 @@
 {
   "description": "MiMo Token Plan 模型定价（每个 Token 对应的 Credits 扣除额度），来源：https://platform.xiaomimimo.com/docs/zh-CN/price/tokenplan/subscription",
-  "updatedAt": "2026-06-03",
-  "unit": "Credits/token",
+  "updatedAt": "2026-11-11",
+  "unit": "Credits/1M tokens",
   "models": {
-    "mimo-v2.5-pro":      { "cacheHit": 2.5,  "cacheMiss": 300, "output": 600 },
-    "mimo-v2.5":          { "cacheHit": 2,    "cacheMiss": 100, "output": 200 },
-    "mimo-v2-pro":        { "cacheHit": 2.5,  "cacheMiss": 300, "output": 600, "note": "2026.6.30 下线，已转发至 v2.5-pro" },
-    "mimo-v2-omni":       { "cacheHit": 2,    "cacheMiss": 100, "output": 200, "note": "2026.6.30 下线，已转发至 v2.5" }
+    "mimo-v2.6-pro":      { "cacheHit": 2.5,  "cacheMiss": 300, "output": 600, "note": "定价沿用 V2.5 系列" },
+    "mimo-v2.6-flash":    { "cacheHit": 2,    "cacheMiss": 100, "output": 200, "note": "定价沿用 V2.5 系列" },
+    "mimo-v2.5-pro":      { "cacheHit": 2.5,  "cacheMiss": 300, "output": 600, "deprecated": true, "note": "2026.10.21 下线，已转发至 v2.6-pro" },
+    "mimo-v2.5":          { "cacheHit": 2,    "cacheMiss": 100, "output": 200, "deprecated": true, "note": "2026.10.21 下线，已转发至 v2.6-flash" },
+    "mimo-v2-pro":        { "cacheHit": 2.5,  "cacheMiss": 300, "output": 600, "deprecated": true, "note": "2026.6.30 下线，已转发至 v2.5-pro" },
+    "mimo-v2-omni":       { "cacheHit": 2,    "cacheMiss": 100, "output": 200, "deprecated": true, "note": "2026.6.30 下线，已转发至 v2.5" }
   },
   "asr": {
     "mimo-v2.5-asr": { "unit": "Credits/hour", "price": 30000000, "note": "30M Credits/小时" }

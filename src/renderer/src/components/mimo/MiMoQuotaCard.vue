@@ -31,6 +31,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import mimoPricing from '../../../../providers/mimo-pricing.json'
 
 const props = defineProps<{
   label: string
@@ -47,16 +48,21 @@ function clampPercent(n: number): number {
   return Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0))
 }
 
-// 模型定价（Credits/1M tokens），来源：src/providers/mimo-pricing.json
-const MIMO_PRICING: Record<string, { cacheHit: number; cacheMiss: number; output: number }> = {
-  'mimo-v2.5-pro': { cacheHit: 2.5, cacheMiss: 300, output: 600 },
-  'mimo-v2.5':     { cacheHit: 2,   cacheMiss: 100, output: 200 },
+// 模型定价（Credits/1M tokens）：数据源 src/providers/mimo-pricing.json，
+// 上线新模型或标记下线只需更新该 JSON，本组件无需改动
+interface MimoModelPricing {
+  cacheHit: number
+  cacheMiss: number
+  output: number
+  deprecated?: boolean
+  note?: string
 }
+const MIMO_PRICING = mimoPricing.models as Record<string, MimoModelPricing>
 
 const TOKEN_RATIO = { cache: 0.95, miss: 0.04, output: 0.01 }
 
 const modelEstimates = computed(() =>
-  Object.entries(MIMO_PRICING).map(([name, p]) => {
+  Object.entries(MIMO_PRICING).filter(([, p]) => !p.deprecated).map(([name, p]) => {
     const weightedPrice = TOKEN_RATIO.cache * p.cacheHit + TOKEN_RATIO.miss * p.cacheMiss + TOKEN_RATIO.output * p.output
     return {
       name,

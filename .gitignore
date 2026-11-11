@@ -30,9 +30,14 @@ config.json
 electron-builder.yml
 
 .claude/
+.codex/
+.dsh/
 CLAUDE.md
 AGENTS.md
 docs/
 scripts/
 .playwright-cli/
 .worktrees/
+
+# Temp (scratch area, e.g. cloned reference repos)
+temp/

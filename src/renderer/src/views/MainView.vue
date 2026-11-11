@@ -512,7 +512,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   width: 28px;
-  height: 14px;
+  height: 16px;
   cursor: pointer;
   color: var(--text-tertiary);
   opacity: 0.4;
@@ -551,7 +551,7 @@ onUnmounted(() => {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0 10px;
+  padding: 10px 10px 0;
 }
 
 /* 过渡定位基准：无水平 padding，absolute + width:100% 与正常流宽度一致，避免切换瞬间宽度跳变 */
