@@ -42,6 +42,10 @@ import {
   setStepfunAuthDeps,
 } from './stepfun-auth';
 import {
+  setQwenAuthDeps,
+  qwenRefreshToken,
+} from './qwen-auth';
+import {
   setDataTransformDeps,
   buildUsageData,
 } from './data-transform';
@@ -124,6 +128,7 @@ async function initialize(): Promise<void> {
   setMimoAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setQoderAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setStepfunAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
+  setQwenAuthDeps({ getConfigManager, getPopupWindow: getPopupWindow });
   setDataTransformDeps({ getConfigManager, getScheduler });
   setIpcHandlersDeps({ getConfigManager, getScheduler });
   setPricingStoreDeps({ getPopupWindow: getPopupWindow });
@@ -193,7 +198,7 @@ async function initialize(): Promise<void> {
   scheduler.on('refreshed', async () => {
     trayManager?.stopLoading();
 
-    // 自动刷新 DeepSeek token；同步 MiMo/Qoder 登录状态
+    // 自动刷新 DeepSeek/千问 token；同步 MiMo/Qoder 登录状态
     if (!isAutoRefreshingToken) {
       const aggregated = scheduler!.getAggregatedData();
       if (aggregated) {
@@ -204,7 +209,7 @@ async function initialize(): Promise<void> {
         for (const [key, result] of aggregated.results) {
           const [provider, accountId] = key.split(':');
           if (result.error === 'TOKEN_EXPIRED') {
-            if (provider === 'deepseek' || provider === 'mimo') {
+            if (provider === 'deepseek' || provider === 'mimo' || provider === 'qwen') {
               expiredAccounts.push({ provider, accountId });
             }
             if (provider === 'qoder') {
@@ -277,6 +282,10 @@ async function initialize(): Promise<void> {
             for (const { provider, accountId } of expiredAccounts) {
               if (provider === 'deepseek') {
                 const ok = await deepseekRefreshToken(accountId);
+                if (ok) anyRefreshed = true;
+              } else if (provider === 'qwen') {
+                // 控制台 access token 失效：隐藏窗口复用持久化 Cookie 静默重取
+                const ok = await qwenRefreshToken(accountId);
                 if (ok) anyRefreshed = true;
               } else if (provider === 'mimo') {
                 // Provider 内部已尝试刷新页面重试，仍 TOKEN_EXPIRED 说明 session 真过期

@@ -1,6 +1,6 @@
 import { getColorByPercent } from './tray';
 import { t as i18nT } from './i18n';
-import type { AccountConfig, UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, ResetPackages, CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, StepFunCreditAmounts, StepFunTopupBucket } from '../shared/types';
+import type { AccountConfig, UsageResult, UsageRecord as SharedUsageRecord, McpUsageRecord as SharedMcpUsageRecord, ModelTokenRecord as SharedModelTokenRecord, PerformanceRecord as SharedPerformanceRecord, ProviderTypeConfig, ResetPackages, CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, QwenSubscription, StepFunCreditAmounts, StepFunTopupBucket } from '../shared/types';
 import type { Scheduler } from './scheduler';
 import type { ConfigManager } from './config';
 import { isAccountLoadable } from './loader';
@@ -69,6 +69,7 @@ export interface AccountDisplayData {
   qoderCreditsHeatmap?: QoderCreditsHeatmap;
   stepfunTopupBuckets?: StepFunTopupBucket[];
   stepfunCreditAmounts?: StepFunCreditAmounts;
+  qwenSubscription?: QwenSubscription;
 }
 
 /**
@@ -223,6 +224,7 @@ function convertAccountData(
     qoderCreditsHeatmap: (result.details?.qoderCreditsHeatmap as QoderCreditsHeatmap | undefined) ?? undefined,
     stepfunTopupBuckets: (result.details?.stepfunTopupBuckets as AccountDisplayData['stepfunTopupBuckets']) ?? undefined,
     stepfunCreditAmounts: (result.details?.stepfunCreditAmounts as AccountDisplayData['stepfunCreditAmounts']) ?? undefined,
+    qwenSubscription: (result.details?.qwenSubscription as QwenSubscription | undefined) ?? undefined,
   };
 }
 

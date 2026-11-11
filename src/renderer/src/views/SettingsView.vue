@@ -149,6 +149,40 @@
                 </button>
               </div>
 
+              <!-- 千问 / 百炼 Token Plan: 仅网页登录（控制台 console-login 回传 access token），按站点区域切换控制台 -->
+              <div v-else-if="info.key === 'qwen'" class="web-login-section qoder-section">
+                <div class="qoder-site-row">
+                  <span class="qoder-site-label">{{ $t('settings.siteLabel') }}</span>
+                  <label class="mode-option" :class="{ active: account.region !== 'global' }">
+                    <input type="radio" value="cn" v-model="account.region" />
+                    <span>{{ $t('settings.siteChina') }}</span>
+                  </label>
+                  <label class="mode-option" :class="{ active: account.region === 'global' }">
+                    <input type="radio" value="global" v-model="account.region" />
+                    <span>{{ $t('settings.siteInternational') }}</span>
+                  </label>
+                </div>
+                <div class="qoder-login-row">
+                  <button
+                    class="web-login-btn"
+                    :class="{ active: account.webTokenStatus === 'active' }"
+                    @click="handleQwenWebLogin(account)"
+                  >
+                    {{ account.webTokenStatus === 'active'
+                       ? $t('settings.webLoginActive')
+                       : $t('settings.qwenLoginBtn') }}
+                  </button>
+                  <button
+                    v-if="account.webTokenStatus === 'active'"
+                    class="web-logout-btn"
+                    @click="handleQwenWebLogout(account)"
+                  >
+                    {{ $t('settings.webLogoutBtn') }}
+                  </button>
+                </div>
+                <div class="qwen-login-hint">{{ $t('settings.qwenLoginHint') }}</div>
+              </div>
+
               <!-- Qoder: 网页登录（session 持久化 Cookie）或手动粘贴捕获 -->
               <div v-else-if="info.key === 'qoder'" class="web-login-section qoder-section">
                 <div class="qoder-source-row">
@@ -660,7 +694,7 @@ function addAccount(providerKey: string) {
     apiKey: '',
     maskedApiKey: '',
     showKey: false,
-    authMode: (providerKey === 'mimo' || providerKey === 'codex' || providerKey === 'qoder' || providerKey === 'stepfun') ? 'weblogin' : 'apikey',
+    authMode: (providerKey === 'mimo' || providerKey === 'codex' || providerKey === 'qoder' || providerKey === 'stepfun' || providerKey === 'qwen') ? 'weblogin' : 'apikey',
     webTokenStatus: 'none',
     apiKeyDirty: false,
     qoderCookieSource: 'session',
@@ -876,6 +910,25 @@ async function handleQoderWebLogout(account: AccountInfo) {
   if (freshConfig) currentConfig.value = freshConfig
 }
 
+async function handleQwenWebLogin(account: AccountInfo) {
+  const region = account.region === 'global' ? 'global' : 'cn'
+  const result = await window.electronAPI.qwenWebLogin(account.id, region)
+  if (result.success) {
+    // 登录在主进程写入了 token 与站点区域，同步本地状态避免自动保存回退字段
+    account.region = region
+    account.webTokenStatus = 'active'
+    const freshConfig = await window.electronAPI.getConfig()
+    if (freshConfig) currentConfig.value = freshConfig
+  }
+}
+
+async function handleQwenWebLogout(account: AccountInfo) {
+  await window.electronAPI.qwenWebLogout(account.id)
+  account.webTokenStatus = 'none'
+  const freshConfig = await window.electronAPI.getConfig()
+  if (freshConfig) currentConfig.value = freshConfig
+}
+
 async function handleStepfunWebLogin(account: AccountInfo) {
   const result = await window.electronAPI.stepfunWebLogin(account.id, account.region ?? 'cn')
   if (result.success) {
@@ -1004,7 +1057,7 @@ onMounted(async () => {
       apiKey: '',
       showKey: false,
       budget: (account as any).budget ?? undefined,
-      authMode: (key === 'mimo' || key === 'codex' || key === 'qoder' || key === 'stepfun') ? (account.authMode ?? 'weblogin') : (account.authMode ?? 'apikey'),
+      authMode: (key === 'mimo' || key === 'codex' || key === 'qoder' || key === 'stepfun' || key === 'qwen') ? (account.authMode ?? 'weblogin') : (account.authMode ?? 'apikey'),
       webTokenStatus: key === 'mimo'
         ? ((account as any).mimoLoggedIn ? 'active' : 'none')
         : key === 'codex'
@@ -1157,7 +1210,7 @@ async function saveConfig() {
           authMode: a.authMode,
         }
         if (a.budget != null) update.budget = a.budget
-        if (info.key === 'zhipu' || info.key === 'stepfun') {
+        if (info.key === 'zhipu' || info.key === 'stepfun' || info.key === 'qwen') {
           update.region = a.region ?? 'cn'
         }
         if (a.apiKeyDirty) {
@@ -1587,6 +1640,13 @@ function handleUpdateClick() {
 
 .qoder-parse-hint.ok {
   color: #16a34a;
+}
+
+/* 千问登录说明：中性提示色（非校验错误） */
+.qwen-login-hint {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: -2px;
 }
 
 .web-login-btn {

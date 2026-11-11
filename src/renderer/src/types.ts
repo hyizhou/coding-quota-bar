@@ -1,7 +1,7 @@
 /**
  * Renderer 进程共享类型定义
  */
-import type { CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, ResetPackages, ResetPackageSummary, StepFunCreditAmounts, StepFunTopupBucket, TrayDisplayRule, WindowPinMode, ZaiDailyUsageItem, ZaiPricingTable, ZaiUsageActivitySummary, ZaiUsageStats } from '../../shared/types'
+import type { CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, QwenSubscription, ResetPackages, ResetPackageSummary, StepFunCreditAmounts, StepFunTopupBucket, TrayDisplayRule, WindowPinMode, ZaiDailyUsageItem, ZaiPricingTable, ZaiUsageActivitySummary, ZaiUsageStats } from '../../shared/types'
 
 export type { WindowPinMode }
 export type { ZaiDailyUsageItem }
@@ -12,6 +12,7 @@ export type { ResetPackages, ResetPackageSummary }
 export type { CodexUsageStats }
 export type { QoderCreditsHeatmap, QoderCreditsTrend }
 export type { StepFunCreditAmounts, StepFunTopupBucket }
+export type { QwenSubscription }
 
 export interface SubscriptionInfo {
   plan: string
@@ -120,6 +121,7 @@ export interface AccountUsageData {
   qoderCreditsHeatmap?: QoderCreditsHeatmap
   stepfunTopupBuckets?: StepFunTopupBucket[]
   stepfunCreditAmounts?: StepFunCreditAmounts
+  qwenSubscription?: QwenSubscription
 }
 
 /**
@@ -321,6 +323,9 @@ export interface ElectronAPI {
   stepfunWebLogout: (accountId: string) => Promise<void>
   onStepfunWebLoginSuccess: (callback: (accountId: string) => void) => () => void
   stepfunFetchUsageHistory: (accountId: string, days: 7 | 30) => Promise<ModelTokenRecord[]>
+  qwenWebLogin: (accountId: string, region: string) => Promise<{ success: boolean; error?: string }>
+  qwenWebLogout: (accountId: string) => Promise<void>
+  onQwenWebLoginSuccess: (callback: (accountId: string) => void) => () => void
   zaiFetchUsageStats: (accountId: string) => Promise<ZaiUsageStats>
   getZaiPricing: () => Promise<ZaiPricingTable>
   onZaiPricingUpdated: (callback: (pricing: ZaiPricingTable) => void) => () => void

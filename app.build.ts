@@ -16,5 +16,6 @@ export default {
     { key: 'openrouter', available: true, envVar: 'OPENROUTER_API_KEY', baseUrl: 'https://openrouter.ai', overseasBaseUrl: '', websiteUrl: 'https://openrouter.ai/settings/keys' },
     { key: 'qoder', available: true, envVar: '', baseUrl: 'https://qoder.com', overseasBaseUrl: '', websiteUrl: 'https://qoder.com/account/usage' },
     { key: 'stepfun', available: true, envVar: '', baseUrl: 'https://platform.stepfun.com', overseasBaseUrl: 'https://platform.stepfun.ai', websiteUrl: 'https://platform.stepfun.com/account-overview' },
+    { key: 'qwen', available: true, envVar: '', baseUrl: 'https://bailian.console.aliyun.com', overseasBaseUrl: 'https://modelstudio.console.alibabacloud.com', websiteUrl: 'https://bailian.console.aliyun.com/' },
   ],
 } as const;

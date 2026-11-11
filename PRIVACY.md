@@ -12,7 +12,8 @@ Coding Quota Bar is an open-source desktop tray utility that displays usage of y
 
 - Provider API keys and web-login tokens you configure, saved in `config.json` under the app's user-data directory. API keys are encrypted with Windows `safeStorage`.
 - A Codex access-token cache (`codex-auth-cache.json`, encrypted) to avoid refreshing tokens on every startup.
-- DeepSeek / MiMo login cookies, stored by Electron session partitions on your device.
+- DeepSeek / MiMo / Qwen (Bailian console) login cookies, stored by Electron session partitions on your device.
+- Qwen web login briefly listens on a random `127.0.0.1` port to receive the console access token from the Bailian console page; it only accepts requests from the console origin with a one-time state, and closes immediately afterwards.
 
 **What is transmitted, and to whom**
 
@@ -36,7 +37,8 @@ Coding Quota Bar 是一款开源桌面托盘工具，用于展示各 AI Coding P
 
 - 你主动配置的各平台 API Key 与网页登录 token，保存在应用用户数据目录的 `config.json` 中；API Key 使用 Windows `safeStorage` 加密。
 - Codex 访问令牌缓存（`codex-auth-cache.json`，加密存储），避免每次启动都刷新令牌。
-- DeepSeek / MiMo 登录 Cookie，由 Electron session 分区保存在你的设备上。
+- DeepSeek / MiMo / 千问（百炼控制台）登录 Cookie，由 Electron session 分区保存在你的设备上。
+- 千问网页登录时会在 `127.0.0.1` 随机端口短暂监听，用于接收百炼控制台页面回传的控制台 access token；仅接受控制台来源且携带一次性 state 的请求，收到后立即关闭。
 
 **数据传输对象与范围**
 

@@ -9,6 +9,7 @@ import { CodexProvider } from '../providers/codex';
 import { OpenRouterProvider } from '../providers/openrouter';
 import { QoderProvider } from '../providers/qoder';
 import { StepFunProvider } from '../providers/stepfun';
+import { QwenProvider } from '../providers/qwen';
 import buildConfig from '../../app.build';
 
 /**
@@ -26,6 +27,7 @@ export const PROVIDER_CLASSES = {
   openrouter: OpenRouterProvider,
   qoder: QoderProvider,
   stepfun: StepFunProvider,
+  qwen: QwenProvider,
 } as const;
 
 /**

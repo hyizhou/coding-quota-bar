@@ -9,6 +9,7 @@ export { OpenCodeGoProvider } from './opencode-go';
 export { OpenRouterProvider } from './openrouter';
 export { QoderProvider } from './qoder';
 export { StepFunProvider } from './stepfun';
+export { QwenProvider } from './qwen';
 export { parseManualCapture, parseQoderUsageBody, QODER_SITES } from './qoder-protocol';
 export type { QoderSite } from './qoder-protocol';
 export type { Provider, ProviderConfig, UsageResult } from './base';

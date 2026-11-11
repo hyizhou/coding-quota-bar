@@ -54,6 +54,7 @@
     "qoderReferenceCost": "参考费用",
     "qoderMessages": "消息数",
     "stepfunTokenExpired": "阶跃星辰登录已过期，请重新登录或更新 Token",
+    "qwenTokenExpired": "千问（百炼）控制台登录已过期，请重新登录",
     "opencodegoTokenExpired": "未登录 OpenCode Go",
     "codexTokenExpired": "未找到 Codex CLI 登录信息，请先安装并登录 Codex CLI",
     "reloginBtn": "重新登录",
@@ -164,6 +165,8 @@
     "stepfunManualPlaceholder": "粘贴浏览器 Cookie 中的 Oasis-Token（三段式 JWT）",
     "stepfunManualInvalid": "Token 格式不正确，应为三段式 JWT",
     "stepfunManualSaved": "已保存 Token",
+    "qwenLoginBtn": "登录百炼控制台",
+    "qwenLoginHint": "Token Plan 用量需通过百炼控制台登录查询，sk-sp- 套餐 Key 无法查询用量",
     "webLoginActive": "已登录",
     "webLogoutBtn": "退出登录",
     "webTokenExpired": "登录已过期，点击重新登录",
@@ -275,7 +278,17 @@
     "stepfunTopupPack": "加油包",
     "stepfunTopupAmounts": "已用 {used} · 未用 {left}",
     "stepfunCreditAmounts": "已用 {used} · 未用 {left}",
-    "stepfunCreditsUsage": "积分用量"
+    "stepfunCreditsUsage": "积分用量",
+    "qwen5h": "5小时额度",
+    "qwenWeekly": "每周额度",
+    "qwenMonthly": "每月额度",
+    "qwenWindow": "{n}{unit}额度",
+    "qwenCreditsAmount": "{used} / {total} Credits",
+    "qwenNoUsage": "本周期暂无 Token Plan 用量",
+    "qwenExpiresAt": "套餐 {date} 到期",
+    "qwenRemainingDays": "剩余 {n} 天",
+    "qwenAutoRenewOn": "已开启自动续费",
+    "qwenAutoRenewOff": "未开启自动续费"
   },
   "tray": {
     "tooltip": "Coding Quota Bar - AI用量监控",
@@ -299,7 +312,8 @@
     "codex": "Codex",
     "openrouter": "OpenRouter",
     "qoder": "Qoder",
-    "stepfun": "阶跃星辰"
+    "stepfun": "阶跃星辰",
+    "qwen": "千问"
   },
   "concurrencyTest": {
     "title": "并发测试",
