@@ -5,7 +5,6 @@
 <template>
   <div class="view-main">
     <header class="header">
-      <h1>{{ $t('main.title') }}</h1>
       <div class="header-actions">
         <button
           class="icon-btn pin-btn"

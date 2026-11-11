@@ -1,6 +1,5 @@
 {
   "main": {
-    "title": "Coding Plan Monitor",
     "settingsBtn": "Settings",
     "refreshBtn": "Refresh",
     "emptyState": "No usage monitors enabled",
