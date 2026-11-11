@@ -3,7 +3,7 @@
   <div class="quota-card">
     <div class="card-top">
       <span class="quota-label">{{ $t(label, labelParams ?? {}) }}</span>
-      <span class="quota-percent" :class="color">{{ Math.round(usageRate) }}%</span>
+      <span class="quota-percent" :class="color">{{ Math.round(100 - clampPercent(usageRate)) }}%</span>
     </div>
     <div class="progress-bar">
       <div class="progress-fill" :class="color" :style="{ width: usageRate + '%' }"></div>
@@ -30,6 +30,10 @@ const props = defineProps<{
 }>()
 
 const { t, locale } = useI18n()
+
+function clampPercent(n: number): number {
+  return Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0))
+}
 
 function formatReset(iso: string): string {
   if (!iso) return ''

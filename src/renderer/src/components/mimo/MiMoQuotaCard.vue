@@ -6,7 +6,7 @@
   <div class="credits-card">
     <div class="credits-top">
       <span class="credits-label">{{ $t(label) }}</span>
-      <span class="credits-percent" :class="color">{{ Math.round(usageRate) }}%</span>
+      <span class="credits-percent" :class="color">{{ Math.round(100 - clampPercent(usageRate)) }}%</span>
     </div>
     <div class="credits-bar">
       <div class="credits-fill" :class="color" :style="{ width: usageRate + '%' }"></div>
@@ -42,6 +42,10 @@ const props = defineProps<{
 }>()
 
 const { t, locale } = useI18n()
+
+function clampPercent(n: number): number {
+  return Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0))
+}
 
 // 模型定价（Credits/1M tokens），来源：src/providers/mimo-pricing.json
 const MIMO_PRICING: Record<string, { cacheHit: number; cacheMiss: number; output: number }> = {

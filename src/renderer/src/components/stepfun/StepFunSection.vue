@@ -26,11 +26,11 @@
       />
     </div>
 
-    <!-- 加油包（仅 TYPE_TOPUP 桶）：标题带总量、右侧已用%、左下角已用/未用额度 -->
+    <!-- 加油包（仅 TYPE_TOPUP 桶）：标题带总量、右侧剩余%、左下角已用/未用额度 -->
     <div v-for="(bucket, idx) in topupBuckets" :key="'topup-' + idx" class="topup-card">
       <div class="topup-header">
         <span class="topup-name">{{ t('quota.stepfunTopupPack') }} · {{ formatCreditsShort(bucket.total) }}</span>
-        <span class="topup-percent" :class="{ red: usedPercent(bucket) >= 90 }">{{ usedPercent(bucket) }}%</span>
+        <span class="topup-percent" :class="{ red: usedPercent(bucket) >= 90 }">{{ 100 - usedPercent(bucket) }}%</span>
       </div>
       <div class="progress-bar">
         <div
