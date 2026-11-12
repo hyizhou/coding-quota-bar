@@ -130,6 +130,8 @@
     "trayDisplayRule": "Icon Quota Display",
     "trayDisplayLowest": "Lowest Quota",
     "trayDisplayHighest": "Highest Quota",
+    "trayDisplayOff": "Off",
+    "trayDisplayAccountDisabled": "Disabled",
     "addAccount": "Add Account",
     "removeAccount": "Remove Account",
     "accountLabelPlaceholder": "Account label (e.g. Work)",

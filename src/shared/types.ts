@@ -303,7 +303,7 @@ export interface UpdateStatus {
 /**
  * 应用配置
  */
-export type TrayDisplayRule = 'lowest' | 'highest' | string; // string = compound key "providerType:accountId"
+export type TrayDisplayRule = 'lowest' | 'highest' | 'off' | string; // string = compound key "providerType:accountId"
 
 /**
  * 窗口固定状态（header 固定按钮三态）

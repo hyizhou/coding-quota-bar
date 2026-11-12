@@ -300,6 +300,9 @@ export class Scheduler extends EventEmitter {
    * 根据显示规则从 results 中计算托盘显示百分比
    */
   private calculateDisplayPercent(results: Map<string, UsageResult>): number {
+    // 关闭：不显示数值
+    if (this.displayRule === 'off') return -1;
+
     if (results.size === 0) return -1;
 
     // compound key 模式：直接取指定账户
@@ -308,7 +311,8 @@ export class Scheduler extends EventEmitter {
       if (result) {
         return Math.round(UsageAggregator.calcPercent(result) * 10) / 10;
       }
-      // 账户不存在（已删除），回退到最低
+      // 指定账户未加载（已禁用/移除）：显示无数据，不回退其他账户
+      return -1;
     }
 
     if (this.displayRule === 'highest') {

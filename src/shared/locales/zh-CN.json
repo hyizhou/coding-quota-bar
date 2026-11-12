@@ -130,6 +130,8 @@
     "trayDisplayRule": "图标额度显示",
     "trayDisplayLowest": "最少额度",
     "trayDisplayHighest": "最多额度",
+    "trayDisplayOff": "关闭",
+    "trayDisplayAccountDisabled": "已关闭",
     "addAccount": "添加账号",
     "removeAccount": "删除账号",
     "accountLabelPlaceholder": "账号备注（如：工作号）",

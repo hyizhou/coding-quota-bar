@@ -440,6 +440,7 @@
         <div v-if="filteredGeneralKeys.has('trayDisplayRule')" class="form-group">
           <label class="form-label">{{ $t('settings.trayDisplayRule') }}</label>
           <select v-model="trayDisplayRule" class="form-select">
+            <option value="off">{{ $t('settings.trayDisplayOff') }}</option>
             <option value="lowest">{{ $t('settings.trayDisplayLowest') }}</option>
             <option value="highest">{{ $t('settings.trayDisplayHighest') }}</option>
             <option
@@ -447,6 +448,7 @@
               :key="opt.value"
               :value="opt.value"
             >{{ opt.label }}</option>
+            <option v-if="disabledSelectedOption" :value="disabledSelectedOption.value">{{ disabledSelectedOption.label }}</option>
           </select>
         </div>
         <div v-if="filteredGeneralKeys.has('language')" class="form-group">
@@ -659,6 +661,8 @@ const accountOptions = computed(() => {
   for (const info of providerList.value) {
     const providerName = t(`providers.${info.key}`)
     for (const account of info.accounts) {
+      // 仅列出启用中的账户；已禁用账户不占选项位
+      if (!account.enabled) continue
       const label = account.label || t('main.defaultAccountLabel', { n: info.accounts.indexOf(account) + 1 })
       options.push({
         value: `${info.key}:${account.id}`,
@@ -667,6 +671,23 @@ const accountOptions = computed(() => {
     }
   }
   return options
+})
+
+// 当前选中但已禁用的账户：以占位选项展示（托盘显示 --），
+// 重新启用后该账户回到正常选项列表，无需手动重选
+const disabledSelectedOption = computed(() => {
+  const value = trayDisplayRule.value
+  if (value === 'lowest' || value === 'highest' || value === 'off') return null
+  const sep = value.indexOf(':')
+  if (sep <= 0) return null
+  const type = value.slice(0, sep)
+  const accountId = value.slice(sep + 1)
+  const info = providerList.value.find(p => p.key === type)
+  const account = info?.accounts.find(a => a.id === accountId)
+  if (!info || !account || account.enabled) return null
+  const providerName = t(`providers.${info.key}`)
+  const label = account.label || t('main.defaultAccountLabel', { n: info.accounts.indexOf(account) + 1 })
+  return { value, label: `${providerName} - ${label}（${t('settings.trayDisplayAccountDisabled')}）` }
 })
 const appVersion = ref('')
 const updateState = ref<UpdateStatus>({ phase: 'idle' })
@@ -1126,12 +1147,12 @@ onMounted(async () => {
     scheduleSave()
   }, { deep: true }))
 
-  // 选中的账户被删除时，回退到最低额度
+  // 选中的账户被删除时回退到最低额度；仅被禁用时保留选择（托盘显示 --）
   stopWatches.push(watch(accountOptions, (opts) => {
-    if (trayDisplayRule.value !== 'lowest' && trayDisplayRule.value !== 'highest') {
-      if (!opts.some(o => o.value === trayDisplayRule.value)) {
-        trayDisplayRule.value = 'lowest'
-      }
+    if (trayDisplayRule.value === 'lowest' || trayDisplayRule.value === 'highest' || trayDisplayRule.value === 'off') return
+    if (disabledSelectedOption.value) return
+    if (!opts.some(o => o.value === trayDisplayRule.value)) {
+      trayDisplayRule.value = 'lowest'
     }
   }))
 
