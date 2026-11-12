@@ -218,7 +218,7 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('deepseek-fetch-month-usage', async (_, accountId: string, year: number, month: number) => {
     const scheduler = _getScheduler() as any;
     const loaded = scheduler?.providers as import('./loader').LoadedProvider[] | undefined;
-    const empty = { tokens: [], costs: [] };
+    const empty = { tokens: [], costs: [], toolCalls: [] };
     if (!loaded) return empty;
     const provider = loaded.find((p: any) => p.accountId === accountId && p.instance instanceof DeepSeekProvider);
     if (!provider) return empty;

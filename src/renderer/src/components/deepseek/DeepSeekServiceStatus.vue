@@ -39,9 +39,12 @@ defineProps<{
 }>()
 
 function svcName(svc: DeepSeekServiceComponent): string {
-  // Flashcat 组件 ID（2026-06 迁移后）
-  if (svc.id === '01KR3NC9ETZYF436Z8YT1HM047') return t('quota.deepseekApiService')
-  if (svc.id === '01KR3NC9ETESRRQ4GABE0TGW53') return t('quota.deepseekWebService')
+  // status.deepseek.com 当前组件 ID（顶层组件 + 分组卡），协议见 docs/deepseek/status-api-v2.md
+  if (svc.id === '01KY4MVS8BM3F9JSYWACGQVG7A') return t('quota.deepseekV4ProApi')
+  if (svc.id === '01KY4MVS8BSBSVW6053QJ37RJE') return t('quota.deepseekV41FlashApi')
+  if (svc.id === '01M5CB9TP3WGM9TV3DM31CFXAR') return t('quota.deepseekSearchApi')
+  if (svc.id === '01M5CB9TP3H6168N3WJ5AG5S4F') return t('quota.deepseekFetchApi')
+  if (svc.id === '01KY4ND2MQAQKEAGJKTNGREKBR') return t('quota.deepseekChatService')
   return svc.name
 }
 

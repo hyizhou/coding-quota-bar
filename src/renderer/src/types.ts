@@ -68,6 +68,12 @@ export interface ModelCostRecord {
   cost: number
 }
 
+export interface ToolCallRecord {
+  date: string
+  tool: string
+  count: number
+}
+
 export interface PerformanceRecord {
   date: string
   liteDecodeSpeed: number
@@ -107,6 +113,7 @@ export interface AccountUsageData {
   modelHistory7d: ModelTokenRecord[]
   modelHistory30d: ModelTokenRecord[]
   modelCostHistory30d: ModelCostRecord[]
+  toolCallHistory30d: ToolCallRecord[]
   performanceHistory7d: PerformanceRecord[]
   performanceHistory15d: PerformanceRecord[]
   performanceHistory30d: PerformanceRecord[]
@@ -310,7 +317,7 @@ export interface ElectronAPI {
   deepseekWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
   deepseekWebLogout: (accountId: string) => Promise<void>
   onDeepseekWebLoginSuccess: (callback: (accountId: string) => void) => () => void
-  deepseekFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<{ tokens: ModelTokenRecord[]; costs: ModelCostRecord[] }>
+  deepseekFetchMonthUsage: (accountId: string, year: number, month: number) => Promise<{ tokens: ModelTokenRecord[]; costs: ModelCostRecord[]; toolCalls: ToolCallRecord[] }>
   mimoWebLogin: (accountId: string) => Promise<{ success: boolean; error?: string }>
   mimoWebLogout: (accountId: string) => Promise<void>
   onMimoWebLoginSuccess: (callback: (accountId: string) => void) => () => void

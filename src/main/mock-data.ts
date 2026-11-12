@@ -414,6 +414,13 @@ export function generateMockData(): Record<string, UsageResult | UsageResult[]> 
           { name: 'deepseek-chat', base: 52000, ratePerToken: 0.0000011 },
           { name: 'deepseek-reasoner', base: 31000, ratePerToken: 0.0000044 }
         ]),
+        toolCallHistory30d: [
+          { date: new Date(now - 6 * DAY).toISOString().slice(0, 10), tool: 'tool-search', count: 5 },
+          { date: new Date(now - 6 * DAY).toISOString().slice(0, 10), tool: 'tool-fetch', count: 2 },
+          { date: new Date(now - 3 * DAY).toISOString().slice(0, 10), tool: 'tool-search', count: 8 },
+          { date: new Date(now - 3 * DAY).toISOString().slice(0, 10), tool: 'server-tool-search', count: 3 },
+          { date: new Date(now - 1 * DAY).toISOString().slice(0, 10), tool: 'tool-fetch', count: 4 },
+        ],
       },
     },
 

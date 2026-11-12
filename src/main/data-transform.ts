@@ -55,6 +55,7 @@ export interface AccountDisplayData {
   modelHistory7d: SharedModelTokenRecord[];
   modelHistory30d: SharedModelTokenRecord[];
   modelCostHistory30d: import('../shared/types').ModelCostRecord[];
+  toolCallHistory30d: import('../shared/types').ToolCallRecord[];
   performanceHistory7d: SharedPerformanceRecord[];
   performanceHistory15d: SharedPerformanceRecord[];
   performanceHistory30d: SharedPerformanceRecord[];
@@ -210,6 +211,7 @@ function convertAccountData(
     modelHistory7d: mapModelHistory('modelHistory7d'),
     modelHistory30d: mapModelHistory('modelHistory30d'),
     modelCostHistory30d: (result.details?.modelCostHistory30d as import('../shared/types').ModelCostRecord[]) ?? [],
+    toolCallHistory30d: (result.details?.toolCallHistory30d as import('../shared/types').ToolCallRecord[]) ?? [],
     performanceHistory7d: mapPerformanceHistory('performanceHistory7d'),
     performanceHistory15d: mapPerformanceHistory('performanceHistory15d'),
     performanceHistory30d: mapPerformanceHistory('performanceHistory30d'),
@@ -243,6 +245,7 @@ function loadingAccountData(account: AccountConfig): AccountDisplayData {
     mcpHistory1d: [], mcpHistory7d: [], mcpHistory30d: [],
     modelHistory1d: [], modelHistory7d: [], modelHistory30d: [],
     modelCostHistory30d: [],
+    toolCallHistory30d: [],
     performanceHistory7d: [], performanceHistory15d: [], performanceHistory30d: [],
   };
 }

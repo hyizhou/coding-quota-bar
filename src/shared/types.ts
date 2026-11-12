@@ -204,6 +204,15 @@ export interface ModelCostRecord {
 }
 
 /**
+ * DeepSeek 工具调用历史记录（function_series，日级次数）
+ */
+export interface ToolCallRecord {
+  date: string;
+  tool: string;      // tool-search / tool-fetch / server-tool-search 等
+  count: number;     // FUNCTION_CALL 次数
+}
+
+/**
  * 模型性能历史记录（单日数据点）
  */
 export interface PerformanceRecord {

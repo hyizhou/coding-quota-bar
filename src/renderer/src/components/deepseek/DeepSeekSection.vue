@@ -1,6 +1,6 @@
 <!--
   DeepSeek 专属卡片区块：账户余额卡（总额/明细）
-  + 网页登录模式月度用量（费用统计 + 按模型 Token 柱状图，按月选择器加载）。
+  + 网页登录模式月度用量（费用统计 + 按模型 Token 柱状图 + 工具调用曲线图，按月选择器加载）。
 -->
 <template>
   <div class="balance-card">
@@ -49,6 +49,15 @@
             <Bar :data="mg.chartData" :options="getChartOpts(mg)" />
           </div>
         </div>
+        <!-- 工具调用统计曲线（tool-search / tool-fetch / server-tool-search） -->
+        <div v-if="hasToolData" class="model-chart-card">
+          <div class="model-header">
+            <span class="model-name">{{ t('main.toolCallStats') }}</span>
+          </div>
+          <div class="tool-chart-wrapper">
+            <Line :data="toolChartData" :options="toolChartOpts" />
+          </div>
+        </div>
       </template>
       <div v-else class="no-data">{{ $t('main.noUsageData') }}</div>
     </template>
@@ -58,11 +67,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Bar } from 'vue-chartjs'
+import { Bar, Line } from 'vue-chartjs'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Filler
 } from 'chart.js'
-import type { AccountUsageData, ModelTokenRecord, ModelCostRecord } from '../../types'
+import type { AccountUsageData, ModelTokenRecord, ModelCostRecord, ToolCallRecord } from '../../types'
 import { useTheme } from '../../composables/useTheme'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Filler)
@@ -94,6 +103,7 @@ const selectedYear = ref(restored.year)
 const selectedMonth = ref(restored.month)
 const monthRecords = ref<ModelTokenRecord[]>([])
 const monthCostRecords = ref<ModelCostRecord[]>([])
+const monthToolRecords = ref<ToolCallRecord[]>([])
 const loading = ref(false)
 
 function saveSelectedMonth() {
@@ -105,6 +115,7 @@ function loadChartData() {
   if (isCurrentMonth.value) {
     monthRecords.value = props.account.modelHistory30d
     monthCostRecords.value = props.account.modelCostHistory30d
+    monthToolRecords.value = props.account.toolCallHistory30d
   } else {
     fetchMonthData()
   }
@@ -159,6 +170,7 @@ async function fetchMonthData() {
   if (isCurrentMonth.value) {
     monthRecords.value = props.account.modelHistory30d
     monthCostRecords.value = props.account.modelCostHistory30d
+    monthToolRecords.value = props.account.toolCallHistory30d
     return
   }
   loading.value = true
@@ -168,10 +180,12 @@ async function fetchMonthData() {
     )
     monthRecords.value = result?.tokens || []
     monthCostRecords.value = result?.costs || []
+    monthToolRecords.value = result?.toolCalls || []
   } catch (e) {
     console.warn('[DeepSeekSection] Failed to fetch month data:', e)
     monthRecords.value = []
     monthCostRecords.value = []
+    monthToolRecords.value = []
   } finally {
     loading.value = false
   }
@@ -186,6 +200,12 @@ watch(() => props.account.modelHistory30d, (newData) => {
 watch(() => props.account.modelCostHistory30d, (newData) => {
   if (isCurrentMonth.value) {
     monthCostRecords.value = newData
+  }
+})
+
+watch(() => props.account.toolCallHistory30d, (newData) => {
+  if (isCurrentMonth.value) {
+    monthToolRecords.value = newData
   }
 })
 
@@ -223,6 +243,46 @@ const baseTooltipOpts = () => ({
   caretPadding: 4,
 })
 
+/** 当月全部日期 key 与横轴标签 */
+function monthDayKeys(): { dayLabels: string[]; dayKeys: string[] } {
+  const year = selectedYear.value
+  const month = selectedMonth.value
+  const lastDay = new Date(year, month, 0).getDate()
+  const monthStr = String(month).padStart(2, '0')
+
+  const dayLabels: string[] = []
+  const dayKeys: string[] = []
+  for (let d = 1; d <= lastDay; d++) {
+    const ds = String(d).padStart(2, '0')
+    dayLabels.push(ds)
+    dayKeys.push(`${year}-${monthStr}-${ds}`)
+  }
+  return { dayLabels, dayKeys }
+}
+
+/** 多来源图例（费用图/工具图共用） */
+const chartLegendOpts = () => ({
+  display: true,
+  position: 'bottom' as const,
+  labels: {
+    boxWidth: 8,
+    boxHeight: 8,
+    padding: 8,
+    font: { size: 10 },
+    color: isDark.value ? '#999' : '#666',
+    usePointStyle: true,
+    pointStyle: 'rectRounded' as const,
+  },
+})
+
+/** tooltip 标题：dataIndex → 当月日期 */
+function chartDateTitle(items: any[]): string {
+  const idx = items[0]?.dataIndex
+  if (idx == null) return ''
+  const { dayKeys } = monthDayKeys()
+  return dayKeys[idx] ?? ''
+}
+
 interface DayDetail {
   tokens: number
   requests: number
@@ -240,20 +300,7 @@ interface ModelGroup {
 }
 
 const modelGroups = computed(() => {
-  const year = selectedYear.value
-  const month = selectedMonth.value
-
-  const lastDay = new Date(year, month, 0).getDate()
-  const monthStr = String(month).padStart(2, '0')
-
-  // Generate all day keys for the month
-  const dayKeys: string[] = []
-  const dayLabels: string[] = []
-  for (let d = 1; d <= lastDay; d++) {
-    const ds = String(d).padStart(2, '0')
-    dayKeys.push(`${year}-${monthStr}-${ds}`)
-    dayLabels.push(ds)
-  }
+  const { dayLabels, dayKeys } = monthDayKeys()
 
   // Group records by model
   const byModel = new Map<string, Map<string, DayDetail>>()
@@ -471,38 +518,27 @@ const monthlyUsage = computed(() => {
 })
 
 const hasChartData = computed(() =>
-  modelGroups.value.length > 0 || hasCostData.value
+  modelGroups.value.length > 0 || hasCostData.value || hasToolData.value
 )
 
-const COST_MODEL_COLORS: Record<string, string> = {
-  pro: '#FFA10A',
-  flash: '#FFC104',
-  chat: '#FFDC0A',
-  reasoner: '#FFDC0A',
+// 橙黄色系分来源：工具颜色固定；模型不匹配名称，按出现顺序从调色板取色，
+// 任意命名（全名/带版本号/未来新模型）都能自动分配，调色板避开工具色避免同图撞色
+const TOOL_COLORS: Record<string, string> = {
+  'tool-search': '#FF6F0A',
+  'tool-fetch': '#FFB454',
+  'server-tool-search': '#E8590C',
 }
 
-function getCostModelColor(model: string): string {
-  const lower = model.toLowerCase()
-  for (const [key, color] of Object.entries(COST_MODEL_COLORS)) {
-    if (lower.includes(key)) return color
-  }
-  return '#FFDC0A'
-}
+const MODEL_COST_PALETTE = ['#FFA10A', '#FFDC0A', '#FFC104', '#FDE68A', '#FDBA74', '#FACC15', '#FF8A3D', '#FFD9A0']
 
 const hasCostData = computed(() => monthCostRecords.value.length > 0)
 
-const costChartData = computed(() => {
-  const year = selectedYear.value
-  const month = selectedMonth.value
-  const lastDay = new Date(year, month, 0).getDate()
-  const monthStr = String(month).padStart(2, '0')
+const TOOL_ORDER = ['tool-search', 'tool-fetch', 'server-tool-search']
 
-  const dayLabels: string[] = []
-  const dayKeys: string[] = []
-  for (let d = 1; d <= lastDay; d++) {
-    dayLabels.push(String(d).padStart(2, '0'))
-    dayKeys.push(`${year}-${monthStr}-${String(d).padStart(2, '0')}`)
-  }
+const hasToolData = computed(() => monthToolRecords.value.some(r => r.count > 0))
+
+const costChartData = computed(() => {
+  const { dayLabels, dayKeys } = monthDayKeys()
 
   // Group costs by model
   const byModel = new Map<string, Map<string, number>>()
@@ -511,12 +547,51 @@ const costChartData = computed(() => {
     byModel.get(r.model)!.set(r.date, r.cost)
   }
 
-  const datasets = Array.from(byModel.entries()).map(([model, dayMap]) => ({
+  // 模型名稳定排序后按序取色，避免刷新/换月时颜色跳变
+  const sortedModels = Array.from(byModel.keys()).sort((a, b) => a.localeCompare(b))
+  const modelColorIndex = new Map(
+    sortedModels.filter(m => !TOOL_COLORS[m]).map((m, i) => [m, i] as const)
+  )
+
+  const datasets = sortedModels.map(model => ({
     label: shortModelName(model),
-    data: dayKeys.map(k => dayMap.get(k) ?? 0),
-    backgroundColor: getCostModelColor(model),
+    data: dayKeys.map(k => byModel.get(model)!.get(k) ?? 0),
+    backgroundColor: TOOL_COLORS[model]
+      ?? MODEL_COST_PALETTE[(modelColorIndex.get(model) ?? 0) % MODEL_COST_PALETTE.length],
     borderRadius: 2,
     borderSkipped: false,
+  }))
+
+  return { labels: dayLabels, datasets }
+})
+
+const toolChartData = computed(() => {
+  const { dayLabels, dayKeys } = monthDayKeys()
+
+  // 跨记录按「工具 × 日期」累计次数
+  const byTool = new Map<string, Map<string, number>>()
+  for (const r of monthToolRecords.value) {
+    if (!byTool.has(r.tool)) byTool.set(r.tool, new Map())
+    const dayMap = byTool.get(r.tool)!
+    dayMap.set(r.date, (dayMap.get(r.date) ?? 0) + r.count)
+  }
+
+  const tools = [
+    ...TOOL_ORDER.filter(tool => byTool.has(tool)),
+    ...[...byTool.keys()].filter(tool => !TOOL_ORDER.includes(tool)).sort(),
+  ]
+
+  const datasets = tools.map((tool, i) => ({
+    label: tool,
+    data: dayKeys.map(k => byTool.get(tool)?.get(k) ?? 0),
+    borderColor: TOOL_COLORS[tool] ?? MODEL_COST_PALETTE[i % MODEL_COST_PALETTE.length],
+    backgroundColor: TOOL_COLORS[tool] ?? MODEL_COST_PALETTE[i % MODEL_COST_PALETTE.length],
+    tension: 0.4,
+    borderWidth: 1.5,
+    pointRadius: 0,
+    pointHoverRadius: 3,
+    pointHitRadius: 8,
+    fill: false,
   }))
 
   return { labels: dayLabels, datasets }
@@ -527,19 +602,7 @@ const costChartOpts = computed(() => ({
   maintainAspectRatio: false,
   interaction: { mode: 'index' as const, intersect: false },
   plugins: {
-    legend: {
-      display: true,
-      position: 'bottom' as const,
-      labels: {
-        boxWidth: 8,
-        boxHeight: 8,
-        padding: 8,
-        font: { size: 10 },
-        color: isDark.value ? '#999' : '#666',
-        usePointStyle: true,
-        pointStyle: 'rectRounded',
-      },
-    },
+    legend: chartLegendOpts(),
     tooltip: {
       ...baseTooltipOpts(),
       // 只显示当天花费 > 0 的模型并按花费降序：Chart.js 默认不过滤 0 值项，
@@ -547,16 +610,7 @@ const costChartOpts = computed(() => ({
       filter: (item: any) => (item.raw as number) > 0,
       itemSort: (a: any, b: any) => (b.raw as number) - (a.raw as number),
       callbacks: {
-        title(items: any) {
-          const year = selectedYear.value
-          const month = selectedMonth.value
-          const lastDay = new Date(year, month, 0).getDate()
-          const monthStr = String(month).padStart(2, '0')
-          const idx = items[0]?.dataIndex
-          if (idx == null) return ''
-          const ds = String(idx + 1).padStart(2, '0')
-          return `${year}-${monthStr}-${ds}`
-        },
+        title: (items: any[]) => chartDateTitle(items),
         label: (ctx: any) => `${ctx.dataset.label}: ${cs.value}${(ctx.raw as number).toFixed(2)}`,
         footer: (items: any[]) => {
           const total = items.reduce((s: number, i: any) => s + (i.raw as number), 0)
@@ -578,6 +632,41 @@ const costChartOpts = computed(() => ({
         color: isDark.value ? '#666' : '#999',
         font: { size: 8 },
         callback: (v: any) => cs.value + Number(v).toFixed(2),
+        maxTicksLimit: 4,
+      },
+      grid: { color: isDark.value ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
+      border: { display: false },
+    },
+  },
+  layout: { padding: { top: 2, bottom: 0, left: 0, right: 0 } },
+}))
+
+const toolChartOpts = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: { mode: 'index' as const, intersect: false },
+  plugins: {
+    legend: chartLegendOpts(),
+    tooltip: {
+      ...baseTooltipOpts(),
+      callbacks: {
+        title: (items: any[]) => chartDateTitle(items),
+        label: (ctx: any) => `${ctx.dataset.label}: ${ctx.raw}`,
+      },
+    },
+  },
+  scales: {
+    x: {
+      ticks: { color: isDark.value ? '#666' : '#999', font: { size: 8 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
+      grid: { display: false },
+      border: { display: false },
+    },
+    y: {
+      beginAtZero: true,
+      ticks: {
+        color: isDark.value ? '#666' : '#999',
+        font: { size: 8 },
+        precision: 0,
         maxTicksLimit: 4,
       },
       grid: { color: isDark.value ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
@@ -837,5 +926,10 @@ async function onBudgetChange(e: Event) {
   height: 120px;
   width: 100%;
   margin-bottom: 6px;
+}
+
+.tool-chart-wrapper {
+  height: 120px;
+  width: 100%;
 }
 </style>
