@@ -105,18 +105,22 @@ export function parseStepFunWebid(token: string): string {
   if (!raw) return '';
   const segments = raw.split('...');
   const candidates = segments.length > 1 ? [segments[1], segments[0]] : [raw];
+  let reason = 'no-candidate';
   for (const candidate of candidates) {
     const parts = candidate.split('.');
-    if (parts.length !== 3) continue;
+    if (parts.length !== 3) { reason = `segments=${parts.length}`; continue; }
     try {
       let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
       while (b64.length % 4 !== 0) b64 += '=';
       const payload = JSON.parse(Buffer.from(b64, 'base64').toString('utf-8')) as Record<string, unknown>;
       if (typeof payload.device_id === 'string' && payload.device_id) return payload.device_id;
+      reason = 'payload-has-no-device_id';
     } catch {
+      reason = 'payload-parse-fail';
       // 尝试下一个候选
     }
   }
+  console.log(`[StepFun] webid derive failed: ${reason}, tokenLen=${raw.length}, dotSplit=${raw.split('.').length}, isPair=${segments.length > 1}`);
   return '';
 }
 
@@ -494,13 +498,17 @@ export class StepFunProvider implements Provider {
   private async fetchViaHttp(config: ProviderConfig): Promise<UsageResult> {
     const token = (config.webToken ?? '').trim();
     const webid = parseStepFunWebid(token);
+    const baseUrl = (config._baseUrl as string) || BASE_URL_CN;
     // Token 为空或无法推导 device_id 均视为无效 Token
     if (!token || !webid) return errorResult(TOKEN_EXPIRED);
 
-    const caller = createHttpCaller((config._baseUrl as string) || BASE_URL_CN, token, webid);
+    const caller = createHttpCaller(baseUrl, token, webid);
     try {
       const rateResp = await caller(RATE_LIMIT_PATH, {});
-      if (isAuthFailure(rateResp.status, rateResp.body)) return errorResult(TOKEN_EXPIRED);
+      if (isAuthFailure(rateResp.status, rateResp.body)) {
+        console.log(`[StepFun] manual auth failure: status=${rateResp.status} body=${rateResp.body.slice(0, 300)}`);
+        return errorResult(TOKEN_EXPIRED);
+      }
       if (rateResp.status < 200 || rateResp.status >= 300) return errorResult(`HTTP ${rateResp.status}`);
       return await this.collectAndTransform(caller, rateResp.body);
     } catch (e) {

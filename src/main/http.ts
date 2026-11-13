@@ -18,6 +18,8 @@ export interface HttpRequestOptions {
   headers?: Record<string, string>;
   body?: string;
   timeout?: number;
+  /** Cookie 携带策略；未指定时由是否手动设置 Cookie 头自动判定 */
+  credentials?: 'omit' | 'same-origin' | 'include';
 }
 
 /**
@@ -34,15 +36,21 @@ export class HttpClient {
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
+      const requestHeaders = { 'Connection': 'close', ...(options.headers || {}) };
+      // 手动设置 Cookie 头时必须绕开 session Cookie Jar：一旦 Jar 中存有目标域 Cookie
+      // （首请求响应的 Set-Cookie 会写入默认 Jar），Chromium 会用 Jar Cookie 顶掉手动
+      // Cookie 头，服务端收不到手动凭证（StepFun manual 模式实测第二发起 401 token is missing）
+      const hasManualCookieHeader = Object.keys(requestHeaders).some(k => k.toLowerCase() === 'cookie');
       const response = await net.fetch(url, {
         method: options.method || 'GET',
         // 合并请求头；默认带 Connection: close 禁用 keep-alive 连接复用，
         // 避免 Chromium 连接池偶发复用"已被服务端静默关闭的僵尸连接"
         // 导致请求挂死直至超时（实测会出现 ~10s 的 UND_ERR_CONNECT_TIMEOUT）。
         // 代价是每次请求多几十毫秒建连，换来彻底消除间歇性超时。
-        headers: { 'Connection': 'close', ...(options.headers || {}) },
+        headers: requestHeaders,
         body: options.body,
         signal: controller.signal,
+        credentials: options.credentials ?? (hasManualCookieHeader ? 'omit' : undefined),
       });
 
       // 根据响应头编码解码 body，优先用 content-charset，兜底 utf-8
