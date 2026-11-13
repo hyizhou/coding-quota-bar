@@ -304,10 +304,7 @@
                       v-model="account.stepfunManualToken"
                       @input="onStepfunTokenInput(account)"
                     ></textarea>
-                    <div v-if="account.stepfunTokenValid === false" class="qoder-parse-hint">
-                      {{ $t('settings.stepfunManualInvalid') }}
-                    </div>
-                    <div v-else-if="account.stepfunHasWebToken && !account.stepfunTokenDirty" class="qoder-parse-hint ok">
+                    <div v-if="account.stepfunHasWebToken && !account.stepfunTokenDirty" class="qoder-parse-hint ok">
                       {{ $t('settings.stepfunManualSaved') }}
                     </div>
                 </template>
@@ -571,7 +568,6 @@ interface AccountInfo {
   stepfunManualToken: string
   stepfunTokenDirty: boolean
   stepfunHasWebToken: boolean
-  stepfunTokenValid?: boolean
   region?: 'cn' | 'global'
 }
 
@@ -968,17 +964,8 @@ async function handleStepfunWebLogout(account: AccountInfo) {
   if (freshConfig) currentConfig.value = freshConfig
 }
 
-/** Oasis-Token 三段式 JWT 格式校验（header.payload.signature，Base64URL 字符集） */
-function isValidJwtFormat(text: string): boolean {
-  const parts = text.split('.')
-  if (parts.length !== 3 || !parts[0] || !parts[2]) return false
-  return /^[A-Za-z0-9_-]+$/.test(parts[0]) && /^[A-Za-z0-9_-]*$/.test(parts[1]) && /^[A-Za-z0-9_-]+$/.test(parts[2])
-}
-
 function onStepfunTokenInput(account: AccountInfo) {
   account.stepfunTokenDirty = true
-  const text = account.stepfunManualToken.trim()
-  account.stepfunTokenValid = text ? isValidJwtFormat(text) : undefined
   scheduleSave()
 }
 
@@ -1099,7 +1086,6 @@ onMounted(async () => {
       stepfunManualToken: '',
       stepfunTokenDirty: false,
       stepfunHasWebToken: !!account.hasWebToken,
-      stepfunTokenValid: undefined,
       region: account.region === 'global' ? 'global' : 'cn',
     }))
 
