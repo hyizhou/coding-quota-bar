@@ -11,7 +11,10 @@
     "resolveJsonModule": true,
     "declaration": false,
     "sourceMap": false,
-    "types": []
+    "types": [],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src/renderer/**/*", "src/shared/**/*"]
 }

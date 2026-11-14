@@ -1,6 +1,6 @@
 import { createI18n } from 'vue-i18n'
-import zhCN from '../../../shared/locales/zh-CN.json'
-import enUS from '../../../shared/locales/en-US.json'
+import zhCN from '@/shared/locales/zh-CN.json'
+import enUS from '@/shared/locales/en-US.json'
 
 function detectLocale(): string {
   const sysLang = navigator.language

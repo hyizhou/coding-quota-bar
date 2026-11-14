@@ -1,7 +1,7 @@
 /**
  * Renderer 进程共享类型定义
  */
-import type { CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, QwenSubscription, ResetPackages, ResetPackageSummary, StepFunCreditAmounts, StepFunTopupBucket, TrayDisplayRule, WindowPinMode, ZaiDailyUsageItem, ZaiPricingTable, ZaiUsageActivitySummary, ZaiUsageStats } from '../../shared/types'
+import type { CodexUsageStats, QoderCreditsHeatmap, QoderCreditsTrend, QwenSubscription, ResetPackages, ResetPackageSummary, StepFunCreditAmounts, StepFunTopupBucket, TrayDisplayRule, WindowPinMode, ZaiDailyUsageItem, ZaiPricingTable, ZaiUsageActivitySummary, ZaiUsageStats } from '@/shared/types'
 
 export type { WindowPinMode }
 export type { ZaiDailyUsageItem }

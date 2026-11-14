@@ -10,6 +10,11 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()]
   },
   renderer: {
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, 'src')
+      }
+    },
     plugins: [vue()],
     server: {
       port: 5174

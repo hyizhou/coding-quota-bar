@@ -539,7 +539,7 @@ import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AppConfig, ProviderTypeConfig, AccountConfig, UpdateStatus } from '../types'
 import { useTheme } from '../composables/useTheme'
-import { maskApiKey } from '../../../shared/mask'
+import { maskApiKey } from '@/shared/mask'
 
 defineEmits<{ 'go-back': [] }>()
 const props = defineProps<{ autoCheckUpdate?: boolean }>()
