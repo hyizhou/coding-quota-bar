@@ -1,530 +1,229 @@
 <!--
-  设置页：多服务商多账户管理（API Key / 网页登录认证、测试连接、账户增删）
-  + 通用设置（刷新间隔、开机自启、语言、主题、更新检查）。
+  设置页：服务商入口列表（两列网格）+ 通用设置（刷新间隔、开机自启、语言、主题、更新检查）。
+  点击服务商入口进入同页内的配置详情页（ProviderSettingsPanel）；账户状态与自动保存逻辑都留在本组件，
+  详情页经 actions 回调。
 -->
 <template>
   <div class="view-settings" @focusout="onSettingsFocusOut">
     <header class="header">
-      <button class="icon-btn back-btn" :title="$t('settings.backBtn')" @click="$emit('go-back')">
+      <button class="icon-btn back-btn" :title="$t('settings.backBtn')" @click="onBackClick">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
       </button>
-      <h1>{{ $t('settings.title') }}</h1>
+      <Transition name="header-fade" mode="out-in">
+        <h1 v-if="activeInfo" key="provider" class="header-provider">
+          <ProviderLogo :provider-key="activeInfo.key" :size="16" />
+          <span>{{ $t(`providers.${activeInfo.key}`) }}</span>
+        </h1>
+        <h1 v-else key="title">{{ $t('settings.title') }}</h1>
+      </Transition>
     </header>
 
-    <!-- 搜索框：实时过滤 provider 卡片与通用设置项 -->
-    <div class="settings-search">
-      <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-      <input
-        v-model="searchQuery"
-        type="text"
-        class="search-input"
-        :placeholder="$t('settings.searchPlaceholder')"
-      />
-      <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''" :title="$t('settings.searchPlaceholder')">×</button>
-    </div>
+    <!--
+      列表页与详情页叠放切换：两页都是占满本区域的整页，纯水平对滑（进入右进左出，返回反向）。
+      搜索框属于列表页，随列表页一起滑走，不单独出现/消失，避免布局跳动。
+    -->
+    <div class="settings-stage">
+      <Transition :name="activeProviderKey ? 'slide-left' : 'slide-right'">
+        <!-- 服务商配置详情页 -->
+        <div v-if="activeInfo" class="settings-page is-detail">
+          <ProviderSettingsPanel :info="activeInfo" :actions="panelActions" />
+        </div>
 
-    <div class="settings-body" ref="settingsBodyRef">
-      <div v-if="searchNoMatch" class="no-match">{{ $t('settings.noMatch') }}</div>
-
-      <template v-else>
-      <div
-        v-if="!searchActive || filteredProviderList.length > 0"
-        class="section-label"
-        :class="{ 'is-collapsed': collapsedSections.has('providers') }"
-        @click="toggleSection('providers')"
-      >
-        <span class="section-toggle">{{ collapsedSections.has('providers') ? '▶' : '▼' }}</span>
-        {{ $t('settings.providerSection') }}
-        <span class="section-count">({{ filteredProviderList.length }})</span>
-      </div>
-
-      <Transition
-        :css="false"
-        @before-enter="collapseBeforeEnter"
-        @enter="collapseEnter"
-        @after-enter="collapseAfterEnter"
-        @enter-cancelled="collapseReset"
-        @before-leave="collapseBeforeLeave"
-        @leave="collapseLeave"
-        @after-leave="collapseAfterLeave"
-        @leave-cancelled="collapseReset"
-      >
-      <div v-if="!collapsedSections.has('providers')" class="section-collapse">
-        <div v-for="info in filteredProviderList" :key="info.key" class="settings-card">
-        <div class="provider-header">
-          <span class="provider-title">{{ $t(`providers.${info.key}`) }}</span>
-          <button
-            v-if="info.key !== 'codex'"
-            class="add-account-btn"
-            :title="$t('settings.addAccount')"
-            @click="addAccount(info.key)"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        <!-- 列表页：搜索框 + 服务商入口 + 通用设置 + 版本区 -->
+        <div v-else class="settings-page is-list">
+          <!-- 搜索框：实时过滤服务商入口与通用设置项 -->
+          <div class="settings-search">
+            <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-          </button>
-        </div>
-
-        <!-- Codex: 单开关模式（读取本地 auth 文件，不支持多账号） -->
-        <template v-if="info.key === 'codex'">
-          <label class="toggle-row">
-            <input type="checkbox" v-model="info.accounts[0].enabled" />
-            <span class="toggle-switch"></span>
-            <span class="toggle-label">{{ $t('settings.codexToggleHint') }}</span>
-          </label>
-        </template>
-
-        <!-- 其他 Provider: 多账号模式 -->
-        <template v-else>
-          <div v-for="(account, idx) in info.accounts" :key="account.id" class="account-item">
-            <div class="account-toggle-row">
-              <label class="toggle-row">
-                <input type="checkbox" v-model="account.enabled" />
-                <span class="toggle-switch"></span>
-                <input
-                  class="account-label-input"
-                  v-model="account.label"
-                  :placeholder="$t('settings.accountLabelPlaceholder')"
-                />
-              </label>
-              <!-- 测试连接：调真实 fetchUsage 验证 key；仅启用且 API Key 模式的账户显示 -->
-              <button
-                v-if="account.enabled && account.authMode !== 'weblogin'"
-                class="test-conn-btn"
-                :class="{
-                  'is-testing': getTestState(info.key, account.id)?.status === 'testing',
-                  'is-success': getTestState(info.key, account.id)?.status === 'success',
-                  'is-failed': getTestState(info.key, account.id)?.status === 'failed',
-                }"
-                :disabled="getTestState(info.key, account.id)?.status === 'testing'"
-                :title="testTitle(info.key, account.id)"
-                @click="testConnection(info, account)"
-              >
-                <svg v-if="getTestState(info.key, account.id)?.status === 'testing'" class="spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                </svg>
-                <svg v-else-if="getTestState(info.key, account.id)?.status === 'success'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                <svg v-else-if="getTestState(info.key, account.id)?.status === 'failed'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-                <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                </svg>
-                <span v-if="getTestState(info.key, account.id)?.status === 'testing'">{{ $t('settings.testing') }}</span>
-                <span v-else-if="getTestState(info.key, account.id)?.status === 'success'">
-                  {{ $t('settings.testSuccess') }} · {{ $t('settings.testLatency', { ms: getTestState(info.key, account.id)?.latencyMs }) }}
-                </span>
-                <span v-else-if="getTestState(info.key, account.id)?.status === 'failed'">
-                  {{ $t('settings.testFailed') }}{{ getTestState(info.key, account.id)?.error ? ' · ' + getTestState(info.key, account.id)?.error : '' }}
-                </span>
-                <span v-else>{{ $t('settings.testConnection') }}</span>
-              </button>
-            </div>
-            <div class="provider-body" v-if="account.enabled">
-              <!-- MiMo: 仅网页登录，无 authMode 切换，无 API Key 输入 -->
-              <div v-if="info.key === 'mimo'" class="web-login-section">
-                <button
-                  class="web-login-btn"
-                  :class="{ active: account.webTokenStatus === 'active' }"
-                  @click="handleMimoWebLogin(account)"
-                >
-                  {{ account.webTokenStatus === 'active'
-                     ? $t('settings.webLoginActive')
-                     : account.webTokenStatus === 'expired'
-                       ? $t('settings.webTokenExpired')
-                       : $t('settings.mimoLoginBtn') }}
-                </button>
-                <button
-                  v-if="account.webTokenStatus === 'active'"
-                  class="web-logout-btn"
-                  @click="handleMimoWebLogout(account)"
-                >
-                  {{ $t('settings.webLogoutBtn') }}
-                </button>
-              </div>
-
-              <!-- 千问 / 百炼 Token Plan: 仅网页登录（控制台 console-login 回传 access token），按站点区域切换控制台 -->
-              <div v-else-if="info.key === 'qwen'" class="web-login-section qoder-section">
-                <div class="qoder-site-row">
-                  <span class="qoder-site-label">{{ $t('settings.siteLabel') }}</span>
-                  <label class="mode-option" :class="{ active: account.region !== 'global' }">
-                    <input type="radio" value="cn" v-model="account.region" />
-                    <span>{{ $t('settings.siteChina') }}</span>
-                  </label>
-                  <label class="mode-option" :class="{ active: account.region === 'global' }">
-                    <input type="radio" value="global" v-model="account.region" />
-                    <span>{{ $t('settings.siteInternational') }}</span>
-                  </label>
-                </div>
-                <div class="qoder-login-row">
-                  <button
-                    class="web-login-btn"
-                    :class="{ active: account.webTokenStatus === 'active' }"
-                    @click="handleQwenWebLogin(account)"
-                  >
-                    {{ account.webTokenStatus === 'active'
-                       ? $t('settings.webLoginActive')
-                       : $t('settings.qwenLoginBtn') }}
-                  </button>
-                  <button
-                    v-if="account.webTokenStatus === 'active'"
-                    class="web-logout-btn"
-                    @click="handleQwenWebLogout(account)"
-                  >
-                    {{ $t('settings.webLogoutBtn') }}
-                  </button>
-                </div>
-                <div class="qwen-login-hint">{{ $t('settings.qwenLoginHint') }}</div>
-              </div>
-
-              <!-- Qoder: 网页登录（session 持久化 Cookie）或手动粘贴捕获 -->
-              <div v-else-if="info.key === 'qoder'" class="web-login-section qoder-section">
-                <div class="qoder-source-row">
-                  <label class="mode-option" :class="{ active: account.qoderCookieSource !== 'manual' }">
-                    <input type="radio" value="session" v-model="account.qoderCookieSource" />
-                    <span>{{ $t('settings.qoderSourceSession') }}</span>
-                  </label>
-                  <label class="mode-option" :class="{ active: account.qoderCookieSource === 'manual' }">
-                    <input type="radio" value="manual" v-model="account.qoderCookieSource" />
-                    <span>{{ $t('settings.qoderSourceManual') }}</span>
-                  </label>
-                </div>
-
-                <template v-if="account.qoderCookieSource !== 'manual'">
-                  <div class="qoder-site-row">
-                    <span class="qoder-site-label">{{ $t('settings.siteLabel') }}</span>
-                    <label class="mode-option" :class="{ active: account.qoderSite !== 'china' }">
-                      <input type="radio" value="international" v-model="account.qoderSite" />
-                      <span>{{ $t('settings.siteInternational') }}</span>
-                    </label>
-                    <label class="mode-option" :class="{ active: account.qoderSite === 'china' }">
-                      <input type="radio" value="china" v-model="account.qoderSite" />
-                      <span>{{ $t('settings.siteChina') }}</span>
-                    </label>
-                  </div>
-                  <div class="qoder-login-row">
-                    <button
-                      class="web-login-btn"
-                      :class="{ active: account.webTokenStatus === 'active' }"
-                      @click="handleQoderWebLogin(account)"
-                    >
-                      {{ account.webTokenStatus === 'active'
-                         ? $t('settings.webLoginActive')
-                         : $t('settings.qoderLoginBtn') }}
-                    </button>
-                    <button
-                      v-if="account.webTokenStatus === 'active'"
-                      class="web-logout-btn"
-                      @click="handleQoderWebLogout(account)"
-                    >
-                      {{ $t('settings.webLogoutBtn') }}
-                    </button>
-                  </div>
-                </template>
-
-                <template v-else>
-                  <textarea
-                    class="form-input qoder-capture-input"
-                    rows="3"
-                    :placeholder="$t('settings.qoderManualPlaceholder')"
-                    v-model="account.qoderManualCapture"
-                    @input="onQoderCaptureInput(account)"
-                    @blur="validateQoderCapture(account)"
-                  ></textarea>
-                  <div v-if="account.qoderParse" class="qoder-parse-hint" :class="{ ok: account.qoderParse.ok }">
-                    <template v-if="account.qoderParse.ok">
-                      {{ $t('settings.qoderManualDetected', { site: qoderSiteName(account.qoderParse.site), n: account.qoderParse.cookieCount ?? 0 }) }}
-                    </template>
-                    <template v-else>{{ $t('settings.qoderManualInvalid') }}</template>
-                  </div>
-                  <div v-else-if="account.qoderHasWebToken && !account.qoderCaptureDirty" class="qoder-parse-hint ok">
-                    {{ $t('settings.qoderManualSaved') }}
-                  </div>
-                </template>
-              </div>
-
-              <!-- StepFun: 网页登录（Oasis Cookie 持久化）或手动粘贴 Oasis-Token -->
-              <div v-else-if="info.key === 'stepfun'" class="web-login-section qoder-section">
-                <!-- 站点区域：国内/海外站账号互不相通，登录地址与数据接口按此切换 -->
-                <div class="qoder-site-row">
-                  <span class="qoder-site-label">{{ $t('settings.siteLabel') }}</span>
-                  <label class="mode-option" :class="{ active: account.region !== 'global' }">
-                    <input type="radio" value="cn" v-model="account.region" />
-                    <span>{{ $t('settings.siteChina') }}</span>
-                  </label>
-                  <label class="mode-option" :class="{ active: account.region === 'global' }">
-                    <input type="radio" value="global" v-model="account.region" />
-                    <span>{{ $t('settings.siteInternational') }}</span>
-                  </label>
-                </div>
-
-                <div class="qoder-source-row">
-                  <label class="mode-option" :class="{ active: account.stepfunCookieSource !== 'manual' }">
-                    <input type="radio" value="session" v-model="account.stepfunCookieSource" />
-                    <span>{{ $t('settings.stepfunSourceSession') }}</span>
-                  </label>
-                  <label class="mode-option" :class="{ active: account.stepfunCookieSource === 'manual' }">
-                    <input type="radio" value="manual" v-model="account.stepfunCookieSource" />
-                    <span>{{ $t('settings.stepfunSourceManual') }}</span>
-                  </label>
-                </div>
-
-                <template v-if="account.stepfunCookieSource !== 'manual'">
-                  <div class="qoder-login-row">
-                    <button
-                      class="web-login-btn"
-                      :class="{ active: account.webTokenStatus === 'active' }"
-                      @click="handleStepfunWebLogin(account)"
-                    >
-                      {{ account.webTokenStatus === 'active'
-                         ? $t('settings.webLoginActive')
-                         : $t('settings.stepfunLoginBtn') }}
-                    </button>
-                    <button
-                      v-if="account.webTokenStatus === 'active'"
-                      class="web-logout-btn"
-                      @click="handleStepfunWebLogout(account)"
-                    >
-                      {{ $t('settings.webLogoutBtn') }}
-                    </button>
-                  </div>
-                </template>
-
-                <template v-else>
-                    <textarea
-                      class="form-input qoder-capture-input"
-                      rows="3"
-                      :placeholder="$t('settings.stepfunManualPlaceholder')"
-                      v-model="account.stepfunManualToken"
-                      @input="onStepfunTokenInput(account)"
-                    ></textarea>
-                    <div v-if="account.stepfunHasWebToken && !account.stepfunTokenDirty" class="qoder-parse-hint ok">
-                      {{ $t('settings.stepfunManualSaved') }}
-                    </div>
-                </template>
-              </div>
-
-              <!-- DeepSeek 认证模式选择 -->
-              <template v-else>
-                <div v-if="info.key === 'deepseek'" class="auth-mode-row">
-                  <label class="mode-option" :class="{ active: account.authMode !== 'weblogin' }" :title="$t('settings.authModeApikeyHint')">
-                    <input type="radio" :value="'apikey'" v-model="account.authMode" />
-                    <span>API Key</span>
-                  </label>
-                  <label class="mode-option" :class="{ active: account.authMode === 'weblogin' }" :title="$t('settings.authModeWebloginHint')">
-                    <input type="radio" :value="'weblogin'" v-model="account.authMode" />
-                    <span>{{ $t('settings.authModeWeblogin') }}</span>
-                  </label>
-                </div>
-
-                <!-- 智谱：站点区域（国内 open.bigmodel.cn / 海外 api.z.ai，账号互不相通） -->
-                <div v-if="info.key === 'zhipu'" class="qoder-site-row">
-                  <span class="qoder-site-label">{{ $t('settings.siteLabel') }}</span>
-                  <label class="mode-option" :class="{ active: account.region !== 'global' }">
-                    <input type="radio" value="cn" v-model="account.region" />
-                    <span>{{ $t('settings.siteChina') }}</span>
-                  </label>
-                  <label class="mode-option" :class="{ active: account.region === 'global' }">
-                    <input type="radio" value="global" v-model="account.region" />
-                    <span>{{ $t('settings.siteInternational') }}</span>
-                  </label>
-                </div>
-
-                <!-- API Key 输入（apikey 模式） -->
-                <div v-if="account.authMode !== 'weblogin'" class="input-group">
-                  <input
-                    :type="account.showKey ? 'text' : 'password'"
-                    class="form-input"
-                    :value="account.apiKeyDirty ? account.apiKey : ''"
-                    :placeholder="account.maskedApiKey || 'API Key'"
-                    @input="onApiKeyInput(account, $event)"
-                  />
-                  <button class="icon-btn eye-btn" @click="account.showKey = !account.showKey">
-                    <svg v-if="account.showKey" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
-                    </svg>
-                    <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  </button>
-                  <button class="icon-btn delete-btn" :title="$t('settings.removeAccount')" @click="removeAccount(info.key, idx)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                  </button>
-                </div>
-
-                <!-- 网页登录按钮（weblogin 模式，仅 DeepSeek） -->
-                <div v-if="info.key === 'deepseek' && account.authMode === 'weblogin'" class="web-login-section">
-                  <button
-                    class="web-login-btn"
-                    :class="{ active: account.webTokenStatus === 'active' }"
-                    @click="handleWebLogin(account)"
-                  >
-                    {{ account.webTokenStatus === 'active'
-                       ? $t('settings.webLoginActive')
-                       : account.webTokenStatus === 'expired'
-                         ? $t('settings.webTokenExpired')
-                         : $t('settings.webLoginBtn') }}
-                  </button>
-                  <button
-                    v-if="account.webTokenStatus === 'active'"
-                    class="web-logout-btn"
-                    @click="handleWebLogout(account)"
-                  >
-                    {{ $t('settings.webLogoutBtn') }}
-                  </button>
-                </div>
-              </template>
-            </div>
+            <input
+              v-model="searchQuery"
+              type="text"
+              class="search-input"
+              :placeholder="$t('settings.searchPlaceholder')"
+            />
+            <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''" :title="$t('settings.searchPlaceholder')">×</button>
           </div>
 
-          <div v-if="info.accounts.length === 0" class="no-accounts">
-            {{ $t('settings.noAccounts') }}
+          <div ref="settingsBodyRef" class="settings-body">
+          <div v-if="searchNoMatch" class="no-match">{{ $t('settings.noMatch') }}</div>
+
+          <template v-else>
+            <div
+              v-if="!searchActive || filteredProviderList.length > 0"
+              class="section-label"
+              :class="{ 'is-collapsed': collapsedSections.has('providers') }"
+              @click="toggleSection('providers')"
+            >
+              <span class="section-toggle">{{ collapsedSections.has('providers') ? '▶' : '▼' }}</span>
+              {{ $t('settings.providerSection') }}
+              <span class="section-count">({{ filteredProviderList.length }})</span>
+            </div>
+
+            <Transition
+              :css="false"
+              @before-enter="collapseBeforeEnter"
+              @enter="collapseEnter"
+              @after-enter="collapseAfterEnter"
+              @enter-cancelled="collapseReset"
+              @before-leave="collapseBeforeLeave"
+              @leave="collapseLeave"
+              @after-leave="collapseAfterLeave"
+              @leave-cancelled="collapseReset"
+            >
+              <div v-if="!collapsedSections.has('providers')" class="section-collapse">
+                <div class="provider-grid">
+                  <button
+                    v-for="info in filteredProviderList"
+                    :key="info.key"
+                    type="button"
+                    class="provider-tile"
+                    @click="openProvider(info.key)"
+                  >
+                    <ProviderLogo :provider-key="info.key" />
+                    <span class="provider-tile-name">{{ $t(`providers.${info.key}`) }}</span>
+                  </button>
+                </div>
+              </div>
+            </Transition>
+
+            <div
+              v-if="!searchActive || filteredGeneralKeys.size > 0"
+              class="section-label"
+              :class="{ 'is-collapsed': collapsedSections.has('general') }"
+              @click="toggleSection('general')"
+            >
+              <span class="section-toggle">{{ collapsedSections.has('general') ? '▶' : '▼' }}</span>
+              {{ $t('settings.generalSection') }}
+            </div>
+
+            <Transition
+              :css="false"
+              @before-enter="collapseBeforeEnter"
+              @enter="collapseEnter"
+              @after-enter="collapseAfterEnter"
+              @enter-cancelled="collapseReset"
+              @before-leave="collapseBeforeLeave"
+              @leave="collapseLeave"
+              @after-leave="collapseAfterLeave"
+              @leave-cancelled="collapseReset"
+            >
+              <div v-if="!collapsedSections.has('general')" class="section-collapse">
+
+                <div v-if="filteredGeneralKeys.size > 0" class="settings-card">
+                  <div v-if="filteredGeneralKeys.has('refreshInterval')" class="form-group">
+                    <label class="form-label">{{ $t('settings.refreshInterval') }}</label>
+                    <select v-model="refreshInterval" class="form-select">
+                      <option value="60">{{ $t('settings.interval1m') }}</option>
+                      <option value="120">{{ $t('settings.interval2m') }}</option>
+                      <option value="300">{{ $t('settings.interval5m') }}</option>
+                      <option value="600">{{ $t('settings.interval10m') }}</option>
+                      <option value="1800">{{ $t('settings.interval30m') }}</option>
+                    </select>
+                  </div>
+                  <div v-if="filteredGeneralKeys.has('popupTrigger')" class="form-group">
+                    <label class="form-label">{{ $t('settings.popupTriggerLabel') }}</label>
+                    <select v-model="popupTrigger" class="form-select">
+                      <option value="hover">{{ $t('settings.popupTriggerHover') }}</option>
+                      <option value="click">{{ $t('settings.popupTriggerClick') }}</option>
+                    </select>
+                  </div>
+                  <div v-if="filteredGeneralKeys.has('trayDisplayRule')" class="form-group">
+                    <label class="form-label">{{ $t('settings.trayDisplayRule') }}</label>
+                    <select v-model="trayDisplayRule" class="form-select">
+                      <option value="off">{{ $t('settings.trayDisplayOff') }}</option>
+                      <option value="lowest">{{ $t('settings.trayDisplayLowest') }}</option>
+                      <option value="highest">{{ $t('settings.trayDisplayHighest') }}</option>
+                      <option
+                        v-for="opt in accountOptions"
+                        :key="opt.value"
+                        :value="opt.value"
+                      >{{ opt.label }}</option>
+                      <option v-if="disabledSelectedOption" :value="disabledSelectedOption.value">{{ disabledSelectedOption.label }}</option>
+                    </select>
+                  </div>
+                  <div v-if="filteredGeneralKeys.has('language')" class="form-group">
+                    <label class="form-label">{{ $t('settings.language') }}</label>
+                    <select v-model="language" class="form-select">
+                      <option value="zh-CN">中文</option>
+                      <option value="en-US">English</option>
+                    </select>
+                  </div>
+                  <div v-if="filteredGeneralKeys.has('theme')" class="form-group">
+                    <label class="form-label">{{ $t('settings.theme') }}</label>
+                    <select v-model="themePreference" class="form-select">
+                      <option value="light">{{ $t('settings.themeLight') }}</option>
+                      <option value="dark">{{ $t('settings.themeDark') }}</option>
+                      <option value="auto">{{ $t('settings.themeAuto') }}</option>
+                    </select>
+                  </div>
+                  <div v-if="generalTogglesVisible" class="toggle-group">
+                    <!-- 商店版（MSIX）下注册表自启动无效，不提供该开关 -->
+                    <label v-if="filteredGeneralKeys.has('autoStart') && !storeBuild" class="toggle-row">
+                      <input type="checkbox" v-model="autoStart" :disabled="!isPackaged" />
+                      <span class="toggle-switch"></span>
+                      <span class="toggle-label">{{ $t('settings.autoStart') }}</span>
+                      <span v-if="!isPackaged" class="dev-hint">{{ $t('settings.devModeHint') }}</span>
+                    </label>
+                    <label v-if="filteredGeneralKeys.has('memorySavingMode')" class="toggle-row" :title="$t('settings.memorySavingModeHint')">
+                      <input type="checkbox" v-model="memorySavingMode" />
+                      <span class="toggle-switch"></span>
+                      <span class="toggle-label">{{ $t('settings.memorySavingMode') }}</span>
+                    </label>
+                    <label v-if="filteredGeneralKeys.has('rememberPopupPosition')" class="toggle-row" :title="$t('settings.rememberPopupPositionHint')">
+                      <input type="checkbox" v-model="rememberPopupPosition" />
+                      <span class="toggle-switch"></span>
+                      <span class="toggle-label">{{ $t('settings.rememberPopupPosition') }}</span>
+                    </label>
+                    <label v-if="filteredGeneralKeys.has('showEstimatedCost')" class="toggle-row" :title="$t('settings.showEstimatedCostHint')">
+                      <input type="checkbox" v-model="showEstimatedCost" />
+                      <span class="toggle-switch"></span>
+                      <span class="toggle-label">{{ $t('settings.showEstimatedCost') }}</span>
+                    </label>
+                    <label v-if="filteredGeneralKeys.has('autoCheckUpdate') && !storeBuild" class="toggle-row" :title="$t('settings.autoCheckUpdateHint')">
+                      <input type="checkbox" v-model="autoCheckUpdateEnabled" />
+                      <span class="toggle-switch"></span>
+                      <span class="toggle-label">{{ $t('settings.autoCheckUpdate') }}</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div v-if="!searchActive" class="version-section">
+                  <div class="version-left">
+                    <button class="icon-btn github-btn" title="GitHub" @click="openGitHub">
+                      <img src="../assets/github.svg" alt="GitHub" />
+                    </button>
+                    <button class="feedback-link" @click="openFeedback">{{ $t('settings.feedback') }}</button>
+                    <span class="version-text">v{{ appVersion }}</span>
+                  </div>
+                  <!-- 商店版更新由微软商店托管（政策 10.2.5），隐藏应用内更新入口 -->
+                  <button
+                    v-if="!storeBuild"
+                    class="check-update-btn"
+                    :class="{
+                      'update-ready': updateState.phase === 'ready',
+                      'has-update': updateState.phase === 'available'
+                    }"
+                    :disabled="updateState.phase === 'checking' || updateState.phase === 'downloading' || updateState.phase === 'noUpdate' || updateState.phase === 'error'"
+                    @click="handleUpdateClick"
+                  >
+                    <template v-if="updateState.phase === 'checking'">{{ $t('settings.checkingUpdate') }}</template>
+                    <template v-else-if="updateState.phase === 'downloading'">{{ $t('settings.downloading', { percent: updateState.progress ?? 0 }) }}</template>
+                    <template v-else-if="updateState.phase === 'ready'">{{ $t('settings.restartToUpdate') }}</template>
+                    <template v-else-if="updateState.phase === 'available'">{{ $t('settings.updateAvailable', { version: updateState.version }) }}</template>
+                    <template v-else-if="updateState.phase === 'noUpdate'">{{ $t('settings.noUpdate') }}</template>
+                    <template v-else-if="updateState.phase === 'error'">{{ $t('settings.updateFailed') }}</template>
+                    <template v-else>{{ $t('settings.checkUpdate') }}</template>
+                  </button>
+                </div>
+              </div>
+            </Transition>
+          </template>
           </div>
-        </template>
-      </div>
-      </div>
+        </div>
       </Transition>
-
-      <div
-        v-if="!searchActive || filteredGeneralKeys.size > 0"
-        class="section-label"
-        :class="{ 'is-collapsed': collapsedSections.has('general') }"
-        @click="toggleSection('general')"
-      >
-        <span class="section-toggle">{{ collapsedSections.has('general') ? '▶' : '▼' }}</span>
-        {{ $t('settings.generalSection') }}
-      </div>
-
-      <Transition
-        :css="false"
-        @before-enter="collapseBeforeEnter"
-        @enter="collapseEnter"
-        @after-enter="collapseAfterEnter"
-        @enter-cancelled="collapseReset"
-        @before-leave="collapseBeforeLeave"
-        @leave="collapseLeave"
-        @after-leave="collapseAfterLeave"
-        @leave-cancelled="collapseReset"
-      >
-      <div v-if="!collapsedSections.has('general')" class="section-collapse">
-
-      <div v-if="filteredGeneralKeys.size > 0" class="settings-card">
-        <div v-if="filteredGeneralKeys.has('refreshInterval')" class="form-group">
-          <label class="form-label">{{ $t('settings.refreshInterval') }}</label>
-          <select v-model="refreshInterval" class="form-select">
-            <option value="60">{{ $t('settings.interval1m') }}</option>
-            <option value="120">{{ $t('settings.interval2m') }}</option>
-            <option value="300">{{ $t('settings.interval5m') }}</option>
-            <option value="600">{{ $t('settings.interval10m') }}</option>
-            <option value="1800">{{ $t('settings.interval30m') }}</option>
-          </select>
-        </div>
-        <div v-if="filteredGeneralKeys.has('popupTrigger')" class="form-group">
-          <label class="form-label">{{ $t('settings.popupTriggerLabel') }}</label>
-          <select v-model="popupTrigger" class="form-select">
-            <option value="hover">{{ $t('settings.popupTriggerHover') }}</option>
-            <option value="click">{{ $t('settings.popupTriggerClick') }}</option>
-          </select>
-        </div>
-        <div v-if="filteredGeneralKeys.has('trayDisplayRule')" class="form-group">
-          <label class="form-label">{{ $t('settings.trayDisplayRule') }}</label>
-          <select v-model="trayDisplayRule" class="form-select">
-            <option value="off">{{ $t('settings.trayDisplayOff') }}</option>
-            <option value="lowest">{{ $t('settings.trayDisplayLowest') }}</option>
-            <option value="highest">{{ $t('settings.trayDisplayHighest') }}</option>
-            <option
-              v-for="opt in accountOptions"
-              :key="opt.value"
-              :value="opt.value"
-            >{{ opt.label }}</option>
-            <option v-if="disabledSelectedOption" :value="disabledSelectedOption.value">{{ disabledSelectedOption.label }}</option>
-          </select>
-        </div>
-        <div v-if="filteredGeneralKeys.has('language')" class="form-group">
-          <label class="form-label">{{ $t('settings.language') }}</label>
-          <select v-model="language" class="form-select">
-            <option value="zh-CN">中文</option>
-            <option value="en-US">English</option>
-          </select>
-        </div>
-        <div v-if="filteredGeneralKeys.has('theme')" class="form-group">
-          <label class="form-label">{{ $t('settings.theme') }}</label>
-          <select v-model="themePreference" class="form-select">
-            <option value="light">{{ $t('settings.themeLight') }}</option>
-            <option value="dark">{{ $t('settings.themeDark') }}</option>
-            <option value="auto">{{ $t('settings.themeAuto') }}</option>
-          </select>
-        </div>
-        <div v-if="generalTogglesVisible" class="toggle-group">
-          <!-- 商店版（MSIX）下注册表自启动无效，不提供该开关 -->
-          <label v-if="filteredGeneralKeys.has('autoStart') && !storeBuild" class="toggle-row">
-            <input type="checkbox" v-model="autoStart" :disabled="!isPackaged" />
-            <span class="toggle-switch"></span>
-            <span class="toggle-label">{{ $t('settings.autoStart') }}</span>
-            <span v-if="!isPackaged" class="dev-hint">{{ $t('settings.devModeHint') }}</span>
-          </label>
-          <label v-if="filteredGeneralKeys.has('memorySavingMode')" class="toggle-row" :title="$t('settings.memorySavingModeHint')">
-            <input type="checkbox" v-model="memorySavingMode" />
-            <span class="toggle-switch"></span>
-            <span class="toggle-label">{{ $t('settings.memorySavingMode') }}</span>
-          </label>
-          <label v-if="filteredGeneralKeys.has('rememberPopupPosition')" class="toggle-row" :title="$t('settings.rememberPopupPositionHint')">
-            <input type="checkbox" v-model="rememberPopupPosition" />
-            <span class="toggle-switch"></span>
-            <span class="toggle-label">{{ $t('settings.rememberPopupPosition') }}</span>
-          </label>
-          <label v-if="filteredGeneralKeys.has('showEstimatedCost')" class="toggle-row" :title="$t('settings.showEstimatedCostHint')">
-            <input type="checkbox" v-model="showEstimatedCost" />
-            <span class="toggle-switch"></span>
-            <span class="toggle-label">{{ $t('settings.showEstimatedCost') }}</span>
-          </label>
-          <label v-if="filteredGeneralKeys.has('autoCheckUpdate') && !storeBuild" class="toggle-row" :title="$t('settings.autoCheckUpdateHint')">
-            <input type="checkbox" v-model="autoCheckUpdateEnabled" />
-            <span class="toggle-switch"></span>
-            <span class="toggle-label">{{ $t('settings.autoCheckUpdate') }}</span>
-          </label>
-        </div>
-      </div>
-
-      <div v-if="!searchActive" class="version-section">
-        <div class="version-left">
-          <button class="icon-btn github-btn" title="GitHub" @click="openGitHub">
-            <img src="../assets/github.svg" alt="GitHub" />
-          </button>
-          <button class="feedback-link" @click="openFeedback">{{ $t('settings.feedback') }}</button>
-          <span class="version-text">v{{ appVersion }}</span>
-        </div>
-        <!-- 商店版更新由微软商店托管（政策 10.2.5），隐藏应用内更新入口 -->
-        <button
-          v-if="!storeBuild"
-          class="check-update-btn"
-          :class="{
-            'update-ready': updateState.phase === 'ready',
-            'has-update': updateState.phase === 'available'
-          }"
-          :disabled="updateState.phase === 'checking' || updateState.phase === 'downloading' || updateState.phase === 'noUpdate' || updateState.phase === 'error'"
-          @click="handleUpdateClick"
-        >
-          <template v-if="updateState.phase === 'checking'">{{ $t('settings.checkingUpdate') }}</template>
-          <template v-else-if="updateState.phase === 'downloading'">{{ $t('settings.downloading', { percent: updateState.progress ?? 0 }) }}</template>
-          <template v-else-if="updateState.phase === 'ready'">{{ $t('settings.restartToUpdate') }}</template>
-          <template v-else-if="updateState.phase === 'available'">{{ $t('settings.updateAvailable', { version: updateState.version }) }}</template>
-          <template v-else-if="updateState.phase === 'noUpdate'">{{ $t('settings.noUpdate') }}</template>
-          <template v-else-if="updateState.phase === 'error'">{{ $t('settings.updateFailed') }}</template>
-          <template v-else>{{ $t('settings.checkUpdate') }}</template>
-        </button>
-      </div>
-      </div>
-      </Transition>
-      </template>
     </div>
 
     <footer class="footer">
@@ -538,44 +237,17 @@
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AppConfig, ProviderTypeConfig, AccountConfig, UpdateStatus } from '../types'
+import type { AccountInfo, ProviderInfo, ProviderSettingsActions, TestState } from '../components/settings/provider-settings-types'
+import ProviderLogo from '../components/settings/ProviderLogo.vue'
+import ProviderSettingsPanel from '../components/settings/ProviderSettingsPanel.vue'
 import { useTheme } from '../composables/useTheme'
 import { maskApiKey } from '@/shared/mask'
 
-defineEmits<{ 'go-back': [] }>()
+const emit = defineEmits<{ 'go-back': [] }>()
 const props = defineProps<{ autoCheckUpdate?: boolean }>()
 
 const { t, locale } = useI18n()
 const { preference: themePreference, setTheme } = useTheme()
-
-interface AccountInfo {
-  id: string
-  label: string
-  enabled: boolean
-  apiKey: string
-  maskedApiKey: string
-  showKey: boolean
-  budget?: number
-  authMode: 'apikey' | 'weblogin'
-  webTokenStatus: 'none' | 'active' | 'expired'
-  apiKeyDirty: boolean
-  qoderCookieSource?: 'session' | 'manual'
-  qoderSite?: 'international' | 'china'
-  qoderManualCapture: string
-  qoderCaptureDirty: boolean
-  qoderHasWebToken: boolean
-  qoderParse?: { ok: boolean; site?: string; cookieCount?: number }
-  stepfunCookieSource?: 'session' | 'manual'
-  stepfunManualToken: string
-  stepfunTokenDirty: boolean
-  stepfunHasWebToken: boolean
-  region?: 'cn' | 'global'
-}
-
-interface ProviderInfo {
-  key: string
-  label: string
-  accounts: AccountInfo[]
-}
 
 const providerList = ref<ProviderInfo[]>([])
 const refreshInterval = ref('300')
@@ -652,6 +324,58 @@ const searchNoMatch = computed(() =>
   searchActive.value && filteredProviderList.value.length === 0 && filteredGeneralKeys.value.size === 0,
 )
 
+/**
+ * 服务商配置详情页：设置页内的二级页面（非顶层视图），activeProviderKey 为空时显示列表页。
+ * 详情页只切换渲染，providerList 等状态与自动保存逻辑不迁移。
+ */
+const activeProviderKey = ref<string | null>(null)
+const activeInfo = computed<ProviderInfo | null>(() =>
+  providerList.value.find(p => p.key === activeProviderKey.value) ?? null,
+)
+// 进入详情页前记下列表页的滚动位置，返回时恢复
+let listScrollTop = 0
+
+function openProvider(key: string) {
+  listScrollTop = settingsBodyRef.value?.scrollTop ?? 0
+  activeProviderKey.value = key
+}
+
+function closeProvider() {
+  activeProviderKey.value = null
+  // 列表页在切换时重新挂载，等 DOM 更新后再恢复滚动位置
+  nextTick(() => {
+    if (settingsBodyRef.value) settingsBodyRef.value.scrollTop = listScrollTop
+  })
+}
+
+function onBackClick() {
+  if (activeProviderKey.value) closeProvider()
+  else emit('go-back')
+}
+
+// 下传给详情页的动作：全部落在本组件，改动 providerList 即触发自动保存
+const panelActions: ProviderSettingsActions = {
+  addAccount,
+  removeAccount,
+  getTestState,
+  testTitle,
+  testConnection,
+  deepseekWebLogin: handleWebLogin,
+  deepseekWebLogout: handleWebLogout,
+  mimoWebLogin: handleMimoWebLogin,
+  mimoWebLogout: handleMimoWebLogout,
+  qoderWebLogin: handleQoderWebLogin,
+  qoderWebLogout: handleQoderWebLogout,
+  qwenWebLogin: handleQwenWebLogin,
+  qwenWebLogout: handleQwenWebLogout,
+  stepfunWebLogin: handleStepfunWebLogin,
+  stepfunWebLogout: handleStepfunWebLogout,
+  onApiKeyInput,
+  onQoderCaptureInput,
+  validateQoderCapture,
+  qoderSiteName,
+  onStepfunTokenInput,
+}
 const accountOptions = computed(() => {
   const options: { value: string; label: string }[] = []
   for (const info of providerList.value) {
@@ -710,7 +434,6 @@ function addAccount(providerKey: string) {
     enabled: true,
     apiKey: '',
     maskedApiKey: '',
-    showKey: false,
     authMode: (providerKey === 'mimo' || providerKey === 'codex' || providerKey === 'qoder' || providerKey === 'stepfun' || providerKey === 'qwen') ? 'weblogin' : 'apikey',
     webTokenStatus: 'none',
     apiKeyDirty: false,
@@ -728,10 +451,27 @@ function addAccount(providerKey: string) {
   provider.accounts.push(account)
 }
 
-function removeAccount(providerKey: string, index: number) {
+/**
+ * 删除账号：已登录的网页登录账号先登出（清登录态与 session Cookie），
+ * 无论登出是否成功都按 id 移除，避免残留一个无法清理的账号。
+ */
+async function removeAccount(providerKey: string, accountId: string) {
   const provider = providerList.value.find(p => p.key === providerKey)
   if (!provider) return
-  provider.accounts.splice(index, 1)
+  const account = provider.accounts.find(a => a.id === accountId)
+  if (!account) return
+  if (account.webTokenStatus === 'active') {
+    const logout = LOGOUT_HANDLERS[providerKey]
+    if (logout) {
+      try {
+        await logout(account)
+      } catch {
+        // 登出失败也继续移除
+      }
+    }
+  }
+  const index = provider.accounts.findIndex(a => a.id === accountId)
+  if (index !== -1) provider.accounts.splice(index, 1)
 }
 
 /**
@@ -772,13 +512,6 @@ function collapseReset(el: Element) {
   const e = el as HTMLElement
   e.style.height = ''
   e.style.overflow = ''
-}
-
-interface TestState {
-  status: 'idle' | 'testing' | 'success' | 'failed'
-  error?: string
-  latencyMs?: number
-  sample?: { used: number; total: number; level: string }
 }
 
 // 测试连接状态：键为 "providerKey:accountId"
@@ -964,6 +697,14 @@ async function handleStepfunWebLogout(account: AccountInfo) {
   if (freshConfig) currentConfig.value = freshConfig
 }
 
+const LOGOUT_HANDLERS: Record<string, (account: AccountInfo) => Promise<void>> = {
+  deepseek: handleWebLogout,
+  mimo: handleMimoWebLogout,
+  qoder: handleQoderWebLogout,
+  qwen: handleQwenWebLogout,
+  stepfun: handleStepfunWebLogout,
+}
+
 function onStepfunTokenInput(account: AccountInfo) {
   account.stepfunTokenDirty = true
   scheduleSave()
@@ -1063,7 +804,6 @@ onMounted(async () => {
       // 只有用户主动输入新值（onApiKeyInput）才会填入 apiKey 并参与保存。
       maskedApiKey: account.apiKey ?? '',
       apiKey: '',
-      showKey: false,
       budget: (account as any).budget ?? undefined,
       authMode: (key === 'mimo' || key === 'codex' || key === 'qoder' || key === 'stepfun' || key === 'qwen') ? (account.authMode ?? 'weblogin') : (account.authMode ?? 'apikey'),
       webTokenStatus: key === 'mimo'
@@ -1097,7 +837,6 @@ onMounted(async () => {
         enabled: false,
         apiKey: '',
         maskedApiKey: '',
-        showKey: false,
         authMode: 'weblogin',
         webTokenStatus: 'none',
         apiKeyDirty: false,
@@ -1325,13 +1064,71 @@ function handleUpdateClick() {
   height: 100%;
 }
 
+/* 列表页与详情页叠放在同一容器内左右滑动，容器本身不滚动 */
+.settings-stage {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* 列表页内的滚动区（搜索框固定在其上方，不随内容滚动） */
 .settings-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
-.settings-body::-webkit-scrollbar { width: 3px; }
-.settings-body::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+.settings-page {
+  position: absolute;
+  inset: 0;
+}
+
+.settings-page.is-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-body::-webkit-scrollbar,
+.settings-page.is-detail::-webkit-scrollbar { width: 3px; }
+.settings-body::-webkit-scrollbar-thumb,
+.settings-page.is-detail::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+
+.settings-page.is-detail {
+  padding: 10px 10px 0;
+}
+
+/* 标题切换：旧标题快速淡出，新标题稍延迟淡入 */
+.header-fade-enter-active {
+  transition: opacity 0.14s ease 0.05s;
+}
+.header-fade-leave-active {
+  transition: opacity 0.08s ease;
+}
+.header-fade-enter-from,
+.header-fade-leave-to {
+  opacity: 0;
+}
+
+/* 页面切换过渡：两页纯水平对滑，进入右进左出，返回反向 */
+.slide-left-enter-active,
+.slide-right-enter-active,
+.slide-left-leave-active,
+.slide-right-leave-active {
+  transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.slide-left-enter-from { transform: translateX(100%); }
+.slide-left-leave-to { transform: translateX(-100%); }
+.slide-right-enter-from { transform: translateX(-100%); }
+.slide-right-leave-to { transform: translateX(100%); }
+
+.header-provider {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
 .settings-card {
   background: var(--bg-settings-card);
@@ -1429,268 +1226,43 @@ function handleUpdateClick() {
   font-style: italic;
 }
 
-.provider-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
+/* 服务商入口：两列网格，点击进入该服务商的配置详情页 */
+.provider-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
 }
 
-.provider-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-heading);
-}
-
-.add-account-btn {
-  display: inline-flex;
-  align-items: center;
-  font-size: 11px;
-  padding: 2px 6px;
-  border: 1px dashed var(--border-default);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  opacity: 0;
-  transition: all 0.2s ease;
-}
-.provider-header:hover .add-account-btn,
-.add-account-btn:focus-visible {
-  opacity: 1;
-}
-.provider-header .add-account-btn:hover,
-.add-account-btn:focus-visible {
-  border-color: #3B82F6;
-  color: #3B82F6;
-}
-
-.account-item {
-  border-top: 1px solid var(--border-subtle);
-  padding-top: 8px;
-  margin-top: 8px;
-}
-
-.account-toggle-row {
+.provider-tile {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.account-toggle-row .toggle-row {
-  flex: 1;
   min-width: 0;
-}
-
-.account-label-input {
-  flex: 1;
-  font-size: 12px;
-  color: var(--text-secondary);
-  background: transparent;
+  padding: 8px 10px;
   border: none;
-  outline: none;
-  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--bg-settings-card);
+  color: var(--text-heading);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
 }
-.account-label-input::placeholder {
-  color: var(--text-tertiary);
+.provider-tile:hover {
+  background: var(--bg-card-hover);
+  box-shadow: var(--shadow-card-hover);
+}
+.provider-tile:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
 }
 
-.test-conn-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-  max-width: 45%;
-  font-size: 11px;
-  padding: 2px 8px;
-  border: 1px solid var(--border-default);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: all 0.15s;
+.provider-tile-name {
   overflow: hidden;
   white-space: nowrap;
-}
-.test-conn-btn > span {
-  overflow: hidden;
   text-overflow: ellipsis;
-}
-.test-conn-btn:hover:not(:disabled):not(.is-testing):not(.is-success):not(.is-failed) {
-  border-color: #3B82F6;
-  color: #3B82F6;
-}
-.test-conn-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-.test-conn-btn.is-testing {
-  color: var(--text-tertiary);
-}
-.test-conn-btn.is-success {
-  color: #22C55E;
-  border-color: #22C55E;
-  background: rgba(34, 197, 94, 0.08);
-}
-.test-conn-btn.is-failed {
-  color: #ef4444;
-  border-color: #ef4444;
-  background: rgba(239, 68, 68, 0.08);
-}
-.test-conn-btn .spin {
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.provider-body {
-  margin-top: 8px;
-}
-
-.input-group {
-  display: flex;
-  gap: 4px;
-}
-
-.eye-btn {
-  border: 1px solid var(--border-default) !important;
-  padding: 4px 6px !important;
-}
-
-.delete-btn {
-  border: 1px solid var(--border-default) !important;
-  padding: 4px 6px !important;
-  color: var(--text-tertiary);
-}
-.delete-btn:hover {
-  color: #ef4444;
-}
-
-.no-accounts {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  text-align: center;
-  padding: 8px 0;
-}
-
-.auth-mode-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-
-.mode-option {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--text-tertiary);
-  padding: 3px 8px;
-  border: 1px solid var(--border-default);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.mode-option.active {
-  border-color: #3B82F6;
-  color: #3B82F6;
-}
-
-.mode-option input[type="radio"] {
-  margin: 0;
-  accent-color: #3B82F6;
-}
-
-.web-login-section {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.qoder-section {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.qoder-source-row,
-.qoder-site-row,
-.qoder-login-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 6px;
-}
-
-.qoder-site-label {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  margin-right: 2px;
-}
-
-.qoder-capture-input {
-  width: 100%;
-  resize: vertical;
-  font-size: 11px;
-  line-height: 1.5;
-  font-family: inherit;
-  min-height: 0;
-}
-
-.qoder-parse-hint {
-  font-size: 10px;
-  color: #dc2626;
-  margin-top: -2px;
-}
-
-.qoder-parse-hint.ok {
-  color: #16a34a;
-}
-
-/* 千问登录说明：中性提示色（非校验错误） */
-.qwen-login-hint {
-  font-size: 10px;
-  color: var(--text-secondary);
-  margin-top: -2px;
-}
-
-.web-login-btn {
-  font-size: 11px;
-  padding: 4px 12px;
-  border: 1px solid var(--border-default);
-  border-radius: 4px;
-  background: var(--bg-input);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.web-login-btn:hover {
-  border-color: #3B82F6;
-  color: #3B82F6;
-}
-
-.web-login-btn.active {
-  border-color: #22C55E;
-  color: #22C55E;
-}
-
-.web-logout-btn {
-  font-size: 11px;
-  padding: 4px 8px;
-  border: 1px solid var(--border-default);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.web-logout-btn:hover {
-  color: #ef4444;
-  border-color: #ef4444;
 }
 
 .save-status { font-size: 11px; color: #4CAF50; }
